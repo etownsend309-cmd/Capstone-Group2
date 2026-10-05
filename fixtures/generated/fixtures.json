@@ -1,0 +1,36 @@
+{
+  "fixtures": [
+    {
+      "id": "clean",
+      "file": "clean-agreement.pdf",
+      "category": "clean",
+      "expectedText": "clean-agreement.expected.txt",
+      "description": "Single-column synthetic master services agreement with a normal machine-generated text layer.",
+      "expectation": "extractable"
+    },
+    {
+      "id": "multicolumn",
+      "file": "multicolumn-agreement.pdf",
+      "category": "difficult",
+      "expectedText": "multicolumn-agreement.expected.txt",
+      "description": "Two-column supplemental terms whose content stream is written in visual row order, so stream order interleaves the columns. Ground truth is correct column-by-column reading order.",
+      "expectation": "extractable"
+    },
+    {
+      "id": "scanned",
+      "file": "scanned-agreement.pdf",
+      "category": "scanned",
+      "expectedText": "scanned-agreement.expected.txt",
+      "description": "Image-only addendum rendered from known synthetic text. Has no text layer by design, so PDF.js must report it as unusable.",
+      "expectation": "no-text-layer"
+    },
+    {
+      "id": "corrupt",
+      "file": "corrupt-agreement.pdf",
+      "category": "unknown",
+      "expectedText": null,
+      "description": "Damaged PDF body and cross-reference table, used to verify visible failure handling.",
+      "expectation": "unparseable"
+    }
+  ]
+}

@@ -1,0 +1,43 @@
+SUPPLEMENTAL TERMS - TWO COLUMN FORMAT
+A. DEFINITIONS
+"Authorized User" means an employee or
+contractor of Customer permitted to access the
+Services under the applicable SOW.
+"Deliverable" means any report, dataset, model
+artifact, or documentation identified as a
+deliverable in an SOW.
+"Service Window" means the recurring
+maintenance period from 02:00 to 05:00 Eastern
+Time each Sunday.
+B. SERVICE LEVELS
+Provider targets monthly availability of
+ninety-nine and five tenths percent (99.5%)
+measured outside the Service Window.
+If availability falls below the target in two
+consecutive months, Customer may request a
+service credit equal to five percent (5%) of the
+monthly fee.
+Service credits are the sole remedy for
+availability shortfalls and must be requested
+within thirty (30) days of the affected month.
+
+C. DATA HANDLING
+Provider shall process Customer data only to
+deliver the Services and shall not sell or share
+that data with unaffiliated third parties.
+Provider shall delete or return Customer data
+within sixty (60) days after termination, except for
+copies retained in routine backups.
+Customer remains responsible for the accuracy
+and lawfulness of the data it submits to the
+Services.
+D. CHANGE CONTROL
+Either Party may propose a change to an SOW
+by submitting a written change request
+describing the scope and fee impact.
+A change request becomes binding only when
+signed by both Parties. Work continues under the
+existing SOW until then.
+This two column sample exists to test whether an
+extractor reads each column in order or
+interleaves the lines across the page.

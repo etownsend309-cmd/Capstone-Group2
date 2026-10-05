@@ -1,0 +1,309 @@
+{
+  "generatedAt": "2026-10-05T19:33:13.932Z",
+  "library": {
+    "name": "pdfjs-dist",
+    "version": "6.3.289"
+  },
+  "runtime": {
+    "node": "v22.22.2",
+    "platform": "darwin",
+    "arch": "arm64"
+  },
+  "settings": {
+    "repeats": 3,
+    "lowTextThresholdPerPage": 50,
+    "fixturesDir": "fixtures/generated"
+  },
+  "notes": [
+    "Latency is the fastest of the repeated runs, measured in Node against the PDF.js legacy build.",
+    "Total time covers parsing plus both reconstructions; strategy time covers reconstruction only.",
+    "Character count is a volume measure and does not prove correct reading order.",
+    "Coverage is order-independent token recall. Order is a longest-common-subsequence ratio; a large gap between the two indicates a reading-order problem.",
+    "No result in this file is hand-written. Re-run `npm run benchmark` to regenerate it."
+  ],
+  "fixtures": [
+    {
+      "id": "clean",
+      "file": "clean-agreement.pdf",
+      "category": "clean",
+      "description": "Single-column synthetic master services agreement with a normal machine-generated text layer.",
+      "expectation": "extractable",
+      "sizeBytes": 4809,
+      "pageCount": 2,
+      "overallStatus": "success",
+      "totalMs": 7.79,
+      "looksScanned": false,
+      "error": null,
+      "documentWarnings": [],
+      "fallbackRecommended": false,
+      "fallbackReasons": [],
+      "matchedExpectation": true,
+      "strategies": [
+        {
+          "strategy": "content-order",
+          "strategyName": "Strategy A - content-stream order",
+          "status": "success",
+          "reconstructionMs": 0.01,
+          "pageCount": 2,
+          "characterCount": 3863,
+          "printableCharacterCount": 3269,
+          "charactersPerPage": [
+            2960,
+            903
+          ],
+          "emptyPages": [],
+          "pagesWithText": 2,
+          "fallbackRecommended": false,
+          "fallbackReasons": [],
+          "warnings": [],
+          "groundTruth": {
+            "tokenCoverage": 1,
+            "sequenceSimilarity": 1,
+            "expectedTokens": 596,
+            "extractedTokens": 596,
+            "readingOrderSuspect": false
+          }
+        },
+        {
+          "strategy": "coordinate-order",
+          "strategyName": "Strategy B - coordinate reconstruction",
+          "status": "success",
+          "reconstructionMs": 1.08,
+          "pageCount": 2,
+          "characterCount": 3863,
+          "printableCharacterCount": 3269,
+          "charactersPerPage": [
+            2960,
+            903
+          ],
+          "emptyPages": [],
+          "pagesWithText": 2,
+          "fallbackRecommended": false,
+          "fallbackReasons": [],
+          "warnings": [],
+          "groundTruth": {
+            "tokenCoverage": 1,
+            "sequenceSimilarity": 1,
+            "expectedTokens": 596,
+            "extractedTokens": 596,
+            "readingOrderSuspect": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "multicolumn",
+      "file": "multicolumn-agreement.pdf",
+      "category": "difficult",
+      "description": "Two-column supplemental terms whose content stream is written in visual row order, so stream order interleaves the columns. Ground truth is correct column-by-column reading order.",
+      "expectation": "extractable",
+      "sizeBytes": 3228,
+      "pageCount": 2,
+      "overallStatus": "success",
+      "totalMs": 4.31,
+      "looksScanned": false,
+      "error": null,
+      "documentWarnings": [],
+      "fallbackRecommended": false,
+      "fallbackReasons": [],
+      "matchedExpectation": true,
+      "strategies": [
+        {
+          "strategy": "content-order",
+          "strategyName": "Strategy A - content-stream order",
+          "status": "success",
+          "reconstructionMs": 0.01,
+          "pageCount": 2,
+          "characterCount": 1585,
+          "printableCharacterCount": 1339,
+          "charactersPerPage": [
+            813,
+            772
+          ],
+          "emptyPages": [],
+          "pagesWithText": 2,
+          "fallbackRecommended": false,
+          "fallbackReasons": [],
+          "warnings": [],
+          "groundTruth": {
+            "tokenCoverage": 1,
+            "sequenceSimilarity": 0.606425702811245,
+            "expectedTokens": 249,
+            "extractedTokens": 249,
+            "readingOrderSuspect": true
+          }
+        },
+        {
+          "strategy": "coordinate-order",
+          "strategyName": "Strategy B - coordinate reconstruction",
+          "status": "success",
+          "reconstructionMs": 0.51,
+          "pageCount": 2,
+          "characterCount": 1585,
+          "printableCharacterCount": 1339,
+          "charactersPerPage": [
+            813,
+            772
+          ],
+          "emptyPages": [],
+          "pagesWithText": 2,
+          "fallbackRecommended": false,
+          "fallbackReasons": [],
+          "warnings": [],
+          "groundTruth": {
+            "tokenCoverage": 1,
+            "sequenceSimilarity": 1,
+            "expectedTokens": 249,
+            "extractedTokens": 249,
+            "readingOrderSuspect": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "scanned",
+      "file": "scanned-agreement.pdf",
+      "category": "scanned",
+      "description": "Image-only addendum rendered from known synthetic text. Has no text layer by design, so PDF.js must report it as unusable.",
+      "expectation": "no-text-layer",
+      "sizeBytes": 148947,
+      "pageCount": 1,
+      "overallStatus": "failed",
+      "totalMs": 31.84,
+      "looksScanned": true,
+      "error": null,
+      "documentWarnings": [
+        "1 of 1 page(s) carry an image but no text layer. PDF.js reads existing text; it does not perform OCR, so a scanned document yields nothing."
+      ],
+      "fallbackRecommended": true,
+      "fallbackReasons": [
+        "scanned-no-text-layer",
+        "all-pages-empty"
+      ],
+      "matchedExpectation": true,
+      "strategies": [
+        {
+          "strategy": "content-order",
+          "strategyName": "Strategy A - content-stream order",
+          "status": "failed",
+          "reconstructionMs": 0,
+          "pageCount": 1,
+          "characterCount": 0,
+          "printableCharacterCount": 0,
+          "charactersPerPage": [
+            0
+          ],
+          "emptyPages": [
+            1
+          ],
+          "pagesWithText": 0,
+          "fallbackRecommended": true,
+          "fallbackReasons": [
+            "scanned-no-text-layer",
+            "all-pages-empty"
+          ],
+          "warnings": [
+            "Extraction returned zero characters across every page."
+          ],
+          "groundTruth": null
+        },
+        {
+          "strategy": "coordinate-order",
+          "strategyName": "Strategy B - coordinate reconstruction",
+          "status": "failed",
+          "reconstructionMs": 0,
+          "pageCount": 1,
+          "characterCount": 0,
+          "printableCharacterCount": 0,
+          "charactersPerPage": [
+            0
+          ],
+          "emptyPages": [
+            1
+          ],
+          "pagesWithText": 0,
+          "fallbackRecommended": true,
+          "fallbackReasons": [
+            "scanned-no-text-layer",
+            "all-pages-empty"
+          ],
+          "warnings": [
+            "Extraction returned zero characters across every page."
+          ],
+          "groundTruth": null
+        }
+      ]
+    },
+    {
+      "id": "corrupt",
+      "file": "corrupt-agreement.pdf",
+      "category": "unknown",
+      "description": "Damaged PDF body and cross-reference table, used to verify visible failure handling.",
+      "expectation": "unparseable",
+      "sizeBytes": 1754,
+      "pageCount": 1,
+      "overallStatus": "failed",
+      "totalMs": 0.54,
+      "looksScanned": false,
+      "error": null,
+      "documentWarnings": [
+        "No text layer and no page images were found. The document may be corrupt, empty, or use an unsupported construction."
+      ],
+      "fallbackRecommended": true,
+      "fallbackReasons": [
+        "all-pages-empty"
+      ],
+      "matchedExpectation": true,
+      "strategies": [
+        {
+          "strategy": "content-order",
+          "strategyName": "Strategy A - content-stream order",
+          "status": "failed",
+          "reconstructionMs": 0,
+          "pageCount": 1,
+          "characterCount": 0,
+          "printableCharacterCount": 0,
+          "charactersPerPage": [
+            0
+          ],
+          "emptyPages": [
+            1
+          ],
+          "pagesWithText": 0,
+          "fallbackRecommended": true,
+          "fallbackReasons": [
+            "all-pages-empty"
+          ],
+          "warnings": [
+            "Extraction returned zero characters across every page."
+          ],
+          "groundTruth": null
+        },
+        {
+          "strategy": "coordinate-order",
+          "strategyName": "Strategy B - coordinate reconstruction",
+          "status": "failed",
+          "reconstructionMs": 0,
+          "pageCount": 1,
+          "characterCount": 0,
+          "printableCharacterCount": 0,
+          "charactersPerPage": [
+            0
+          ],
+          "emptyPages": [
+            1
+          ],
+          "pagesWithText": 0,
+          "fallbackRecommended": true,
+          "fallbackReasons": [
+            "all-pages-empty"
+          ],
+          "warnings": [
+            "Extraction returned zero characters across every page."
+          ],
+          "groundTruth": null
+        }
+      ]
+    }
+  ]
+}
