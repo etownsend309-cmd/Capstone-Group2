@@ -1,0 +1,45 @@
+{
+  "name": "capstone-group2-agreement-review",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Agreement review prototype plus the KAN-402 PDF extraction harness. Client-side only: React, TypeScript, Vite, PDF.js.",
+  "engines": {
+    "node": ">=20.19"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "npm run typecheck && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -p tsconfig.app.json && tsc -p tsconfig.node.json",
+    "fixtures": "node --import tsx/esm scripts/generateFixtures.ts",
+    "benchmark": "node --import tsx/esm scripts/runBenchmark.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "clean:artifacts": "node -e \"require('fs').rmSync('artifacts',{recursive:true,force:true});require('fs').mkdirSync('artifacts')\""
+  },
+  "dependencies": {
+    "pdfjs-dist": "^6.3.289",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.7",
+    "@types/node": "^22.18.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "^5.2.0",
+    "jimp": "^1.6.1",
+    "jsdom": "^30.1.1",
+    "pdf-lib": "^1.17.1",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0",
+    "vite": "^7.3.0",
+    "vitest": "^5.0.0"
+  }
+}

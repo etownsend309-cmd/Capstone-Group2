@@ -1,0 +1,37 @@
+# ---------------------------------------------------------------------------
+# Privacy first: never commit real agreements or anything derived from them.
+# ---------------------------------------------------------------------------
+# Match the contents, not the directory: git will not descend into an excluded
+# directory, so `fixtures/private/` would make the negations below unreachable.
+fixtures/private/*
+!fixtures/private/.gitkeep
+!fixtures/private/README.md
+
+# Locally exported reports may embed contract-derived content.
+artifacts/local/
+*.local.json
+*.local.md
+pdf-extraction-report-*.json
+pdf-extraction-report-*.md
+
+# Node
+node_modules/
+dist/
+.vite/
+*.tsbuildinfo
+
+# Emitted if tsc is ever pointed at the Vite config directly.
+vite.config.js
+vite.config.d.ts
+
+# Test output
+coverage/
+playwright-report/
+test-results/
+blob-report/
+.playwright/
+
+# Editors / OS
+.DS_Store
+.idea/
+*.swp
