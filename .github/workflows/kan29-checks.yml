@@ -24,7 +24,7 @@ jobs:
       - run: npm test -- --maxWorkers=2
       - run: npm run build
       - run: npx playwright install --with-deps chromium
-      - run: npm run test:e2e:landing
+      - run: npm run test:e2e -- tests/e2e/landing.spec.ts tests/e2e/requester-notes.spec.ts --project=chromium
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
