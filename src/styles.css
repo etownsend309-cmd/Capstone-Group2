@@ -180,3 +180,26 @@ main { grid-column: 2; min-width: 0; }
   .intake-layout { grid-template-columns: 1fr; }.form-grid { grid-template-columns: 1fr; }.intake-aside { grid-template-columns: 1fr; }
   .review-body { grid-template-columns: 1fr; }.finding-nav { border-right: 0; border-bottom: 1px solid var(--line); }.finding-nav > button { display: inline-grid; width: 50%; }.manual-add { clear: both; }.report-row { grid-template-columns: minmax(130px, 1fr) 1fr 40px; }.report-row > *:nth-child(4), .report-row > *:nth-child(5) { display: none; }
 }
+
+.requester-profile { padding: 16px 20px; margin-bottom: 24px; }
+.requester-profile label, .revision-upload, .review-completion > label { display: grid; gap: 8px; font-size: 12px; font-weight: 700; }
+.requester-profile input, .review-completion select { max-width: 360px; padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: white; }
+.requester-profile p { color: var(--muted); font-size: 12px; }
+.tracker-table-wrap { overflow-x: auto; }
+.tracker-table { width: 100%; border-collapse: collapse; font-size: 13px; text-align: left; }
+.tracker-table caption { padding: 16px; text-align: left; font-weight: 700; }
+.tracker-table th, .tracker-table td { padding: 14px 16px; border-top: 1px solid var(--line); }
+.tracker-table thead { background: var(--cream); }
+.tracker-table tbody tr[aria-selected="true"] { background: var(--green-soft); }
+.tracker-table button { text-align: left; }
+.tracker-detail { margin-top: 20px; padding: 24px; }
+.tracker-detail h2 { margin-top: 0; }
+.tracker-detail p, .tracker-detail li, .tracker-facts { font-size: 14px; line-height: 1.6; }
+.tracker-facts { display: flex; flex-wrap: wrap; gap: 24px; }
+.tracker-facts dt { font-weight: 700; }
+.tracker-facts dd { margin: 4px 0 0; }
+.revision-upload { margin-top: 24px; }
+.review-completion { display: grid; gap: 16px; padding: 20px 24px; border-top: 1px solid var(--line); }
+.review-completion .review-footer { padding: 16px 0 0; border-top: 1px solid var(--line); }
+.status-approved-with-conditions { color: var(--green); background: var(--green-soft); }
+.status-rejected { color: var(--red); background: var(--red-soft); }

@@ -240,6 +240,47 @@ This is for local evaluation only.
 - Do not commit real agreements. `fixtures/private/`, `artifacts/local/`, and
   exported `pdf-extraction-report-*` files are git-ignored.
 
+## Requester submission tracker
+
+Requester mode opens **My submissions**. The selected Prototype Requester profile
+is matched against `submittedBy`, ignoring surrounding spaces and letter case.
+Blank profiles and records without a matching owner are excluded. New submissions
+record the profile, needed-by date, and version 1. Older records without date or
+version metadata show **Not recorded**.
+
+The list shows agreement, vendor, submission date, needed-by date, status, and
+current version. Its details show completed outcomes and conditions explicitly
+published by the reviewer. Internal notes, findings, and source text are excluded
+from the tracker data projection. Review queue and reports are unavailable in
+Requester mode; Overview also opens the owner-filtered tracker.
+
+Reviewers can select Approved, Approved with conditions, Escalated, Rejected, or
+Returned for changes. Conditional approval requires requester-visible conditions.
+Automatic disposition follows escalated findings first, otherwise conditions or
+approval. Every finding must have a decision before review completion. Conditions
+are separate from internal reviewer notes and become visible only on completion.
+
+A revised PDF or text upload advances the version, records filename and upload
+date, re-analyzes the text, and returns the agreement to Needs review. Previous
+completion and conditions are cleared. Version history contains metadata; old file
+contents and old outcomes are not retained. The original submission date stays
+unchanged.
+
+This is a local prototype: the editable profile and role switcher are not
+authentication. All records remain in browser storage and can be inspected there.
+Ownership filtering and public-field projection protect the normal interface, not
+access by someone controlling the browser. A deployed multi-user application still
+requires authenticated identity and server-side ownership checks on every read
+and write. This branch has no API, so cross-user API authorization tests cannot run
+against it. No database or authentication integration is claimed by these tests.
+
+Tracker checks run with:
+
+```bash
+npm test -- --maxWorkers=2
+npm run test:e2e -- tests/e2e/landing.spec.ts tests/e2e/requester-notes.spec.ts tests/e2e/requester-tracker.spec.ts --project=chromium
+```
+
 ## Known limitations
 
 ### The review workflow
