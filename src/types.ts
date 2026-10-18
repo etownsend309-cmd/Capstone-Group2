@@ -1,4 +1,4 @@
-export type View = "overview" | "intake" | "review" | "reports";
+export type View = "overview" | "intake" | "review" | "reports" | "tracker";
 
 export type Role = "Requester" | "Reviewer" | "Approver" | "Administrator";
 
@@ -8,6 +8,9 @@ export type AgreementStatus =
   | "Needs review"
   | "In review"
   | "Approved"
+  | "Approved with conditions"
+  | "Rejected"
+  | "Returned for changes"
   | "Escalated";
 
 export interface Finding {
@@ -26,13 +29,34 @@ export interface Agreement {
   vendor: string;
   submittedAt: string;
   submittedBy: string;
+  neededBy?: string;
+  currentVersion?: number;
+  versions?: AgreementVersion[];
+  conditions?: string[];
   status: AgreementStatus;
   rawText: string;
   pageCount?: number;
-  /** Which PDF.js reconstruction strategy produced `rawText`, for traceability. */
   extractionStrategy?: string;
-  /** Non-fatal extraction notes, e.g. a low-text warning on a sparse document. */
   extractionWarnings?: string[];
   findings: Finding[];
   completedAt?: string;
+}
+
+export interface AgreementVersion {
+  version: number;
+  fileName: string;
+  uploadedAt: string;
+}
+
+export interface RequesterSubmission {
+  id: string;
+  name: string;
+  vendor: string;
+  submittedAt: string;
+  neededBy?: string;
+  status: AgreementStatus;
+  currentVersion?: number;
+  versions: AgreementVersion[];
+  completedAt?: string;
+  conditions: string[];
 }

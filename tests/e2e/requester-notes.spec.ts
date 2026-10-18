@@ -23,15 +23,17 @@ test("requester cannot read internal notes, including after switching roles", as
   await page.getByRole("navigation", { name: "Primary navigation" })
     .getByRole("button", { name: /Review queue/ }).click();
   await expect(page.getByLabel("Reviewer note")).toHaveValue(internalNote);
+  await page.getByRole("button", { name: /Audit Rights/ }).click();
   await page.getByLabel("Viewing as").selectOption("Requester");
   await expect(page.getByLabel("Reviewer note")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Complete review" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Accept", exact: true })).toHaveCount(0);
   await expect(page.locator("body")).not.toContainText(internalNote);
   await expect(page.locator("textarea")).toHaveCount(0);
-  await page.getByRole("button", { name: /Audit Rights/ }).click();
+  await expect(page.getByRole("heading", { name: "My submissions" })).toBeVisible();
   await expect(page.getByLabel("Reviewer note")).toHaveCount(0);
   await expect(page.locator("body")).not.toContainText("Added manually by reviewer.");
   await page.getByLabel("Viewing as").selectOption("Reviewer");
+  await page.getByRole("button", { name: /Audit Rights/ }).click();
   await expect(page.getByLabel("Reviewer note")).toHaveValue("Added manually by reviewer.");
 });

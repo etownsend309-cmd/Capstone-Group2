@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import RequesterTracker from "./components/RequesterTracker";
+import { finishReview, ownsAgreement, requesterSubmissions, reviseAgreement, type ReviewOutcome } from "./lib/requesterTracker";
 import { demoAgreementText } from "./data";
 import { analyzeAgreement, playbook } from "./lib/analyze";
 import { extractText, type ExtractedDocument } from "./lib/extractText";
@@ -55,6 +57,9 @@ function EmptyState({ title, body }: { title: string; body: string }) {
 export default function App() {
   const [view, setView] = useState<View>("overview");
   const [role, setRole] = useState<Role>("Reviewer");
+  const [requester, setRequester] = useState(() => localStorage.getItem("clausepilot-requester-v1") ?? "Prototype user");
+
+  useEffect(() => { localStorage.setItem("clausepilot-requester-v1", requester); }, [requester]);
   const [agreements, setAgreements] = useState<Agreement[]>(() => {
     try {
       return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "[]") as Agreement[];
@@ -71,9 +76,22 @@ export default function App() {
   const activeAgreement =
     agreements.find((agreement) => agreement.id === activeAgreementId) ?? agreements[0];
 
+  const isRequester = role === "Requester";
+  const submissions = requesterSubmissions(agreements, requester);
+
+  const uploadRevision = async (id: string, file: File) => {
+    const agreement = agreements.find((item) => item.id === id);
+    if (!isRequester || !agreement || !ownsAgreement(agreement, requester)) {
+      throw new Error("This submission is not available to this Requester.");
+    }
+    const document = await extractText(file);
+    setAgreements((current) => current.map((item) => item.id === id
+      ? reviseAgreement(item, requester, file.name, document, new Date().toISOString()) : item));
+  };
+
   const openReview = (id: string) => {
     setActiveAgreementId(id);
-    setView("review");
+    setView(isRequester ? "tracker" : "review");
   };
 
   const addAgreement = (agreement: Agreement) => {
@@ -82,6 +100,7 @@ export default function App() {
   };
 
   const updateAgreement = (updated: Agreement) => {
+    if (isRequester) return;
     setAgreements((current) =>
       current.map((agreement) => (agreement.id === updated.id ? updated : agreement)),
     );
@@ -101,8 +120,10 @@ export default function App() {
         <nav aria-label="Primary navigation">
           <NavButton active={view === "overview"} icon="home" label="Overview" onClick={() => setView("overview")} />
           <NavButton active={view === "intake"} icon="upload" label="New agreement" onClick={() => setView("intake")} />
+          {isRequester ? <NavButton active={view !== "intake"} icon="review" label="My submissions" onClick={() => setView("tracker")} /> : <>
           <NavButton active={view === "review"} icon="review" label="Review queue" count={pending} onClick={() => setView("review")} />
           <NavButton active={view === "reports"} icon="reports" label="Reports" onClick={() => setView("reports")} />
+          </>}
         </nav>
         <div className="sidebar-note">
           <span className="eyebrow">Prototype mode</span>
@@ -119,7 +140,12 @@ export default function App() {
           </div>
           <label className="role-switcher">
             <span>Viewing as</span>
-            <select value={role} onChange={(event) => setRole(event.target.value as Role)}>
+            <select value={role} onChange={(event) => {
+              const nextRole = event.target.value as Role;
+              setRole(nextRole);
+              if (nextRole === "Requester") setView("tracker");
+              else if (view === "tracker") setView("review");
+            }}>
               <option>Requester</option>
               <option>Reviewer</option>
               <option>Approver</option>
@@ -129,12 +155,17 @@ export default function App() {
         </header>
 
         <div className="page-wrap">
-          {view === "overview" && (
+          {(isRequester || view === "intake") && <div className="requester-profile panel">
+            <label><span>Prototype Requester profile</span><input aria-label="Prototype Requester profile" value={requester} onChange={(event) => setRequester(event.target.value)} /></label>
+            <p>This profile is for local testing. It is not a signed-in account.</p>
+          </div>}
+          {isRequester && view !== "intake" && <RequesterTracker key={requester} submissions={submissions} onRevise={uploadRevision} />}
+          {!isRequester && view === "overview" && (
             <Overview agreements={agreements} onNew={() => setView("intake")} onReview={openReview} />
           )}
-          {view === "intake" && <Intake onAdd={addAgreement} />}
-          {view === "review" && (
-            <ReviewQueue
+          {view === "intake" && <Intake key={requester} requester={requester} onAdd={addAgreement} />}
+          {!isRequester && view === "review" && (
+            <ReviewQueue key={activeAgreement?.id}
               agreements={agreements}
               active={activeAgreement}
               role={role}
@@ -143,7 +174,7 @@ export default function App() {
               onNew={() => setView("intake")}
             />
           )}
-          {view === "reports" && <Reports agreements={agreements} />}
+          {!isRequester && view === "reports" && <Reports agreements={agreements} />}
         </div>
       </main>
     </div>
@@ -164,7 +195,7 @@ function NavButton({
   onClick: () => void;
 }) {
   return (
-    <button className={`nav-item ${active ? "active" : ""}`} onClick={onClick}>
+    <button aria-label={label} className={`nav-item ${active ? "active" : ""}`} onClick={onClick}>
       <Icon name={icon} />
       <span>{label}</span>
       {!!count && <strong>{count}</strong>}
@@ -182,7 +213,7 @@ function Overview({
   onReview: (id: string) => void;
 }) {
   const open = agreements.filter((item) => ["Needs review", "In review"].includes(item.status));
-  const approved = agreements.filter((item) => item.status === "Approved").length;
+  const approved = agreements.filter((item) => ["Approved", "Approved with conditions"].includes(item.status)).length;
   const escalated = agreements.filter((item) => item.status === "Escalated").length;
 
   return (
@@ -247,11 +278,12 @@ function Metric({ label, value, note, tone }: { label: string; value: number; no
   );
 }
 
-function Intake({ onAdd }: { onAdd: (agreement: Agreement) => void }) {
+function Intake({ onAdd, requester }: { onAdd: (agreement: Agreement) => void; requester: string }) {
   const fileInput = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File>();
   const [vendor, setVendor] = useState("");
   const [title, setTitle] = useState("");
+  const [neededBy, setNeededBy] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [dragging, setDragging] = useState(false);
@@ -271,7 +303,10 @@ function Intake({ onAdd }: { onAdd: (agreement: Agreement) => void }) {
     name,
     vendor: vendorName,
     submittedAt: new Date().toISOString(),
-    submittedBy: "Prototype user",
+    submittedBy: requester.trim(),
+    neededBy: neededBy || undefined,
+    currentVersion: 1,
+    versions: [{ version: 1, fileName: file?.name ?? name, uploadedAt: new Date().toISOString() }],
     status: "Needs review",
     rawText: document.text,
     pageCount: document.pageCount,
@@ -281,6 +316,10 @@ function Intake({ onAdd }: { onAdd: (agreement: Agreement) => void }) {
   });
 
   const submit = async () => {
+    if (!requester.trim()) {
+      setError("Enter a Requester profile before submitting.");
+      return;
+    }
     if (!file) {
       setError("Choose a PDF or text file first.");
       return;
@@ -297,7 +336,8 @@ function Intake({ onAdd }: { onAdd: (agreement: Agreement) => void }) {
     }
   };
 
-  const loadDemo = () =>
+  const loadDemo = () => {
+    if (!requester.trim()) { setError("Enter a Requester profile before submitting."); return; }
     onAdd(
       makeAgreement("Northstar MSA.pdf", "Northstar Data", {
         text: demoAgreementText,
@@ -305,6 +345,7 @@ function Intake({ onAdd }: { onAdd: (agreement: Agreement) => void }) {
         warnings: [],
       }),
     );
+  };
 
   return (
     <section className="narrow-page">
@@ -344,6 +385,7 @@ function Intake({ onAdd }: { onAdd: (agreement: Agreement) => void }) {
           <div className="form-grid">
             <label><span>Agreement title</span><input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="e.g., Northstar MSA" /></label>
             <label><span>Vendor</span><input value={vendor} onChange={(event) => setVendor(event.target.value)} placeholder="e.g., Northstar Data" /></label>
+            <label><span>Needed-by date</span><input type="date" value={neededBy} onChange={(event) => setNeededBy(event.target.value)} /></label>
           </div>
 
           {error && <p className="error-message">{error}</p>}
@@ -381,6 +423,9 @@ function ReviewQueue({
   const canReview = role !== "Requester";
   const [activeFindingId, setActiveFindingId] = useState<string>();
   const [manualCategory, setManualCategory] = useState(playbook[0].name);
+  const [outcome, setOutcome] = useState<ReviewOutcome | "Automatic">("Automatic");
+  const [conditions, setConditions] = useState(active?.conditions?.join("\n") ?? "");
+  const [reviewError, setReviewError] = useState("");
 
   useEffect(() => {
     setActiveFindingId(active?.findings[0]?.id);
@@ -400,7 +445,8 @@ function ReviewQueue({
     if (!activeFinding) return;
     onUpdate({
       ...active,
-      status: active.status === "Needs review" ? "In review" : active.status,
+      status: "In review",
+      completedAt: undefined,
       findings: active.findings.map((finding) =>
         finding.id === activeFinding.id ? { ...finding, ...patch } : finding,
       ),
@@ -417,19 +463,20 @@ function ReviewQueue({
       note: "Added manually by reviewer.",
       method: "Manual",
     };
-    onUpdate({ ...active, status: "In review", findings: [...active.findings, finding] });
+    onUpdate({ ...active, status: "In review", completedAt: undefined, findings: [...active.findings, finding] });
     setActiveFindingId(finding.id);
   };
 
   const completeReview = () => {
-    const hasPending = active.findings.some((finding) => finding.decision === "pending");
-    if (hasPending) return;
-    const hasEscalation = active.findings.some((finding) => finding.decision === "escalated");
-    onUpdate({
-      ...active,
-      status: hasEscalation ? "Escalated" : "Approved",
-      completedAt: new Date().toISOString(),
-    });
+    if (!canReview) return;
+    const automatic: ReviewOutcome = active.findings.some((finding) => finding.decision === "escalated")
+      ? "Escalated" : conditions.trim() ? "Approved with conditions" : "Approved";
+    try {
+      onUpdate(finishReview(active, outcome === "Automatic" ? automatic : outcome, conditions, new Date().toISOString()));
+      setReviewError("");
+    } catch (reason) {
+      setReviewError(reason instanceof Error ? reason.message : "The review could not be completed.");
+    }
   };
 
   return (
@@ -505,9 +552,15 @@ function ReviewQueue({
           </div>
 
           {canReview && (
+            <div className="review-completion">
+              <label><span>Final outcome</span><select aria-label="Final outcome" value={outcome} onChange={(event) => setOutcome(event.target.value as ReviewOutcome | "Automatic")}><option>Automatic</option>{["Approved", "Approved with conditions", "Escalated", "Rejected", "Returned for changes"].map((value) => <option key={value}>{value}</option>)}</select></label>
+              <label className="notes-field"><span>Requester-visible conditions</span><textarea value={conditions} onChange={(event) => setConditions(event.target.value)} placeholder="Enter one condition per line. These will be shared with the Requester when review is complete." /></label>
+              {reviewError && <p className="error-message" role="alert">{reviewError}</p>}
+              {active.completedAt && <p>Review completed {formatDate(active.completedAt)} · {active.status}</p>}
             <div className="review-footer">
               <p>{active.findings.filter((finding) => finding.decision === "pending").length} findings still need a decision</p>
               <button className="primary-button" onClick={completeReview} disabled={active.findings.some((finding) => finding.decision === "pending")}>Complete review</button>
+            </div>
             </div>
           )}
         </div>
