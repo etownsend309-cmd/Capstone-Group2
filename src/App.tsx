@@ -384,7 +384,6 @@ function ReviewQueue({
 
   useEffect(() => {
     setActiveFindingId(active?.findings[0]?.id);
-    // Reset selection only when switching agreements, not when editing a finding.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active?.id]);
 
@@ -488,7 +487,9 @@ function ReviewQueue({
                 <>
                   <div className="finding-title"><div><span className="eyebrow">{activeFinding.method}</span><h3>{activeFinding.category}</h3></div><span className="confidence">{Math.round(activeFinding.confidence * 100)}% <small>confidence</small></span></div>
                   <div className="source-card"><span>Supporting source text</span><blockquote>{activeFinding.sourceText}</blockquote></div>
-                  <label className="notes-field"><span>Reviewer note</span><textarea value={activeFinding.note} disabled={!canReview} onChange={(event) => updateFinding({ note: event.target.value })} placeholder="Record why you accepted, dismissed, or escalated this finding…" /></label>
+                  {canReview && (
+                    <label className="notes-field"><span>Reviewer note</span><textarea value={activeFinding.note} onChange={(event) => updateFinding({ note: event.target.value })} placeholder="Record why you accepted, dismissed, or escalated this finding…" /></label>
+                  )}
                   {canReview && (
                     <div className="decision-actions">
                       <DecisionButton decision="accepted" current={activeFinding.decision} onClick={updateFinding} label="Accept" />
