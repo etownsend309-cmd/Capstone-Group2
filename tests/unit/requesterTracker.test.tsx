@@ -7,6 +7,7 @@ import type { Agreement } from "../../src/types";
 
 const agreement = (patch: Partial<Agreement> = {}): Agreement => ({
   id: "alice-agreement", name: "Alice agreement", vendor: "Alice vendor",
+  agreementType: "Master services agreement", businessUnit: "Shared services",
   submittedAt: "2026-10-01T12:00:00Z", submittedBy: "alice@example.test",
   neededBy: "2026-12-01", currentVersion: 2,
   versions: [{ version: 2, fileName: "alice-v2.txt", uploadedAt: "2026-10-02T12:00:00Z" }],

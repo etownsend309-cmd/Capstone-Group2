@@ -62,7 +62,7 @@ test("new requester submission records owner, needed-by date and version and per
   await expect(page.getByRole("table")).toContainText("Dec 1, 2026");
   await expect(page.getByRole("table")).toContainText("Version 1");
   await page.getByLabel("Submit a revised agreement").setInputFiles({ name: "revised.txt", mimeType: "text/plain", buffer: Buffer.from("Governed by the laws of New York.") });
-  await expect(page.getByRole("status")).toContainText("New version submitted");
+  await expect(page.getByRole("status", { name: "Revision status" })).toContainText("New version submitted");
   await expect(page.getByRole("table")).toContainText("Version 2");
   await expect(page.getByRole("table")).toContainText("Needs review");
   await expect(page.getByRole("region", { name: "Submission details" })).toContainText("revised.txt");
@@ -93,7 +93,7 @@ test("reviewer publishes conditions without publishing internal notes and revisi
   await expect(page.getByRole("region", { name: "Submission details" })).toContainText("Provide proof of coverage.");
   await expect(page.locator("body")).not.toContainText("PRIVATE INTERNAL STRATEGY");
   await page.getByLabel("Submit a revised agreement").setInputFiles({ name: "new.txt", mimeType: "text/plain", buffer: Buffer.from("Governed by the laws of Georgia.") });
-  await expect(page.getByRole("status")).toContainText("New version submitted");
+  await expect(page.getByRole("status", { name: "Revision status" })).toContainText("New version submitted");
   await expect(page.getByRole("table")).toContainText("Version 3");
   await expect(page.locator("body")).not.toContainText("Provide proof of coverage.");
   await expect(page.getByRole("region", { name: "Submission details" })).toContainText("Review not completed");

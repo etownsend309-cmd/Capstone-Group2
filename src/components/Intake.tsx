@@ -64,10 +64,13 @@ export function Intake({ onAdd, submittedBy }: { onAdd: (agreement: Agreement) =
     setIsLoading(true);
     try {
       const document = await extractText(file!);
+      const submittedAt = new Date().toISOString();
       onAdd({
         id: crypto.randomUUID(), name: title.trim() || file!.name,
         vendor: vendor.trim(), agreementType: agreementType.trim(), businessUnit: businessUnit.trim(), neededBy,
-        submittedAt: new Date().toISOString(), submittedBy, status: "Needs review",
+        submittedAt, submittedBy, status: "Needs review",
+        // The tracker reports a current version, and a revision advances it.
+        currentVersion: 1, versions: [{ version: 1, fileName: file!.name, uploadedAt: submittedAt }],
         rawText: document.text, pageCount: document.pageCount,
         extractionStrategy: document.strategy, extractionWarnings: document.warnings,
         findings: analyzeAgreement(document.text),

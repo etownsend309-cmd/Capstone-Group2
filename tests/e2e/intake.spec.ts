@@ -22,11 +22,15 @@ test("valid PDF submission appears in the requester tracker and survives reload"
   await page.getByLabel("Agreement document", { exact: true }).setInputFiles(fixture("clean-agreement.pdf"));
   await fillMetadata(page);
   await page.getByRole("button", { name: /Create review/ }).click();
-  await expect(page.getByRole("status")).toContainText("submitted successfully");
+  await expect(page.getByRole("status", { name: "Submission status" })).toContainText("submitted successfully");
   await expect(page.getByRole("heading", { name: "My submissions" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "clean-agreement.pdf" })).toBeVisible();
-  for (const [, value] of fields) await expect(page.locator(".tracker-record")).toContainText(value);
-  await expect(page.locator(".tracker-record")).toContainText("Needs review");
+  // The tracker lists what KAN-43 specifies. Agreement type and business unit
+  // are checked against the stored record in the component tests instead.
+  await expect(page.getByRole("table")).toContainText("Northstar Data");
+  await expect(page.getByRole("table")).toContainText("Dec 1, 2026");
+  await expect(page.getByRole("table")).toContainText("Needs review");
+  await expect(page.getByRole("table")).toContainText("Version 1");
   await page.reload();
   await page.getByRole("button", { name: "My submissions" }).click();
   await expect(page.getByRole("heading", { name: "clean-agreement.pdf" })).toBeVisible();
@@ -79,7 +83,7 @@ test("upload and submission work using the keyboard", async ({ page }) => {
   await page.keyboard.press("Tab");
   await expect(page.getByRole("button", { name: /Create review/ })).toBeFocused();
   await page.keyboard.press("Enter");
-  await expect(page.getByRole("status")).toContainText("submitted successfully");
+  await expect(page.getByRole("status", { name: "Submission status" })).toContainText("submitted successfully");
 });
 
 test("unreadable PDF gives a failure result without a record", async ({ page }) => {
@@ -90,7 +94,7 @@ test("unreadable PDF gives a failure result without a record", async ({ page }) 
   await expect(page.getByRole("alert")).toContainText(/scanned|image-only/i);
   await expect(page.getByLabel("Vendor")).toHaveValue("Northstar Data");
   // The status region stays mounted so it can be announced; it must be empty.
-  await expect(page.getByRole("status")).toHaveText("");
+  await expect(page.getByRole("status", { name: "Submission status" })).toHaveText("");
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem("clausepilot-agreements-v1") ?? "[]"))).toEqual([]);
 });
 
@@ -101,7 +105,7 @@ test("browser storage failure never reports success", async ({ page }) => {
   await page.evaluate(() => { Storage.prototype.setItem = () => { throw new DOMException("Quota exceeded", "QuotaExceededError"); }; });
   await page.getByRole("button", { name: /Create review/ }).click();
   await expect(page.getByRole("alert")).toContainText("Your submission was not saved");
-  await expect(page.getByRole("status")).toHaveText("");
+  await expect(page.getByRole("status", { name: "Submission status" })).toHaveText("");
   await page.getByRole("button", { name: "My submissions" }).click();
-  await expect(page.getByRole("heading", { name: "No submissions yet" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "No submissions for this Requester" })).toBeVisible();
 });

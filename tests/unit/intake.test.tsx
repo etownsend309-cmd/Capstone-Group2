@@ -91,7 +91,7 @@ describe("agreement intake", () => {
     await fillMetadata();
     await userEvent.click(screen.getByRole("button", { name: /create review/i }));
     expect(await screen.findByRole("heading", { name: "My submissions" })).toBeTruthy();
-    expect(screen.getByRole("status").textContent).toContain("submitted successfully");
+    expect(screen.getByRole("status", { name: "Submission status" }).textContent).toContain("submitted successfully");
     expect(records()).toHaveLength(1);
     expect(records()[0]).toMatchObject({ vendor: "Northstar Data", agreementType: "Master services agreement", businessUnit: "Shared services", neededBy: "2026-12-01", status: "Needs review", submittedBy: "Prototype user" });
     expect(records()[0].id).toMatch(/^[0-9a-f-]{36}$/);
@@ -157,7 +157,7 @@ describe("KAN-40 validation and safe submission", () => {
     await userEvent.click(screen.getByRole("button", { name: /create review/i }));
     expect((await screen.findByRole("alert")).textContent).toContain("Your submission was not saved");
     // The status region stays mounted so it can be announced; it must be empty.
-    expect(screen.getByRole("status").textContent).toBe("");
+    expect(screen.getByRole("status", { name: "Submission status" }).textContent).toBe("");
     expect(records()).toEqual([]);
     save.mockRestore();
     await userEvent.click(screen.getByRole("button", { name: /create review/i }));
@@ -192,7 +192,7 @@ describe("KAN-40 validation and safe submission", () => {
     await userEvent.click(screen.getByRole("button", { name: "My submissions" }));
     expect(screen.getByRole("heading", { name: own.name })).toBeTruthy();
     expect(screen.queryByRole("heading", { name: "Another requester's contract" })).toBeNull();
-    expect(screen.getByRole("status").textContent).toBe("");
+    expect(screen.getByRole("status", { name: "Submission status" }).textContent).toBe("");
   });
 });
 

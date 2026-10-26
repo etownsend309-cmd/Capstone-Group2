@@ -77,7 +77,7 @@ export default function RequesterTracker({ submissions, onRevise }: {
                 because a screen reader has to be observing the region before
                 the change.
               */}
-              <p role="status">{busy ? "Reading the new version…" : shown && !shown.failed ? shown.text : ""}</p>
+              <p role="status" aria-label="Revision status">{busy ? "Reading the new version…" : shown && !shown.failed ? shown.text : ""}</p>
               {shown?.failed && <p className="error-message" role="alert">{shown.text}</p>}
             </section>
           )}
