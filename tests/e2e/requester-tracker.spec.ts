@@ -54,7 +54,9 @@ test("new requester submission records owner, needed-by date and version and per
   await page.getByLabel("Prototype Requester profile").fill("alice@example.test");
   await page.getByRole("navigation").getByRole("button", { name: "New agreement" }).click();
   await page.locator('input[type="file"]').setInputFiles({ name: "initial.txt", mimeType: "text/plain", buffer: Buffer.from("Governed by the laws of Georgia.") });
-  await page.getByLabel("Vendor", { exact: true }).fill("Local test vendor");
+  await page.getByLabel("Vendor").fill("Local test vendor");
+  await page.getByLabel("Agreement type").fill("Master services agreement");
+  await page.getByLabel("Business unit").fill("Shared services");
   await page.getByLabel("Needed-by date").fill("2026-12-01");
   await page.getByRole("button", { name: "Create review →" }).click();
   await expect(page.getByRole("heading", { name: "My submissions" })).toBeVisible();
