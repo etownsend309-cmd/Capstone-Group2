@@ -149,6 +149,12 @@ export default function App() {
   };
 
   const addAgreement = (agreement: Agreement) => {
+    // `ownsAgreement` treats a blank identity as owning nothing, so saving one
+    // would orphan the agreement: absent from every tracker and impossible to
+    // revise. The intake form renders this as its own submission error.
+    if (!agreement.submittedBy.trim()) {
+      throw new Error("Enter a Prototype Requester profile before submitting. Your agreement was not saved.");
+    }
     persist([agreement, ...agreementsRef.current]);
     setNotice(`Agreement "${agreement.name}" submitted successfully. Reference: ${agreement.id}. Status: Needs review.`);
     setView("tracker");
