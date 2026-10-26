@@ -156,7 +156,8 @@ describe("KAN-40 validation and safe submission", () => {
     const save = vi.spyOn(Storage.prototype, "setItem").mockImplementationOnce(() => { throw new DOMException("Quota exceeded", "QuotaExceededError"); });
     await userEvent.click(screen.getByRole("button", { name: /create review/i }));
     expect((await screen.findByRole("alert")).textContent).toContain("Your submission was not saved");
-    expect(screen.queryByRole("status")).toBeNull();
+    // The status region stays mounted so it can be announced; it must be empty.
+    expect(screen.getByRole("status").textContent).toBe("");
     expect(records()).toEqual([]);
     save.mockRestore();
     await userEvent.click(screen.getByRole("button", { name: /create review/i }));
@@ -191,7 +192,7 @@ describe("KAN-40 validation and safe submission", () => {
     await userEvent.click(screen.getByRole("button", { name: "My submissions" }));
     expect(screen.getByRole("heading", { name: own.name })).toBeTruthy();
     expect(screen.queryByRole("heading", { name: "Another requester's contract" })).toBeNull();
-    expect(screen.queryByRole("status")).toBeNull();
+    expect(screen.getByRole("status").textContent).toBe("");
   });
 });
 

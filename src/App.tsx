@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Icon } from "./components/Icon";
 import { Intake } from "./components/Intake";
 import { playbook } from "./lib/analyze";
 import type {
@@ -26,18 +27,6 @@ const today = new Intl.DateTimeFormat("en-US", {
   month: "long",
   day: "numeric",
 }).format(new Date());
-
-function Icon({ name }: { name: "home" | "upload" | "review" | "reports" | "file" | "shield" }) {
-  const paths = {
-    home: <path d="M3 10.5 12 3l9 7.5V21a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1V10.5Z" />,
-    upload: <path d="M12 16V4m0 0L7 9m5-5 5 5M5 14v6h14v-6" />,
-    review: <path d="M8 4h8m-9 3h10a2 2 0 0 1 2 2v11H5V9a2 2 0 0 1 2-2Zm2-3h6v5H9V4Zm0 9h6m-6 4h4" />,
-    reports: <path d="M4 20V10m6 10V4m6 16v-7m4 7H2" />,
-    file: <path d="M7 2h7l5 5v15H7V2Zm7 0v6h5M10 13h6m-6 4h6" />,
-    shield: <path d="M12 2 4.5 5v6c0 5 3.2 8.6 7.5 11 4.3-2.4 7.5-6 7.5-11V5L12 2Zm-3 10 2 2 4-5" />,
-  };
-  return <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">{paths[name]}</svg>;
-}
 
 function StatusPill({ status }: { status: Agreement["status"] }) {
   return <span className={`status status-${status.toLowerCase().replaceAll(" ", "-")}`}>{status}</span>;
@@ -170,7 +159,14 @@ export default function App() {
         </header>
 
         <div className="page-wrap">
-          {notice && <p className="permission-banner" role="status">{notice}</p>}
+          {/*
+            Stays mounted so only its contents change. Inserting a live region
+            and its text in the same update generally is not announced, because
+            a screen reader has to be observing the region before the change.
+            The intake form owns the only `role="alert"`, so this stays
+            `role="status"` rather than becoming a second alert region.
+          */}
+          <div role="status">{notice && <p className="permission-banner">{notice}</p>}</div>
           {saveError && <p className="error-message" role="alert">{saveError}</p>}
           {view === "tracker" && <RequesterTracker agreements={agreements.filter((item) => item.submittedBy === REQUESTER_ID)} />}
           {view === "overview" && (
