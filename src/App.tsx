@@ -48,9 +48,25 @@ function EmptyState({ title, body }: { title: string; body: string }) {
 export default function App() {
   const [view, setView] = useState<View>("overview");
   const [role, setRole] = useState<Role>("Reviewer");
-  const [requester, setRequester] = useState(() => localStorage.getItem(REQUESTER_KEY) ?? "Prototype user");
+  // Where site storage is blocked outright, even reading throws. The profile is
+  // a local testing convenience rather than submitted data, so it falls back to
+  // memory for the session instead of keeping the app from opening. A blocked
+  // write still reaches the reviewer through `persist` when it matters.
+  const [requester, setRequester] = useState(() => {
+    try {
+      return localStorage.getItem(REQUESTER_KEY) ?? "Prototype user";
+    } catch {
+      return "Prototype user";
+    }
+  });
 
-  useEffect(() => { localStorage.setItem(REQUESTER_KEY, requester); }, [requester]);
+  useEffect(() => {
+    try {
+      localStorage.setItem(REQUESTER_KEY, requester);
+    } catch {
+      // Best effort. The profile stays in memory for this session.
+    }
+  }, [requester]);
   const [agreements, setAgreements] = useState<Agreement[]>(() => {
     try {
       const saved: unknown = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "[]");
