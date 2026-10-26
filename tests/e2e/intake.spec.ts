@@ -89,7 +89,8 @@ test("unreadable PDF gives a failure result without a record", async ({ page }) 
   await page.getByRole("button", { name: /Create review/ }).click();
   await expect(page.getByRole("alert")).toContainText(/scanned|image-only/i);
   await expect(page.getByLabel("Vendor")).toHaveValue("Northstar Data");
-  await expect(page.getByRole("status")).toHaveCount(0);
+  // The status region stays mounted so it can be announced; it must be empty.
+  await expect(page.getByRole("status")).toHaveText("");
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem("clausepilot-agreements-v1") ?? "[]"))).toEqual([]);
 });
 
@@ -100,7 +101,7 @@ test("browser storage failure never reports success", async ({ page }) => {
   await page.evaluate(() => { Storage.prototype.setItem = () => { throw new DOMException("Quota exceeded", "QuotaExceededError"); }; });
   await page.getByRole("button", { name: /Create review/ }).click();
   await expect(page.getByRole("alert")).toContainText("Your submission was not saved");
-  await expect(page.getByRole("status")).toHaveCount(0);
+  await expect(page.getByRole("status")).toHaveText("");
   await page.getByRole("button", { name: "My submissions" }).click();
   await expect(page.getByRole("heading", { name: "No submissions yet" })).toBeVisible();
 });
