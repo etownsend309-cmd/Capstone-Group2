@@ -14,20 +14,23 @@ export default function RequesterTracker({ submissions, onRevise }: {
 }) {
   const [selectedId, setSelectedId] = useState<string>();
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
+  // Keyed by the agreement the upload was for. Selection stays live during
+  // extraction, so a result arriving after the requester moves on must not be
+  // shown against whichever row happens to be selected then.
+  const [feedback, setFeedback] = useState<{ id: string; text: string; failed: boolean }>();
   const active = submissions.find((item) => item.id === selectedId) ?? submissions[0];
+  const shown = feedback?.id === active?.id ? feedback : undefined;
 
   const uploadRevision = async (file?: File) => {
     if (!file || !active || busy) return;
+    const target = active.id;
     setBusy(true);
-    setError("");
-    setMessage("");
+    setFeedback(undefined);
     try {
-      await onRevise(active.id, file);
-      setMessage("New version submitted for review. The previous outcome no longer applies.");
+      await onRevise(target, file);
+      setFeedback({ id: target, failed: false, text: "New version submitted for review. The previous outcome no longer applies." });
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "The new version could not be read.");
+      setFeedback({ id: target, failed: true, text: reason instanceof Error ? reason.message : "The new version could not be read." });
     } finally {
       setBusy(false);
     }
@@ -50,7 +53,7 @@ export default function RequesterTracker({ submissions, onRevise }: {
               <thead><tr><th scope="col">Agreement</th><th scope="col">Vendor</th><th scope="col">Submission date</th><th scope="col">Needed-by date</th><th scope="col">Status</th><th scope="col">Current version</th></tr></thead>
               <tbody>{submissions.map((item) => (
                 <tr key={item.id} aria-selected={item.id === active?.id}>
-                  <th scope="row"><button className="text-button" onClick={() => { setSelectedId(item.id); setError(""); setMessage(""); }}>{item.name}</button></th>
+                  <th scope="row"><button className="text-button" onClick={() => setSelectedId(item.id)}>{item.name}</button></th>
                   <td>{item.vendor}</td><td>{dateLabel(item.submittedAt)}</td><td>{dateLabel(item.neededBy, true)}</td><td>{item.status}</td><td>{item.currentVersion ? `Version ${item.currentVersion}` : "Not recorded"}</td>
                 </tr>
               ))}</tbody>
@@ -68,9 +71,14 @@ export default function RequesterTracker({ submissions, onRevise }: {
               <h3>Document versions</h3>
               {active.versions.length ? <ul>{active.versions.map((version) => <li key={version.version}>Version {version.version}: {version.fileName} · {dateLabel(version.uploadedAt)}</li>)}</ul> : <p>No version history was recorded for this older submission.</p>}
               <label className="revision-upload"><span>Submit a revised agreement</span><input type="file" accept="application/pdf,.pdf,text/plain,.txt" disabled={busy} onChange={(event) => { void uploadRevision(event.target.files?.[0]); event.target.value = ""; }} /></label>
-              {busy && <p role="status">Reading the new version…</p>}
-              {message && <p role="status">{message}</p>}
-              {error && <p className="error-message" role="alert">{error}</p>}
+              {/*
+                Stays mounted so only its contents change. A live region
+                inserted together with its text generally is not announced,
+                because a screen reader has to be observing the region before
+                the change.
+              */}
+              <p role="status">{busy ? "Reading the new version…" : shown && !shown.failed ? shown.text : ""}</p>
+              {shown?.failed && <p className="error-message" role="alert">{shown.text}</p>}
             </section>
           )}
         </>
