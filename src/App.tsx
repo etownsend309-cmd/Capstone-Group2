@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { demoAgreementText } from "./data";
-import { analyzeAgreement, playbook } from "./lib/analyze";
-import { extractText, type ExtractedDocument } from "./lib/extractText";
+import { Icon } from "./components/Icon";
+import { Intake } from "./components/Intake";
+import { playbook } from "./lib/analyze";
 import type {
   Agreement,
   Finding,
@@ -11,6 +11,8 @@ import type {
 } from "./types";
 
 const STORAGE_KEY = "clausepilot-agreements-v1";
+// Replace with the authenticated user ID when login is connected.
+const REQUESTER_ID = "Prototype user";
 
 const formatDate = (date: string) =>
   new Intl.DateTimeFormat("en-US", {
@@ -25,18 +27,6 @@ const today = new Intl.DateTimeFormat("en-US", {
   month: "long",
   day: "numeric",
 }).format(new Date());
-
-function Icon({ name }: { name: "home" | "upload" | "review" | "reports" | "file" | "shield" }) {
-  const paths = {
-    home: <path d="M3 10.5 12 3l9 7.5V21a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1V10.5Z" />,
-    upload: <path d="M12 16V4m0 0L7 9m5-5 5 5M5 14v6h14v-6" />,
-    review: <path d="M8 4h8m-9 3h10a2 2 0 0 1 2 2v11H5V9a2 2 0 0 1 2-2Zm2-3h6v5H9V4Zm0 9h6m-6 4h4" />,
-    reports: <path d="M4 20V10m6 10V4m6 16v-7m4 7H2" />,
-    file: <path d="M7 2h7l5 5v15H7V2Zm7 0v6h5M10 13h6m-6 4h6" />,
-    shield: <path d="M12 2 4.5 5v6c0 5 3.2 8.6 7.5 11 4.3-2.4 7.5-6 7.5-11V5L12 2Zm-3 10 2 2 4-5" />,
-  };
-  return <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">{paths[name]}</svg>;
-}
 
 function StatusPill({ status }: { status: Agreement["status"] }) {
   return <span className={`status status-${status.toLowerCase().replaceAll(" ", "-")}`}>{status}</span>;
@@ -57,16 +47,45 @@ export default function App() {
   const [role, setRole] = useState<Role>("Reviewer");
   const [agreements, setAgreements] = useState<Agreement[]>(() => {
     try {
-      return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "[]") as Agreement[];
+      const saved: unknown = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "[]");
+      if (!Array.isArray(saved)) return [];
+      return saved.map((agreement) => ({
+        ...agreement,
+        agreementType: agreement.agreementType ?? "",
+        businessUnit: agreement.businessUnit ?? "",
+        neededBy: agreement.neededBy ?? "",
+      })) as Agreement[];
     } catch {
       return [];
     }
   });
   const [activeAgreementId, setActiveAgreementId] = useState<string>();
 
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(agreements));
-  }, [agreements]);
+  const [notice, setNotice] = useState("");
+  const [saveError, setSaveError] = useState("");
+
+  /**
+   * The agreements as last written to storage.
+   *
+   * Extraction is awaited while the sidebar stays usable, so a reviewer can
+   * record a decision between a submission starting and finishing. Callers must
+   * build their next list from this rather than from `agreements`, which is
+   * fixed at the render that created the callback. A functional `setAgreements`
+   * updater would read the latest state but cannot replace this: the write has
+   * to happen before the state change so a rejected write can throw, and an
+   * updater must stay pure.
+   */
+  const agreementsRef = useRef(agreements);
+
+  const persist = (next: Agreement[]) => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    } catch {
+      throw new Error("The agreement could not be saved in this browser. Free storage space or enable site storage, then try again. Your submission was not saved.");
+    }
+    agreementsRef.current = next;
+    setAgreements(next);
+  };
 
   const activeAgreement =
     agreements.find((agreement) => agreement.id === activeAgreementId) ?? agreements[0];
@@ -77,14 +96,24 @@ export default function App() {
   };
 
   const addAgreement = (agreement: Agreement) => {
-    setAgreements((current) => [agreement, ...current]);
-    openReview(agreement.id);
+    persist([agreement, ...agreementsRef.current]);
+    setNotice(`Agreement "${agreement.name}" submitted successfully. Reference: ${agreement.id}. Status: Needs review.`);
+    setView("tracker");
   };
 
   const updateAgreement = (updated: Agreement) => {
-    setAgreements((current) =>
-      current.map((agreement) => (agreement.id === updated.id ? updated : agreement)),
-    );
+    try {
+      persist(agreementsRef.current.map((agreement) => agreement.id === updated.id ? updated : agreement));
+      setSaveError("");
+    } catch (reason) {
+      setSaveError(reason instanceof Error ? reason.message : "The review could not be saved.");
+    }
+  };
+
+  const startIntake = () => {
+    setNotice("");
+    setSaveError("");
+    setView("intake");
   };
 
   const pending = agreements.filter((agreement) =>
@@ -100,7 +129,8 @@ export default function App() {
         </button>
         <nav aria-label="Primary navigation">
           <NavButton active={view === "overview"} icon="home" label="Overview" onClick={() => setView("overview")} />
-          <NavButton active={view === "intake"} icon="upload" label="New agreement" onClick={() => setView("intake")} />
+          <NavButton active={view === "intake"} icon="upload" label="New agreement" onClick={() => startIntake()} />
+          <NavButton active={view === "tracker"} icon="file" label="My submissions" onClick={() => setView("tracker")} />
           <NavButton active={view === "review"} icon="review" label="Review queue" count={pending} onClick={() => setView("review")} />
           <NavButton active={view === "reports"} icon="reports" label="Reports" onClick={() => setView("reports")} />
         </nav>
@@ -129,10 +159,20 @@ export default function App() {
         </header>
 
         <div className="page-wrap">
+          {/*
+            Stays mounted so only its contents change. Inserting a live region
+            and its text in the same update generally is not announced, because
+            a screen reader has to be observing the region before the change.
+            The intake form owns the only `role="alert"`, so this stays
+            `role="status"` rather than becoming a second alert region.
+          */}
+          <div role="status">{notice && <p className="permission-banner">{notice}</p>}</div>
+          {saveError && <p className="error-message" role="alert">{saveError}</p>}
+          {view === "tracker" && <RequesterTracker agreements={agreements.filter((item) => item.submittedBy === REQUESTER_ID)} />}
           {view === "overview" && (
-            <Overview agreements={agreements} onNew={() => setView("intake")} onReview={openReview} />
+            <Overview agreements={agreements} onNew={() => startIntake()} onReview={openReview} />
           )}
-          {view === "intake" && <Intake onAdd={addAgreement} />}
+          {view === "intake" && <Intake submittedBy={REQUESTER_ID} onAdd={addAgreement} />}
           {view === "review" && (
             <ReviewQueue
               agreements={agreements}
@@ -140,7 +180,7 @@ export default function App() {
               role={role}
               onSelect={setActiveAgreementId}
               onUpdate={updateAgreement}
-              onNew={() => setView("intake")}
+              onNew={() => startIntake()}
             />
           )}
           {view === "reports" && <Reports agreements={agreements} />}
@@ -158,13 +198,21 @@ function NavButton({
   onClick,
 }: {
   active: boolean;
-  icon: "home" | "upload" | "review" | "reports";
+  icon: "home" | "upload" | "review" | "reports" | "file";
   label: string;
   count?: number;
   onClick: () => void;
 }) {
+  // Below 760px the stylesheet hides both the label and the count badge to fit
+  // the nav into a row of icons, and the icon itself is aria-hidden. Without an
+  // explicit name these buttons are unnamed at that width, and the pending
+  // count disappears from the accessibility tree entirely.
   return (
-    <button className={`nav-item ${active ? "active" : ""}`} onClick={onClick}>
+    <button
+      className={`nav-item ${active ? "active" : ""}`}
+      onClick={onClick}
+      aria-label={count ? `${label}, ${count} pending` : label}
+    >
       <Icon name={icon} />
       <span>{label}</span>
       {!!count && <strong>{count}</strong>}
@@ -247,120 +295,22 @@ function Metric({ label, value, note, tone }: { label: string; value: number; no
   );
 }
 
-function Intake({ onAdd }: { onAdd: (agreement: Agreement) => void }) {
-  const fileInput = useRef<HTMLInputElement>(null);
-  const [file, setFile] = useState<File>();
-  const [vendor, setVendor] = useState("");
-  const [title, setTitle] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [dragging, setDragging] = useState(false);
-
-  const chooseFile = (next?: File) => {
-    setFile(next);
-    if (next && !title) setTitle(next.name);
-    setError("");
-  };
-
-  const makeAgreement = (
-    name: string,
-    vendorName: string,
-    document: ExtractedDocument,
-  ): Agreement => ({
-    id: crypto.randomUUID(),
-    name,
-    vendor: vendorName,
-    submittedAt: new Date().toISOString(),
-    submittedBy: "Prototype user",
-    status: "Needs review",
-    rawText: document.text,
-    pageCount: document.pageCount,
-    extractionStrategy: document.strategy,
-    extractionWarnings: document.warnings,
-    findings: analyzeAgreement(document.text),
-  });
-
-  const submit = async () => {
-    if (!file) {
-      setError("Choose a PDF or text file first.");
-      return;
-    }
-    setError("");
-    setIsLoading(true);
-    try {
-      const extracted = await extractText(file);
-      onAdd(makeAgreement(title || file.name, vendor || "Unknown vendor", extracted));
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "The file could not be read.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const loadDemo = () =>
-    onAdd(
-      makeAgreement("Northstar MSA.pdf", "Northstar Data", {
-        text: demoAgreementText,
-        pageCount: 7,
-        warnings: [],
-      }),
-    );
-
-  return (
-    <section className="narrow-page">
-      <div className="page-heading">
-        <span className="eyebrow">Agreement intake</span>
-        <h1>Start a first-pass review</h1>
-        <p>Upload a text-based PDF. The prototype extracts its text locally and checks the team's 12 playbook categories.</p>
-      </div>
-      <div className="intake-layout">
-        <div className="panel intake-card">
-          <div className="step-heading"><span>1</span><div><h2>Agreement file</h2><p>PDF or plain text, up to the limits of your browser.</p></div></div>
-          <input
-            ref={fileInput}
-            className="visually-hidden"
-            type="file"
-            accept="application/pdf,.pdf,text/plain,.txt"
-            onChange={(event) => chooseFile(event.target.files?.[0])}
-          />
-          <button
-            className={`drop-zone ${file ? "has-file" : ""}${dragging ? " dragging" : ""}`}
-            onClick={() => fileInput.current?.click()}
-            onDragOver={(event) => {
-              event.preventDefault();
-              setDragging(true);
-            }}
-            onDragLeave={() => setDragging(false)}
-            onDrop={(event) => {
-              event.preventDefault();
-              setDragging(false);
-              chooseFile(event.dataTransfer.files?.[0]);
-            }}
-          >
-            <span className="upload-mark"><Icon name="upload" /></span>
-            {file ? <><strong>{file.name}</strong><small>{(file.size / 1024).toFixed(1)} KB · Click or drop to replace</small></> : <><strong>Drop an agreement here, or click to browse</strong><small>Text-based PDF or TXT</small></>}
-          </button>
-
-          <div className="form-grid">
-            <label><span>Agreement title</span><input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="e.g., Northstar MSA" /></label>
-            <label><span>Vendor</span><input value={vendor} onChange={(event) => setVendor(event.target.value)} placeholder="e.g., Northstar Data" /></label>
-          </div>
-
-          {error && <p className="error-message">{error}</p>}
-          <div className="form-actions">
-            <button className="secondary-button" onClick={loadDemo}>Load demo agreement</button>
-            <button className="primary-button" onClick={submit} disabled={isLoading}>{isLoading ? "Extracting text…" : "Create review →"}</button>
-          </div>
-        </div>
-
-        <aside className="intake-aside">
-          <div className="aside-block"><Icon name="shield" /><div><strong>Local by design</strong><p>No model or external API is required for this prototype path.</p></div></div>
-          <div className="aside-block"><span className="number-mark">{playbook.length}</span><div><strong>Playbook categories</strong><p>Every generated finding includes a source span and confidence.</p></div></div>
-          <div className="aside-block"><span className="number-mark">↺</span><div><strong>Manual fallback</strong><p>Reviewers can add a finding even when no local rule matches.</p></div></div>
-        </aside>
-      </div>
-    </section>
-  );
+function RequesterTracker({ agreements }: { agreements: Agreement[] }) {
+  return <section>
+    <div className="page-heading"><span className="eyebrow">Requester tracker</span><h1>My submissions</h1><p>Track agreements submitted by the demo requester in this browser.</p></div>
+    {agreements.length === 0 ? <EmptyState title="No submissions yet" body="Submit an agreement to track its status here." /> :
+      <div className="agreement-list">{agreements.map((agreement) => <article className="panel tracker-record" key={agreement.id}>
+        <h2>{agreement.name}</h2><StatusPill status={agreement.status} />
+        <dl>
+          <dt>Reference</dt><dd>{agreement.id}</dd>
+          <dt>Vendor</dt><dd>{agreement.vendor}</dd>
+          <dt>Agreement type</dt><dd>{agreement.agreementType || "Not recorded"}</dd>
+          <dt>Business unit</dt><dd>{agreement.businessUnit || "Not recorded"}</dd>
+          <dt>Needed-by date</dt><dd>{agreement.neededBy || "Not recorded"}</dd>
+          <dt>Submitted</dt><dd>{formatDate(agreement.submittedAt)}</dd>
+        </dl>
+      </article>)}</div>}
+  </section>;
 }
 
 function ReviewQueue({
