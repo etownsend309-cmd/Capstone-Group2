@@ -207,8 +207,16 @@ function NavButton({
   count?: number;
   onClick: () => void;
 }) {
+  // Below 760px the stylesheet hides both the label and the count badge to fit
+  // the nav into a row of icons, and the icon itself is aria-hidden. Without an
+  // explicit name these buttons are unnamed at that width, and the pending
+  // count disappears from the accessibility tree entirely.
   return (
-    <button className={`nav-item ${active ? "active" : ""}`} onClick={onClick}>
+    <button
+      className={`nav-item ${active ? "active" : ""}`}
+      onClick={onClick}
+      aria-label={count ? `${label}, ${count} pending` : label}
+    >
       <Icon name={icon} />
       <span>{label}</span>
       {!!count && <strong>{count}</strong>}
