@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Intake } from "./components/Intake";
 import { playbook } from "./lib/analyze";
 import type {
@@ -75,12 +75,26 @@ export default function App() {
   const [notice, setNotice] = useState("");
   const [saveError, setSaveError] = useState("");
 
+  /**
+   * The agreements as last written to storage.
+   *
+   * Extraction is awaited while the sidebar stays usable, so a reviewer can
+   * record a decision between a submission starting and finishing. Callers must
+   * build their next list from this rather than from `agreements`, which is
+   * fixed at the render that created the callback. A functional `setAgreements`
+   * updater would read the latest state but cannot replace this: the write has
+   * to happen before the state change so a rejected write can throw, and an
+   * updater must stay pure.
+   */
+  const agreementsRef = useRef(agreements);
+
   const persist = (next: Agreement[]) => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
     } catch {
       throw new Error("The agreement could not be saved in this browser. Free storage space or enable site storage, then try again. Your submission was not saved.");
     }
+    agreementsRef.current = next;
     setAgreements(next);
   };
 
@@ -93,14 +107,14 @@ export default function App() {
   };
 
   const addAgreement = (agreement: Agreement) => {
-    persist([agreement, ...agreements]);
+    persist([agreement, ...agreementsRef.current]);
     setNotice(`Agreement "${agreement.name}" submitted successfully. Reference: ${agreement.id}. Status: Needs review.`);
     setView("tracker");
   };
 
   const updateAgreement = (updated: Agreement) => {
     try {
-      persist(agreements.map((agreement) => agreement.id === updated.id ? updated : agreement));
+      persist(agreementsRef.current.map((agreement) => agreement.id === updated.id ? updated : agreement));
       setSaveError("");
     } catch (reason) {
       setSaveError(reason instanceof Error ? reason.message : "The review could not be saved.");

@@ -194,3 +194,62 @@ describe("KAN-40 validation and safe submission", () => {
     expect(screen.queryByRole("status")).toBeNull();
   });
 });
+
+describe("concurrent submission and review", () => {
+  const existingAgreement = {
+    id: "existing-agreement",
+    name: "Pre-existing MSA.pdf",
+    vendor: "Acme Supply",
+    agreementType: "Master services agreement",
+    businessUnit: "Shared services",
+    neededBy: "2026-11-01",
+    submittedAt: "2026-10-01T12:00:00.000Z",
+    submittedBy: "Prototype user",
+    status: "Needs review",
+    rawText: "GOVERNING LAW. Governed by the laws of Georgia.",
+    findings: [
+      {
+        id: "existing-finding",
+        category: "Governing Law",
+        confidence: 0.98,
+        sourceText: "Governed by the laws of Georgia.",
+        decision: "pending",
+        note: "",
+        method: "Local rule",
+      },
+    ],
+  };
+
+  /**
+   * Extraction is asynchronous, but the sidebar stays live while it runs: the
+   * disabled fieldset covers the form, not the navigation. A reviewer can
+   * therefore record a decision on another agreement mid-parse. Submission has
+   * to merge into whatever was saved in the meantime rather than into the list
+   * it captured when it started, or the decision is lost with no error — the
+   * stale write itself succeeds.
+   */
+  it("keeps a decision recorded while extraction is still in flight", async () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify([existingAgreement]));
+    const zone = await openIntake();
+    fireEvent.drop(zone, { dataTransfer: { files: [txtFile("new-contract.txt")] } });
+    await fillMetadata();
+
+    let resolve!: (value: { text: string; warnings: string[] }) => void;
+    vi.mocked(extractText).mockImplementationOnce(() => new Promise((done) => { resolve = done; }));
+    fireEvent.submit(screen.getByRole("button", { name: /create review/i }).closest("form")!);
+
+    const nav = screen.getByRole("navigation", { name: /primary navigation/i });
+    await userEvent.click(within(nav).getByRole("button", { name: /review queue/i }));
+    await userEvent.click(screen.getByRole("button", { name: "Accept" }));
+    expect(records()[0].findings[0].decision).toBe("accepted");
+
+    resolve({ text: "GOVERNING LAW. Governed by the laws of Georgia.", warnings: [] });
+    expect(await screen.findByRole("heading", { name: "My submissions" })).toBeTruthy();
+
+    const saved = records();
+    expect(saved).toHaveLength(2);
+    const reviewed = saved.find((item: { id: string }) => item.id === existingAgreement.id);
+    expect(reviewed.findings[0].decision).toBe("accepted");
+    expect(reviewed.status).toBe("In review");
+  });
+});
