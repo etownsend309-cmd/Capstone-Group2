@@ -83,6 +83,9 @@ export default function App() {
    */
   const agreementsRef = useRef(agreements);
 
+  /** Agreement ids whose revision is still extracting. Survives a remount. */
+  const revisionsInFlight = useRef(new Set<string>());
+
   const persist = (next: Agreement[]) => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
@@ -104,13 +107,24 @@ export default function App() {
   const showTracker = isRequester ? view !== "intake" : view === "tracker";
 
   const uploadRevision = async (id: string, file: File) => {
-    const agreement = agreements.find((item) => item.id === id);
+    const agreement = agreementsRef.current.find((item) => item.id === id);
     if (!isRequester || !agreement || !ownsAgreement(agreement, requester)) {
       throw new Error("This submission is not available to this Requester.");
     }
-    const document = await extractText(file);
-    setAgreements((current) => current.map((item) => item.id === id
-      ? reviseAgreement(item, requester, file.name, document, new Date().toISOString()) : item));
+    // The tracker's own guard is component state, and navigating to the intake
+    // view unmounts it, so returning to a remounted tracker would otherwise
+    // allow a second upload for the same agreement to overlap the first.
+    if (revisionsInFlight.current.has(id)) {
+      throw new Error("A revision for this submission is still being read. Wait for it to finish, then try again.");
+    }
+    revisionsInFlight.current.add(id);
+    try {
+      const document = await extractText(file);
+      persist(agreementsRef.current.map((item) => item.id === id
+        ? reviseAgreement(item, requester, file.name, document, new Date().toISOString()) : item));
+    } finally {
+      revisionsInFlight.current.delete(id);
+    }
   };
 
   const openReview = (id: string) => {
