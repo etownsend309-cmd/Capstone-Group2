@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Icon } from "./components/Icon";
+import { Intake } from "./components/Intake";
 import RequesterTracker from "./components/RequesterTracker";
+import { playbook } from "./lib/analyze";
+import { extractText } from "./lib/extractText";
 import { finishReview, ownsAgreement, requesterSubmissions, reviseAgreement, type ReviewOutcome } from "./lib/requesterTracker";
-import { demoAgreementText } from "./data";
-import { analyzeAgreement, playbook } from "./lib/analyze";
-import { extractText, type ExtractedDocument } from "./lib/extractText";
 import type {
   Agreement,
   Finding,
@@ -13,6 +14,8 @@ import type {
 } from "./types";
 
 const STORAGE_KEY = "clausepilot-agreements-v1";
+// Replace with the authenticated user ID when login is connected.
+const REQUESTER_KEY = "clausepilot-requester-v1";
 
 const formatDate = (date: string) =>
   new Intl.DateTimeFormat("en-US", {
@@ -27,18 +30,6 @@ const today = new Intl.DateTimeFormat("en-US", {
   month: "long",
   day: "numeric",
 }).format(new Date());
-
-function Icon({ name }: { name: "home" | "upload" | "review" | "reports" | "file" | "shield" }) {
-  const paths = {
-    home: <path d="M3 10.5 12 3l9 7.5V21a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1V10.5Z" />,
-    upload: <path d="M12 16V4m0 0L7 9m5-5 5 5M5 14v6h14v-6" />,
-    review: <path d="M8 4h8m-9 3h10a2 2 0 0 1 2 2v11H5V9a2 2 0 0 1 2-2Zm2-3h6v5H9V4Zm0 9h6m-6 4h4" />,
-    reports: <path d="M4 20V10m6 10V4m6 16v-7m4 7H2" />,
-    file: <path d="M7 2h7l5 5v15H7V2Zm7 0v6h5M10 13h6m-6 4h6" />,
-    shield: <path d="M12 2 4.5 5v6c0 5 3.2 8.6 7.5 11 4.3-2.4 7.5-6 7.5-11V5L12 2Zm-3 10 2 2 4-5" />,
-  };
-  return <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">{paths[name]}</svg>;
-}
 
 function StatusPill({ status }: { status: Agreement["status"] }) {
   return <span className={`status status-${status.toLowerCase().replaceAll(" ", "-")}`}>{status}</span>;
@@ -57,27 +48,60 @@ function EmptyState({ title, body }: { title: string; body: string }) {
 export default function App() {
   const [view, setView] = useState<View>("overview");
   const [role, setRole] = useState<Role>("Reviewer");
-  const [requester, setRequester] = useState(() => localStorage.getItem("clausepilot-requester-v1") ?? "Prototype user");
+  const [requester, setRequester] = useState(() => localStorage.getItem(REQUESTER_KEY) ?? "Prototype user");
 
-  useEffect(() => { localStorage.setItem("clausepilot-requester-v1", requester); }, [requester]);
+  useEffect(() => { localStorage.setItem(REQUESTER_KEY, requester); }, [requester]);
   const [agreements, setAgreements] = useState<Agreement[]>(() => {
     try {
-      return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "[]") as Agreement[];
+      const saved: unknown = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "[]");
+      if (!Array.isArray(saved)) return [];
+      return saved.map((agreement) => ({
+        ...agreement,
+        agreementType: agreement.agreementType ?? "",
+        businessUnit: agreement.businessUnit ?? "",
+        neededBy: agreement.neededBy ?? "",
+      })) as Agreement[];
     } catch {
       return [];
     }
   });
   const [activeAgreementId, setActiveAgreementId] = useState<string>();
 
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(agreements));
-  }, [agreements]);
+  const [notice, setNotice] = useState("");
+  const [saveError, setSaveError] = useState("");
+
+  /**
+   * The agreements as last written to storage.
+   *
+   * Extraction is awaited while the sidebar stays usable, so a reviewer can
+   * record a decision between a submission starting and finishing. Callers must
+   * build their next list from this rather than from `agreements`, which is
+   * fixed at the render that created the callback. A functional `setAgreements`
+   * updater would read the latest state but cannot replace this: the write has
+   * to happen before the state change so a rejected write can throw, and an
+   * updater must stay pure.
+   */
+  const agreementsRef = useRef(agreements);
+
+  const persist = (next: Agreement[]) => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    } catch {
+      throw new Error("The agreement could not be saved in this browser. Free storage space or enable site storage, then try again. Your submission was not saved.");
+    }
+    agreementsRef.current = next;
+    setAgreements(next);
+  };
 
   const activeAgreement =
     agreements.find((agreement) => agreement.id === activeAgreementId) ?? agreements[0];
 
   const isRequester = role === "Requester";
   const submissions = requesterSubmissions(agreements, requester);
+  // A Requester has no queue or reports to navigate to, so every view except
+  // intake resolves to the tracker. Other roles reach it from the nav, or after
+  // submitting, since `addAgreement` sends every submitter there.
+  const showTracker = isRequester ? view !== "intake" : view === "tracker";
 
   const uploadRevision = async (id: string, file: File) => {
     const agreement = agreements.find((item) => item.id === id);
@@ -95,15 +119,24 @@ export default function App() {
   };
 
   const addAgreement = (agreement: Agreement) => {
-    setAgreements((current) => [agreement, ...current]);
-    openReview(agreement.id);
+    persist([agreement, ...agreementsRef.current]);
+    setNotice(`Agreement "${agreement.name}" submitted successfully. Reference: ${agreement.id}. Status: Needs review.`);
+    setView("tracker");
   };
 
   const updateAgreement = (updated: Agreement) => {
-    if (isRequester) return;
-    setAgreements((current) =>
-      current.map((agreement) => (agreement.id === updated.id ? updated : agreement)),
-    );
+    try {
+      persist(agreementsRef.current.map((agreement) => agreement.id === updated.id ? updated : agreement));
+      setSaveError("");
+    } catch (reason) {
+      setSaveError(reason instanceof Error ? reason.message : "The review could not be saved.");
+    }
+  };
+
+  const startIntake = () => {
+    setNotice("");
+    setSaveError("");
+    setView("intake");
   };
 
   const pending = agreements.filter((agreement) =>
@@ -119,10 +152,16 @@ export default function App() {
         </button>
         <nav aria-label="Primary navigation">
           <NavButton active={view === "overview"} icon="home" label="Overview" onClick={() => setView("overview")} />
-          <NavButton active={view === "intake"} icon="upload" label="New agreement" onClick={() => setView("intake")} />
-          {isRequester ? <NavButton active={view !== "intake"} icon="review" label="My submissions" onClick={() => setView("tracker")} /> : <>
-          <NavButton active={view === "review"} icon="review" label="Review queue" count={pending} onClick={() => setView("review")} />
-          <NavButton active={view === "reports"} icon="reports" label="Reports" onClick={() => setView("reports")} />
+          <NavButton active={view === "intake"} icon="upload" label="New agreement" onClick={() => startIntake()} />
+          {/*
+            A Requester must not reach the queue or the reports, which list
+            every requester's agreements by name. The tracker is the only
+            review-side view they are offered.
+          */}
+          {isRequester ? <NavButton active={view !== "intake"} icon="file" label="My submissions" onClick={() => setView("tracker")} /> : <>
+            <NavButton active={view === "tracker"} icon="file" label="My submissions" onClick={() => setView("tracker")} />
+            <NavButton active={view === "review"} icon="review" label="Review queue" count={pending} onClick={() => setView("review")} />
+            <NavButton active={view === "reports"} icon="reports" label="Reports" onClick={() => setView("reports")} />
           </>}
         </nav>
         <div className="sidebar-note">
@@ -155,15 +194,25 @@ export default function App() {
         </header>
 
         <div className="page-wrap">
+          {/*
+            Stays mounted so only its contents change. Inserting a live region
+            and its text in the same update generally is not announced, because
+            a screen reader has to be observing the region before the change.
+            The intake form owns the only `role="alert"`, so this stays
+            `role="status"` rather than becoming a second alert region. It is
+            named because the tracker owns a second status region.
+          */}
+          <div role="status" aria-label="Submission status">{notice && <p className="permission-banner">{notice}</p>}</div>
+          {saveError && <p className="error-message" role="alert">{saveError}</p>}
           {(isRequester || view === "intake") && <div className="requester-profile panel">
             <label><span>Prototype Requester profile</span><input aria-label="Prototype Requester profile" value={requester} onChange={(event) => setRequester(event.target.value)} /></label>
             <p>This profile is for local testing. It is not a signed-in account.</p>
           </div>}
-          {isRequester && view !== "intake" && <RequesterTracker key={requester} submissions={submissions} onRevise={uploadRevision} />}
+          {showTracker && <RequesterTracker key={requester} submissions={submissions} onRevise={uploadRevision} />}
           {!isRequester && view === "overview" && (
-            <Overview agreements={agreements} onNew={() => setView("intake")} onReview={openReview} />
+            <Overview agreements={agreements} onNew={() => startIntake()} onReview={openReview} />
           )}
-          {view === "intake" && <Intake key={requester} requester={requester} onAdd={addAgreement} />}
+          {view === "intake" && <Intake key={requester} submittedBy={requester} onAdd={addAgreement} />}
           {!isRequester && view === "review" && (
             <ReviewQueue key={activeAgreement?.id}
               agreements={agreements}
@@ -171,7 +220,7 @@ export default function App() {
               role={role}
               onSelect={setActiveAgreementId}
               onUpdate={updateAgreement}
-              onNew={() => setView("intake")}
+              onNew={() => startIntake()}
             />
           )}
           {!isRequester && view === "reports" && <Reports agreements={agreements} />}
@@ -189,13 +238,21 @@ function NavButton({
   onClick,
 }: {
   active: boolean;
-  icon: "home" | "upload" | "review" | "reports";
+  icon: "home" | "upload" | "review" | "reports" | "file";
   label: string;
   count?: number;
   onClick: () => void;
 }) {
+  // Below 760px the stylesheet hides both the label and the count badge to fit
+  // the nav into a row of icons, and the icon itself is aria-hidden. Without an
+  // explicit name these buttons are unnamed at that width, and the pending
+  // count disappears from the accessibility tree entirely.
   return (
-    <button aria-label={label} className={`nav-item ${active ? "active" : ""}`} onClick={onClick}>
+    <button
+      className={`nav-item ${active ? "active" : ""}`}
+      onClick={onClick}
+      aria-label={count ? `${label}, ${count} pending` : label}
+    >
       <Icon name={icon} />
       <span>{label}</span>
       {!!count && <strong>{count}</strong>}
@@ -275,133 +332,6 @@ function Metric({ label, value, note, tone }: { label: string; value: number; no
     <article className={`metric-card metric-${tone}`}>
       <span>{label}</span><strong>{value.toString().padStart(2, "0")}</strong><small>{note}</small>
     </article>
-  );
-}
-
-function Intake({ onAdd, requester }: { onAdd: (agreement: Agreement) => void; requester: string }) {
-  const fileInput = useRef<HTMLInputElement>(null);
-  const [file, setFile] = useState<File>();
-  const [vendor, setVendor] = useState("");
-  const [title, setTitle] = useState("");
-  const [neededBy, setNeededBy] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [dragging, setDragging] = useState(false);
-
-  const chooseFile = (next?: File) => {
-    setFile(next);
-    if (next && !title) setTitle(next.name);
-    setError("");
-  };
-
-  const makeAgreement = (
-    name: string,
-    vendorName: string,
-    document: ExtractedDocument,
-  ): Agreement => ({
-    id: crypto.randomUUID(),
-    name,
-    vendor: vendorName,
-    submittedAt: new Date().toISOString(),
-    submittedBy: requester.trim(),
-    neededBy: neededBy || undefined,
-    currentVersion: 1,
-    versions: [{ version: 1, fileName: file?.name ?? name, uploadedAt: new Date().toISOString() }],
-    status: "Needs review",
-    rawText: document.text,
-    pageCount: document.pageCount,
-    extractionStrategy: document.strategy,
-    extractionWarnings: document.warnings,
-    findings: analyzeAgreement(document.text),
-  });
-
-  const submit = async () => {
-    if (!requester.trim()) {
-      setError("Enter a Requester profile before submitting.");
-      return;
-    }
-    if (!file) {
-      setError("Choose a PDF or text file first.");
-      return;
-    }
-    setError("");
-    setIsLoading(true);
-    try {
-      const extracted = await extractText(file);
-      onAdd(makeAgreement(title || file.name, vendor || "Unknown vendor", extracted));
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "The file could not be read.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const loadDemo = () => {
-    if (!requester.trim()) { setError("Enter a Requester profile before submitting."); return; }
-    onAdd(
-      makeAgreement("Northstar MSA.pdf", "Northstar Data", {
-        text: demoAgreementText,
-        pageCount: 7,
-        warnings: [],
-      }),
-    );
-  };
-
-  return (
-    <section className="narrow-page">
-      <div className="page-heading">
-        <span className="eyebrow">Agreement intake</span>
-        <h1>Start a first-pass review</h1>
-        <p>Upload a text-based PDF. The prototype extracts its text locally and checks the team's 12 playbook categories.</p>
-      </div>
-      <div className="intake-layout">
-        <div className="panel intake-card">
-          <div className="step-heading"><span>1</span><div><h2>Agreement file</h2><p>PDF or plain text, up to the limits of your browser.</p></div></div>
-          <input
-            ref={fileInput}
-            className="visually-hidden"
-            type="file"
-            accept="application/pdf,.pdf,text/plain,.txt"
-            onChange={(event) => chooseFile(event.target.files?.[0])}
-          />
-          <button
-            className={`drop-zone ${file ? "has-file" : ""}${dragging ? " dragging" : ""}`}
-            onClick={() => fileInput.current?.click()}
-            onDragOver={(event) => {
-              event.preventDefault();
-              setDragging(true);
-            }}
-            onDragLeave={() => setDragging(false)}
-            onDrop={(event) => {
-              event.preventDefault();
-              setDragging(false);
-              chooseFile(event.dataTransfer.files?.[0]);
-            }}
-          >
-            <span className="upload-mark"><Icon name="upload" /></span>
-            {file ? <><strong>{file.name}</strong><small>{(file.size / 1024).toFixed(1)} KB · Click or drop to replace</small></> : <><strong>Drop an agreement here, or click to browse</strong><small>Text-based PDF or TXT</small></>}
-          </button>
-
-          <div className="form-grid">
-            <label><span>Agreement title</span><input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="e.g., Northstar MSA" /></label>
-            <label><span>Vendor</span><input value={vendor} onChange={(event) => setVendor(event.target.value)} placeholder="e.g., Northstar Data" /></label>
-            <label><span>Needed-by date</span><input type="date" value={neededBy} onChange={(event) => setNeededBy(event.target.value)} /></label>
-          </div>
-
-          {error && <p className="error-message">{error}</p>}
-          <div className="form-actions">
-            <button className="secondary-button" onClick={loadDemo}>Load demo agreement</button>
-            <button className="primary-button" onClick={submit} disabled={isLoading}>{isLoading ? "Extracting text…" : "Create review →"}</button>
-          </div>
-        </div>
-
-        <aside className="intake-aside">
-          <div className="aside-block"><Icon name="shield" /><div><strong>Local by design</strong><p>No model or external API is required for this prototype path.</p></div></div>
-          <div className="aside-block"><span className="number-mark">{playbook.length}</span><div><strong>Playbook categories</strong><p>Every generated finding includes a source span and confidence.</p></div></div>
-          <div className="aside-block"><span className="number-mark">↺</span><div><strong>Manual fallback</strong><p>Reviewers can add a finding even when no local rule matches.</p></div></div>
-        </aside>
-      </div>
-    </section>
   );
 }
 

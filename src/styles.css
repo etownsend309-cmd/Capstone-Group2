@@ -203,3 +203,13 @@ main { grid-column: 2; min-width: 0; }
 .review-completion .review-footer { padding: 16px 0 0; border-top: 1px solid var(--line); }
 .status-approved-with-conditions { color: var(--green); background: var(--green-soft); }
 .status-rejected { color: var(--red); background: var(--red-soft); }
+.intake-fields { margin: 0; padding: 0; border: 0; min-width: 0; }
+.intake-fields legend { margin-bottom: 16px; font-weight: 700; }
+.form-grid .error-message { margin: 0; font-weight: 400; }
+[aria-invalid="true"] { border-color: var(--red); }
+.drop-zone:focus-visible { outline: 3px solid var(--green); outline-offset: 3px; }
+.tracker-record { padding: 24px; margin-bottom: 14px; }
+.tracker-record h2 { margin-top: 0; }
+.tracker-record dl { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: 10px; font-size: 13px; }
+.tracker-record dd { margin: 0; overflow-wrap: anywhere; }
+@media (max-width: 760px) { .sidebar nav { grid-template-columns: repeat(5, 1fr); } }
