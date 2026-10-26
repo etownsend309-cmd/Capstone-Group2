@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { User } from "@netlify/identity";
 import { Icon } from "./components/Icon";
 import { Intake } from "./components/Intake";
 import { playbook } from "./lib/analyze";
@@ -11,8 +12,6 @@ import type {
 } from "./types";
 
 const STORAGE_KEY = "clausepilot-agreements-v1";
-// Replace with the authenticated user ID when login is connected.
-const REQUESTER_ID = "Prototype user";
 
 const formatDate = (date: string) =>
   new Intl.DateTimeFormat("en-US", {
@@ -42,7 +41,10 @@ function EmptyState({ title, body }: { title: string; body: string }) {
   );
 }
 
-export default function App() {
+// Only the identity is read here, so the prop is narrowed to it. A full
+// Netlify `User` still satisfies this, and tests do not have to build one.
+export default function App({ user, onSignOut }: { user: Pick<User, "id" | "email">; onSignOut: () => void }) {
+  const requesterId = user.email ?? user.id;
   const [view, setView] = useState<View>("overview");
   const [role, setRole] = useState<Role>("Reviewer");
   const [agreements, setAgreements] = useState<Agreement[]>(() => {
@@ -77,7 +79,28 @@ export default function App() {
    */
   const agreementsRef = useRef(agreements);
 
+  /**
+   * Whether this session still owns the stored list.
+   *
+   * Signing out unmounts App, but an extraction already awaited keeps running
+   * and still holds this instance's `onAdd` and `agreementsRef`. Storage is not
+   * keyed by user, so a write landing after unmount would overwrite whatever
+   * the next session has saved since, and that session would keep showing the
+   * lost agreement until a reload. Set on mount, not just initialised, because
+   * StrictMode runs the cleanup once before the real mount.
+   */
+  const live = useRef(true);
+  useEffect(() => {
+    live.current = true;
+    return () => {
+      live.current = false;
+    };
+  }, []);
+
   const persist = (next: Agreement[]) => {
+    if (!live.current) {
+      throw new Error("You were signed out before this submission finished, so it was not saved. Sign in and submit it again.");
+    }
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
     } catch {
@@ -139,6 +162,11 @@ export default function App() {
           <p>Data stays in this browser. No contract is sent to an AI service.</p>
           <a href="?view=extraction-poc">Extraction test harness →</a>
         </div>
+        <div className="sidebar-note sidebar-account">
+          <span className="eyebrow">Signed in</span>
+          <p>{requesterId}</p>
+          <button type="button" className="sign-out-link" onClick={onSignOut}>Sign out</button>
+        </div>
       </aside>
 
       <main>
@@ -168,11 +196,11 @@ export default function App() {
           */}
           <div role="status">{notice && <p className="permission-banner">{notice}</p>}</div>
           {saveError && <p className="error-message" role="alert">{saveError}</p>}
-          {view === "tracker" && <RequesterTracker agreements={agreements.filter((item) => item.submittedBy === REQUESTER_ID)} />}
+          {view === "tracker" && <RequesterTracker agreements={agreements.filter((item) => item.submittedBy === requesterId)} />}
           {view === "overview" && (
             <Overview agreements={agreements} onNew={() => startIntake()} onReview={openReview} />
           )}
-          {view === "intake" && <Intake submittedBy={REQUESTER_ID} onAdd={addAgreement} />}
+          {view === "intake" && <Intake submittedBy={requesterId} onAdd={addAgreement} />}
           {view === "review" && (
             <ReviewQueue
               agreements={agreements}

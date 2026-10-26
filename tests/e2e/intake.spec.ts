@@ -1,5 +1,9 @@
 import path from "node:path";
-import { expect, test, type Page } from "@playwright/test";
+import { type Page } from "@playwright/test";
+
+// Starts signed in: the intake flow is behind the identity gate, and these
+// tests are about submission, not about authentication.
+import { expect, requester, test } from "./support/session";
 
 const fields = [
   ["Vendor", "Northstar Data", "Enter a vendor."],
@@ -10,6 +14,10 @@ const fields = [
 const fixture = (name: string) => path.resolve("fixtures/generated", name);
 async function openIntake(page: Page) {
   await page.goto("/");
+  // Asserted rather than assumed: if the seeded session stopped satisfying the
+  // gate, every test below would otherwise fail on a missing control with no
+  // hint that the sign-in card is what rendered.
+  await expect(page.getByText(requester.email)).toBeVisible();
   await page.getByLabel("Viewing as").selectOption("Requester");
   await page.getByRole("navigation").getByRole("button", { name: "New agreement" }).click();
 }
