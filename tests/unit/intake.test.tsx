@@ -256,4 +256,27 @@ describe("concurrent submission and review", () => {
     expect(reviewed.findings[0].decision).toBe("accepted");
     expect(reviewed.status).toBe("In review");
   });
+
+  /**
+   * Sign out is in the sidebar, so it is reachable mid-extraction too, and it
+   * unmounts App while the submission is still awaiting its text. The stored
+   * list is shared by every account that uses the browser, so the abandoned
+   * submission must not write once the next session has started saving.
+   */
+  it("discards a submission abandoned by signing out mid-extraction", async () => {
+    const zone = await openIntake();
+    fireEvent.drop(zone, { dataTransfer: { files: [txtFile("abandoned.txt")] } });
+    await fillMetadata();
+
+    let resolve!: (value: { text: string; warnings: string[] }) => void;
+    vi.mocked(extractText).mockImplementationOnce(() => new Promise((done) => { resolve = done; }));
+    fireEvent.submit(screen.getByRole("button", { name: /create review/i }).closest("form")!);
+
+    cleanup();
+    localStorage.setItem(STORAGE_KEY, JSON.stringify([existingAgreement]));
+    resolve({ text: "GOVERNING LAW. Governed by the laws of Georgia.", warnings: [] });
+    await Promise.resolve();
+
+    expect(records()).toEqual([existingAgreement]);
+  });
 });

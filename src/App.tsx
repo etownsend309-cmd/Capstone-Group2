@@ -79,7 +79,28 @@ export default function App({ user, onSignOut }: { user: Pick<User, "id" | "emai
    */
   const agreementsRef = useRef(agreements);
 
+  /**
+   * Whether this session still owns the stored list.
+   *
+   * Signing out unmounts App, but an extraction already awaited keeps running
+   * and still holds this instance's `onAdd` and `agreementsRef`. Storage is not
+   * keyed by user, so a write landing after unmount would overwrite whatever
+   * the next session has saved since, and that session would keep showing the
+   * lost agreement until a reload. Set on mount, not just initialised, because
+   * StrictMode runs the cleanup once before the real mount.
+   */
+  const live = useRef(true);
+  useEffect(() => {
+    live.current = true;
+    return () => {
+      live.current = false;
+    };
+  }, []);
+
   const persist = (next: Agreement[]) => {
+    if (!live.current) {
+      throw new Error("You were signed out before this submission finished, so it was not saved. Sign in and submit it again.");
+    }
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
     } catch {
