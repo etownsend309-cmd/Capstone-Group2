@@ -168,8 +168,18 @@ export function AuthGate({ children }: { children: (user: SignedInUser, signOut:
     );
   }
 
-  // A recovery link signs the user in, so hold them on the reset card until they set a password.
-  if (user && mode !== "reset") {
+  /**
+   * Whether a signed-in user still owes us a password before reaching the app.
+   *
+   * A recovery link signs the user in itself, and an invitation can be opened
+   * in a browser that already holds a session, so in both cases `getUser()`
+   * returns someone while the password is still unset. Handing them the app
+   * would strand the link: its token is only in state by now, because
+   * `handleAuthCallback` clears it from the address bar as it reads it.
+   */
+  const needsPassword = mode === "reset" || mode === "invite";
+
+  if (user && !needsPassword) {
     return <>{children(user, async () => { await logout(); setUser(null); switchMode("signin"); })}</>;
   }
 
@@ -208,7 +218,7 @@ export function AuthGate({ children }: { children: (user: SignedInUser, signOut:
         </fieldset>
       </form>
     );
-  } else if (mode === "reset" || mode === "invite") {
+  } else if (needsPassword) {
     const isInvite = mode === "invite";
     card = (
       <form className="panel auth-card" onSubmit={handleNewPassword} aria-busy={submitting} noValidate>
