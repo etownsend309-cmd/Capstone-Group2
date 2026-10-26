@@ -159,6 +159,37 @@ export function AuthGate({ children }: { children: (user: SignedInUser, signOut:
     }
   }
 
+  /**
+   * Leaves the password card without setting a password.
+   *
+   * A recovery session is exactly what goes stale, so once the link expires
+   * the card can only retry something that will keep failing. Leaving has to
+   * discard that session rather than keep it: it is unusable, and it would
+   * otherwise let someone reach the app with the password still unset.
+   *
+   * An invitation is the opposite case. Any session present belongs to
+   * whoever was already signed in here, unrelated to the invitation, so
+   * backing out returns them to it instead of signing them out of it.
+   */
+  async function leavePasswordCard() {
+    setInviteToken("");
+    if (mode === "invite") {
+      switchMode("signin");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await logout();
+    } catch {
+      // The session is being abandoned either way. Failing to revoke it must
+      // not strand the user on the card they are trying to leave.
+    } finally {
+      setUser(null);
+      setSubmitting(false);
+      switchMode("forgot");
+    }
+  }
+
   if (loading) {
     return (
       <div className="auth-shell auth-loading" role="status">
@@ -249,6 +280,11 @@ export function AuthGate({ children }: { children: (user: SignedInUser, signOut:
               {submitting ? "Saving…" : isInvite ? "Create account →" : "Save password →"}
             </button>
           </div>
+          <p className="auth-switch">
+            <button type="button" className="text-button" onClick={() => void leavePasswordCard()}>
+              {isInvite ? "← Back to sign in" : "Request a new reset link"}
+            </button>
+          </p>
         </fieldset>
       </form>
     );
