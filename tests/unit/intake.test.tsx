@@ -17,6 +17,9 @@ import App from "../../src/App";
 import { extractText } from "../../src/lib/extractText";
 vi.mock("../../src/lib/extractText", () => ({ extractText: vi.fn() }));
 const STORAGE_KEY = "clausepilot-agreements-v1";
+/** Stands in for the signed-in Netlify user; App reads only the identity. */
+const signedInUser = { id: "test-requester-id", email: "requester@example.test" };
+const renderApp = () => render(<App user={signedInUser} onSignOut={() => {}} />);
 const fields = [
   ["Vendor", "Northstar Data", "Enter a vendor."],
   ["Agreement type", "Master services agreement", "Enter an agreement type."],
@@ -47,7 +50,7 @@ const txtFile = (name = "northstar-msa.txt") =>
 
 /** Move to the intake view and hand back its drop zone. */
 async function openIntake(): Promise<HTMLElement> {
-  render(<App />);
+  renderApp();
   // Scoped to the sidebar: the overview hero offers a "New agreement" button too.
   const nav = screen.getByRole("navigation", { name: /primary navigation/i });
   await userEvent.click(within(nav).getByRole("button", { name: /new agreement/i }));
@@ -93,7 +96,7 @@ describe("agreement intake", () => {
     expect(await screen.findByRole("heading", { name: "My submissions" })).toBeTruthy();
     expect(screen.getByRole("status").textContent).toContain("submitted successfully");
     expect(records()).toHaveLength(1);
-    expect(records()[0]).toMatchObject({ vendor: "Northstar Data", agreementType: "Master services agreement", businessUnit: "Shared services", neededBy: "2026-12-01", status: "Needs review", submittedBy: "Prototype user" });
+    expect(records()[0]).toMatchObject({ vendor: "Northstar Data", agreementType: "Master services agreement", businessUnit: "Shared services", neededBy: "2026-12-01", status: "Needs review", submittedBy: signedInUser.email });
     expect(records()[0].id).toMatch(/^[0-9a-f-]{36}$/);
     expect(records()[0].findings[0].category).toBe("Governing Law");
     expect(Number.isNaN(Date.parse(records()[0].submittedAt))).toBe(false);
@@ -188,7 +191,7 @@ describe("KAN-40 validation and safe submission", () => {
     const own = records()[0];
     cleanup();
     localStorage.setItem(STORAGE_KEY, JSON.stringify([own, { ...own, id: "other", name: "Another requester's contract", submittedBy: "Other requester" }]));
-    render(<App />);
+    renderApp();
     await userEvent.click(screen.getByRole("button", { name: "My submissions" }));
     expect(screen.getByRole("heading", { name: own.name })).toBeTruthy();
     expect(screen.queryByRole("heading", { name: "Another requester's contract" })).toBeNull();
@@ -205,7 +208,7 @@ describe("concurrent submission and review", () => {
     businessUnit: "Shared services",
     neededBy: "2026-11-01",
     submittedAt: "2026-10-01T12:00:00.000Z",
-    submittedBy: "Prototype user",
+    submittedBy: signedInUser.email,
     status: "Needs review",
     rawText: "GOVERNING LAW. Governed by the laws of Georgia.",
     findings: [
