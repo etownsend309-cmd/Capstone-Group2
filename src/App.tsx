@@ -4,7 +4,7 @@ import { Intake } from "./components/Intake";
 import RequesterTracker from "./components/RequesterTracker";
 import { playbook } from "./lib/analyze";
 import { extractText } from "./lib/extractText";
-import { finishReview, ownsAgreement, requesterSubmissions, reviseAgreement, type ReviewOutcome } from "./lib/requesterTracker";
+import { finishReview, ownsAgreement, requesterSubmissions, reviseAgreement, sameOwner, type ReviewOutcome } from "./lib/requesterTracker";
 import type {
   Agreement,
   Finding,
@@ -83,7 +83,11 @@ export default function App() {
   });
   const [activeAgreementId, setActiveAgreementId] = useState<string>();
 
-  const [notice, setNotice] = useState("");
+  // Carries the owner it was raised for. A notice names an agreement and its
+  // reference, so it must not survive into another profile's view, and a
+  // submission that lands after a profile change has nothing to say to the
+  // profile now selected: its agreement is not in that tracker.
+  const [notice, setNotice] = useState<{ owner: string; text: string }>();
   const [saveError, setSaveError] = useState("");
 
   /**
@@ -121,6 +125,7 @@ export default function App() {
   // intake resolves to the tracker. Other roles reach it from the nav, or after
   // submitting, since `addAgreement` sends every submitter there.
   const showTracker = isRequester ? view !== "intake" : view === "tracker";
+  const ownedNotice = notice && sameOwner(notice.owner, requester) ? notice.text : "";
 
   const uploadRevision = async (id: string, file: File) => {
     const agreement = agreementsRef.current.find((item) => item.id === id);
@@ -156,7 +161,10 @@ export default function App() {
       throw new Error("Enter a Prototype Requester profile before submitting. Your agreement was not saved.");
     }
     persist([agreement, ...agreementsRef.current]);
-    setNotice(`Agreement "${agreement.name}" submitted successfully. Reference: ${agreement.id}. Status: Needs review.`);
+    setNotice({
+      owner: agreement.submittedBy,
+      text: `Agreement "${agreement.name}" submitted successfully. Reference: ${agreement.id}. Status: Needs review.`,
+    });
     setView("tracker");
   };
 
@@ -170,7 +178,7 @@ export default function App() {
   };
 
   const startIntake = () => {
-    setNotice("");
+    setNotice(undefined);
     setSaveError("");
     setView("intake");
   };
@@ -238,7 +246,7 @@ export default function App() {
             `role="status"` rather than becoming a second alert region. It is
             named because the tracker owns a second status region.
           */}
-          <div role="status" aria-label="Submission status">{notice && <p className="permission-banner">{notice}</p>}</div>
+          <div role="status" aria-label="Submission status">{ownedNotice && <p className="permission-banner">{ownedNotice}</p>}</div>
           {saveError && <p className="error-message" role="alert">{saveError}</p>}
           {(isRequester || view === "intake") && <div className="requester-profile panel">
             <label><span>Prototype Requester profile</span><input aria-label="Prototype Requester profile" value={requester} onChange={(event) => setRequester(event.target.value)} /></label>

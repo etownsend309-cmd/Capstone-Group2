@@ -4,8 +4,13 @@ import type { ExtractedDocument } from "./extractText";
 
 const ownerKey = (value: string) => value.trim().toLowerCase();
 
+/** Whether two recorded identities are the same Requester. Blank owns nothing. */
+export function sameOwner(left: string, right: string): boolean {
+  return Boolean(ownerKey(left)) && ownerKey(left) === ownerKey(right);
+}
+
 export function ownsAgreement(agreement: Agreement, requester: string): boolean {
-  return Boolean(ownerKey(requester)) && ownerKey(agreement.submittedBy ?? "") === ownerKey(requester);
+  return sameOwner(requester, agreement.submittedBy ?? "");
 }
 
 export function requesterSubmissions(agreements: Agreement[], requester: string): RequesterSubmission[] {
