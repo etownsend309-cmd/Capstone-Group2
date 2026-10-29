@@ -2,7 +2,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { User } from "@netlify/identity";
 import { Icon } from "./components/Icon";
 import { Intake } from "./components/Intake";
+import { ManualFindingForm } from "./components/ManualFindingForm";
 import { playbook } from "./lib/analyze";
+import { auditFindingUpdate, createManualFinding } from "./lib/manualFinding";
+import type { ManualFindingInput } from "./lib/manualFinding";
 import type {
   Agreement,
   Finding,
@@ -206,6 +209,7 @@ export default function App({ user, onSignOut }: { user: Pick<User, "id" | "emai
               agreements={agreements}
               active={activeAgreement}
               role={role}
+              creator={requesterId}
               onSelect={setActiveAgreementId}
               onUpdate={updateAgreement}
               onNew={() => startIntake()}
@@ -345,6 +349,7 @@ function ReviewQueue({
   agreements,
   active,
   role,
+  creator,
   onSelect,
   onUpdate,
   onNew,
@@ -352,13 +357,15 @@ function ReviewQueue({
   agreements: Agreement[];
   active?: Agreement;
   role: Role;
+  creator: string;
   onSelect: (id: string) => void;
   onUpdate: (agreement: Agreement) => void;
   onNew: () => void;
 }) {
   const canReview = role !== "Requester";
   const [activeFindingId, setActiveFindingId] = useState<string>();
-  const [manualCategory, setManualCategory] = useState(playbook[0].name);
+  const [manualFormOpen, setManualFormOpen] = useState(false);
+  const [editingFinding, setEditingFinding] = useState<Finding>();
 
   useEffect(() => {
     setActiveFindingId(active?.findings[0]?.id);
@@ -377,27 +384,42 @@ function ReviewQueue({
 
   const updateFinding = (patch: Partial<Finding>) => {
     if (!activeFinding) return;
+    const updatedFinding = auditFindingUpdate(activeFinding, patch, creator);
     onUpdate({
       ...active,
       status: active.status === "Needs review" ? "In review" : active.status,
       findings: active.findings.map((finding) =>
-        finding.id === activeFinding.id ? { ...finding, ...patch } : finding,
+        finding.id === activeFinding.id ? updatedFinding : finding,
       ),
     });
   };
 
-  const addManualFinding = () => {
-    const finding: Finding = {
-      id: crypto.randomUUID(),
-      category: manualCategory,
-      confidence: 1,
-      sourceText: active.rawText.slice(0, 280).replace(/\s+/g, " ") || "No source text available.",
-      decision: "pending",
-      note: "Added manually by reviewer.",
-      method: "Manual",
-    };
-    onUpdate({ ...active, status: "In review", findings: [...active.findings, finding] });
-    setActiveFindingId(finding.id);
+      const saveManualFinding = (input: ManualFindingInput) => {
+        if (editingFinding) {
+          const updatedFinding = auditFindingUpdate(editingFinding, {
+            category: input.category,
+            findingType: input.findingType,
+            severity: input.severity,
+            reason: input.reason,
+            note: input.reason,
+            sourceText: input.findingType === "Provision" ? input.sourceText : "",
+            playbookExpectation: input.findingType === "Gap" ? input.playbookExpectation: "",
+            creator: editingFinding.creator ?? input.creator,
+          }, creator);
+          onUpdate({
+            ...active,
+            status: active.status === "Needs review" ? "In review" : active.status,
+            findings: active.findings.map((finding) => finding.id === editingFinding.id ? updatedFinding : finding),
+          });
+          setActiveFindingId(updatedFinding.id);
+        } else {
+          const finding = createManualFinding(input);
+      
+      onUpdate({ ...active, status: "In review", findings: [...active.findings, finding] });
+      setActiveFindingId(finding.id);
+    }
+    setEditingFinding(undefined);
+    setManualFormOpen(false);
   };
 
   const completeReview = () => {
@@ -453,20 +475,31 @@ function ReviewQueue({
                   <span><strong>{finding.category}</strong><small>{Math.round(finding.confidence * 100)}% confidence</small></span>
                 </button>
               ))}
-              {canReview && (
-                <div className="manual-add">
-                  <select value={manualCategory} onChange={(event) => setManualCategory(event.target.value)}>{playbook.map((item) => <option key={item.name}>{item.name}</option>)}</select>
-                  <button onClick={addManualFinding}>＋ Add manual finding</button>
-                </div>
-              )}
+              {canReview && <div className="manual-add"><button onClick={() => { setEditingFinding(undefined); setManualFormOpen(true); }}>＋ Add manual flag</button></div>}
             </div>
 
             <div className="finding-detail">
-              {activeFinding ? (
+                {manualFormOpen && canReview ? (
+                  <ManualFindingForm
+                  key={editingFinding?.id ?? "new-manual-finding"}
+                  agreementText={active.rawText}
+                  creator={creator}
+                  finding={editingFinding}
+                  onCancel={() => { setManualFormOpen(false); setEditingFinding(undefined); }}
+                  onSave={saveManualFinding}
+                  />
+                ) : activeFinding ? (
+
+
                 <>
-                  <div className="finding-title"><div><span className="eyebrow">{activeFinding.method}</span><h3>{activeFinding.category}</h3></div><span className="confidence">{Math.round(activeFinding.confidence * 100)}% <small>confidence</small></span></div>
-                  <div className="source-card"><span>Supporting source text</span><blockquote>{activeFinding.sourceText}</blockquote></div>
+                  <div className="finding-title"><div><span className="eyebrow">{activeFinding.method} origin</span><h3>{activeFinding.category}</h3></div>{activeFinding.method === "Manual" ? <span className="flag-classification">{activeFinding.findingType} · {activeFinding.severity}</span> : <span className="confidence">{Math.round(activeFinding.confidence * 100)}% <small>confidence</small></span>}</div>
+                  {activeFinding.findingType === "Gap" ? (
+                    <div className="source-card gap-source"><span>Contract evidence</span><p>No contract text cited for this gap.</p><strong>Playbook expectation</strong><blockquote>{activeFinding.playbookExpectation}</blockquote></div>
+                  ) : <div className="source-card"><span>Supporting source text</span><blockquote>{activeFinding.sourceText}</blockquote></div>}
+                  {activeFinding.reason && <p className="manual-reason"><strong>Reason</strong>{activeFinding.reason}</p>}
+                  {canReview && activeFinding.method === "Manual" && <button className="text-button edit-manual-button" onClick={() => { setEditingFinding(activeFinding); setManualFormOpen(true); }}>Edit manual flag</button>}
                   <label className="notes-field"><span>Reviewer note</span><textarea value={activeFinding.note} disabled={!canReview} onChange={(event) => updateFinding({ note: event.target.value })} placeholder="Record why you accepted, dismissed, or escalated this finding…" /></label>
+                  {!!activeFinding.history?.length && <details className="audit-history"><summary>Audit history ({activeFinding.history.length})</summary><ol>{activeFinding.history.map((entry, index) => <li key={`${entry.at}-${index}`}><strong>{entry.action}</strong><span>{entry.actor} · {formatDate(entry.at)}</span><small>{entry.after.category} · {entry.after.findingType ?? "Rule finding"} · {entry.after.decision}{entry.before?.decision && entry.before.decision !== entry.after.decision ? ` (previously ${entry.before.decision})` :""}</small></li>)}</ol></details>}
                   {canReview && (
                     <div className="decision-actions">
                       <DecisionButton decision="accepted" current={activeFinding.decision} onClick={updateFinding} label="Accept" />
