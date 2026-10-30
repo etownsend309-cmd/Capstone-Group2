@@ -2,14 +2,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { User } from "@netlify/identity";
 import { Icon } from "./components/Icon";
 import { Intake } from "./components/Intake";
+import { ManualFindingForm } from "./components/ManualFindingForm";
 import { playbook } from "./lib/analyze";
-import type {
-  Agreement,
-  Finding,
-  FindingDecision,
-  Role,
-  View,
-} from "./types";
+import { auditFindingUpdate, createManualFinding } from "./lib/manualFinding";
+import type { ManualFindingInput } from "./lib/manualFinding";
+import type { Agreement, Finding, FindingDecision, Role, View } from "./types";
 
 const STORAGE_KEY = "clausepilot-agreements-v1";
 
@@ -28,13 +25,21 @@ const today = new Intl.DateTimeFormat("en-US", {
 }).format(new Date());
 
 function StatusPill({ status }: { status: Agreement["status"] }) {
-  return <span className={`status status-${status.toLowerCase().replaceAll(" ", "-")}`}>{status}</span>;
+  return (
+    <span
+      className={`status status-${status.toLowerCase().replaceAll(" ", "-")}`}
+    >
+      {status}
+    </span>
+  );
 }
 
 function EmptyState({ title, body }: { title: string; body: string }) {
   return (
     <div className="empty-state">
-      <div className="empty-icon"><Icon name="file" /></div>
+      <div className="empty-icon">
+        <Icon name="file" />
+      </div>
       <h3>{title}</h3>
       <p>{body}</p>
     </div>
@@ -43,13 +48,21 @@ function EmptyState({ title, body }: { title: string; body: string }) {
 
 // Only the identity is read here, so the prop is narrowed to it. A full
 // Netlify `User` still satisfies this, and tests do not have to build one.
-export default function App({ user, onSignOut }: { user: Pick<User, "id" | "email">; onSignOut: () => void }) {
+export default function App({
+  user,
+  onSignOut,
+}: {
+  user: Pick<User, "id" | "email">;
+  onSignOut: () => void;
+}) {
   const requesterId = user.email ?? user.id;
   const [view, setView] = useState<View>("overview");
   const [role, setRole] = useState<Role>("Reviewer");
   const [agreements, setAgreements] = useState<Agreement[]>(() => {
     try {
-      const saved: unknown = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "[]");
+      const saved: unknown = JSON.parse(
+        localStorage.getItem(STORAGE_KEY) ?? "[]",
+      );
       if (!Array.isArray(saved)) return [];
       return saved.map((agreement) => ({
         ...agreement,
@@ -99,19 +112,24 @@ export default function App({ user, onSignOut }: { user: Pick<User, "id" | "emai
 
   const persist = (next: Agreement[]) => {
     if (!live.current) {
-      throw new Error("You were signed out before this submission finished, so it was not saved. Sign in and submit it again.");
+      throw new Error(
+        "You were signed out before this submission finished, so it was not saved. Sign in and submit it again.",
+      );
     }
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
     } catch {
-      throw new Error("The agreement could not be saved in this browser. Free storage space or enable site storage, then try again. Your submission was not saved.");
+      throw new Error(
+        "The agreement could not be saved in this browser. Free storage space or enable site storage, then try again. Your submission was not saved.",
+      );
     }
     agreementsRef.current = next;
     setAgreements(next);
   };
 
   const activeAgreement =
-    agreements.find((agreement) => agreement.id === activeAgreementId) ?? agreements[0];
+    agreements.find((agreement) => agreement.id === activeAgreementId) ??
+    agreements[0];
 
   const openReview = (id: string) => {
     setActiveAgreementId(id);
@@ -120,16 +138,26 @@ export default function App({ user, onSignOut }: { user: Pick<User, "id" | "emai
 
   const addAgreement = (agreement: Agreement) => {
     persist([agreement, ...agreementsRef.current]);
-    setNotice(`Agreement "${agreement.name}" submitted successfully. Reference: ${agreement.id}. Status: Needs review.`);
+    setNotice(
+      `Agreement "${agreement.name}" submitted successfully. Reference: ${agreement.id}. Status: Needs review.`,
+    );
     setView("tracker");
   };
 
   const updateAgreement = (updated: Agreement) => {
     try {
-      persist(agreementsRef.current.map((agreement) => agreement.id === updated.id ? updated : agreement));
+      persist(
+        agreementsRef.current.map((agreement) =>
+          agreement.id === updated.id ? updated : agreement,
+        ),
+      );
       setSaveError("");
     } catch (reason) {
-      setSaveError(reason instanceof Error ? reason.message : "The review could not be saved.");
+      setSaveError(
+        reason instanceof Error
+          ? reason.message
+          : "The review could not be saved.",
+      );
     }
   };
 
@@ -147,25 +175,59 @@ export default function App({ user, onSignOut }: { user: Pick<User, "id" | "emai
     <div className="app-shell">
       <aside className="sidebar">
         <button className="brand" onClick={() => setView("overview")}>
-          <span className="brand-mark"><Icon name="shield" /></span>
-          <span>Clause<span>Pilot</span></span>
+          <span className="brand-mark">
+            <Icon name="shield" />
+          </span>
+          <span>
+            Clause<span>Pilot</span>
+          </span>
         </button>
         <nav aria-label="Primary navigation">
-          <NavButton active={view === "overview"} icon="home" label="Overview" onClick={() => setView("overview")} />
-          <NavButton active={view === "intake"} icon="upload" label="New agreement" onClick={() => startIntake()} />
-          <NavButton active={view === "tracker"} icon="file" label="My submissions" onClick={() => setView("tracker")} />
-          <NavButton active={view === "review"} icon="review" label="Review queue" count={pending} onClick={() => setView("review")} />
-          <NavButton active={view === "reports"} icon="reports" label="Reports" onClick={() => setView("reports")} />
+          <NavButton
+            active={view === "overview"}
+            icon="home"
+            label="Overview"
+            onClick={() => setView("overview")}
+          />
+          <NavButton
+            active={view === "intake"}
+            icon="upload"
+            label="New agreement"
+            onClick={() => startIntake()}
+          />
+          <NavButton
+            active={view === "tracker"}
+            icon="file"
+            label="My submissions"
+            onClick={() => setView("tracker")}
+          />
+          <NavButton
+            active={view === "review"}
+            icon="review"
+            label="Review queue"
+            count={pending}
+            onClick={() => setView("review")}
+          />
+          <NavButton
+            active={view === "reports"}
+            icon="reports"
+            label="Reports"
+            onClick={() => setView("reports")}
+          />
         </nav>
         <div className="sidebar-note">
           <span className="eyebrow">Prototype mode</span>
-          <p>Data stays in this browser. No contract is sent to an AI service.</p>
+          <p>
+            Data stays in this browser. No contract is sent to an AI service.
+          </p>
           <a href="?view=extraction-poc">Extraction test harness →</a>
         </div>
         <div className="sidebar-note sidebar-account">
           <span className="eyebrow">Signed in</span>
           <p>{requesterId}</p>
-          <button type="button" className="sign-out-link" onClick={onSignOut}>Sign out</button>
+          <button type="button" className="sign-out-link" onClick={onSignOut}>
+            Sign out
+          </button>
         </div>
       </aside>
 
@@ -177,7 +239,10 @@ export default function App({ user, onSignOut }: { user: Pick<User, "id" | "emai
           </div>
           <label className="role-switcher">
             <span>Viewing as</span>
-            <select value={role} onChange={(event) => setRole(event.target.value as Role)}>
+            <select
+              value={role}
+              onChange={(event) => setRole(event.target.value as Role)}
+            >
               <option>Requester</option>
               <option>Reviewer</option>
               <option>Approver</option>
@@ -194,18 +259,37 @@ export default function App({ user, onSignOut }: { user: Pick<User, "id" | "emai
             The intake form owns the only `role="alert"`, so this stays
             `role="status"` rather than becoming a second alert region.
           */}
-          <div role="status">{notice && <p className="permission-banner">{notice}</p>}</div>
-          {saveError && <p className="error-message" role="alert">{saveError}</p>}
-          {view === "tracker" && <RequesterTracker agreements={agreements.filter((item) => item.submittedBy === requesterId)} />}
-          {view === "overview" && (
-            <Overview agreements={agreements} onNew={() => startIntake()} onReview={openReview} />
+          <div role="status">
+            {notice && <p className="permission-banner">{notice}</p>}
+          </div>
+          {saveError && (
+            <p className="error-message" role="alert">
+              {saveError}
+            </p>
           )}
-          {view === "intake" && <Intake submittedBy={requesterId} onAdd={addAgreement} />}
+          {view === "tracker" && (
+            <RequesterTracker
+              agreements={agreements.filter(
+                (item) => item.submittedBy === requesterId,
+              )}
+            />
+          )}
+          {view === "overview" && (
+            <Overview
+              agreements={agreements}
+              onNew={() => startIntake()}
+              onReview={openReview}
+            />
+          )}
+          {view === "intake" && (
+            <Intake submittedBy={requesterId} onAdd={addAgreement} />
+          )}
           {view === "review" && (
             <ReviewQueue
               agreements={agreements}
               active={activeAgreement}
               role={role}
+              creator={requesterId}
               onSelect={setActiveAgreementId}
               onUpdate={updateAgreement}
               onNew={() => startIntake()}
@@ -257,9 +341,15 @@ function Overview({
   onNew: () => void;
   onReview: (id: string) => void;
 }) {
-  const open = agreements.filter((item) => ["Needs review", "In review"].includes(item.status));
-  const approved = agreements.filter((item) => item.status === "Approved").length;
-  const escalated = agreements.filter((item) => item.status === "Escalated").length;
+  const open = agreements.filter((item) =>
+    ["Needs review", "In review"].includes(item.status),
+  );
+  const approved = agreements.filter(
+    (item) => item.status === "Approved",
+  ).length;
+  const escalated = agreements.filter(
+    (item) => item.status === "Escalated",
+  ).length;
 
   return (
     <>
@@ -267,46 +357,114 @@ function Overview({
         <div>
           <span className="eyebrow">{today}</span>
           <h1>Make the first pass count.</h1>
-          <p>Surface the agreements that need legal attention and keep every decision tied to its source.</p>
+          <p>
+            Surface the agreements that need legal attention and keep every
+            decision tied to its source.
+          </p>
         </div>
-        <button className="primary-button" onClick={onNew}><span>＋</span> New agreement</button>
+        <button className="primary-button" onClick={onNew}>
+          <span>＋</span> New agreement
+        </button>
       </section>
 
       <section className="metric-grid" aria-label="Agreement summary">
-        <Metric label="Total agreements" value={agreements.length} note="Stored locally" tone="navy" />
-        <Metric label="Awaiting review" value={open.length} note="Needs a reviewer" tone="amber" />
-        <Metric label="Approved" value={approved} note="Review completed" tone="green" />
-        <Metric label="Escalated" value={escalated} note="Needs an approver" tone="red" />
+        <Metric
+          label="Total agreements"
+          value={agreements.length}
+          note="Stored locally"
+          tone="navy"
+        />
+        <Metric
+          label="Awaiting review"
+          value={open.length}
+          note="Needs a reviewer"
+          tone="amber"
+        />
+        <Metric
+          label="Approved"
+          value={approved}
+          note="Review completed"
+          tone="green"
+        />
+        <Metric
+          label="Escalated"
+          value={escalated}
+          note="Needs an approver"
+          tone="red"
+        />
       </section>
 
       <section className="content-grid">
         <div className="panel recent-panel">
           <div className="panel-heading">
-            <div><span className="eyebrow">Work queue</span><h2>Recent agreements</h2></div>
-            <button className="text-button" onClick={onNew}>Add agreement →</button>
+            <div>
+              <span className="eyebrow">Work queue</span>
+              <h2>Recent agreements</h2>
+            </div>
+            <button className="text-button" onClick={onNew}>
+              Add agreement →
+            </button>
           </div>
           {agreements.length ? (
             <div className="agreement-list">
               {agreements.slice(0, 5).map((agreement) => (
-                <button key={agreement.id} className="agreement-row" onClick={() => onReview(agreement.id)}>
-                  <span className="file-tile"><Icon name="file" /></span>
-                  <span className="agreement-main"><strong>{agreement.name}</strong><small>{agreement.vendor} · {formatDate(agreement.submittedAt)}</small></span>
-                  <span className="finding-count">{agreement.findings.length} findings</span>
+                <button
+                  key={agreement.id}
+                  className="agreement-row"
+                  onClick={() => onReview(agreement.id)}
+                >
+                  <span className="file-tile">
+                    <Icon name="file" />
+                  </span>
+                  <span className="agreement-main">
+                    <strong>{agreement.name}</strong>
+                    <small>
+                      {agreement.vendor} · {formatDate(agreement.submittedAt)}
+                    </small>
+                  </span>
+                  <span className="finding-count">
+                    {agreement.findings.length} findings
+                  </span>
                   <StatusPill status={agreement.status} />
                   <span className="row-arrow">→</span>
                 </button>
               ))}
             </div>
           ) : (
-            <EmptyState title="No agreements yet" body="Load the demo or upload a PDF to test the review workflow." />
+            <EmptyState
+              title="No agreements yet"
+              body="Load the demo or upload a PDF to test the review workflow."
+            />
           )}
         </div>
 
         <div className="panel workflow-panel">
-          <div className="panel-heading"><div><span className="eyebrow">Baseline workflow</span><h2>Eight-stage path</h2></div></div>
+          <div className="panel-heading">
+            <div>
+              <span className="eyebrow">Baseline workflow</span>
+              <h2>Eight-stage path</h2>
+            </div>
+          </div>
           <ol className="workflow-list">
-            {["Intake", "Ingest & segment", "Identify provisions", "Generate flags", "Human review", "Disposition", "Record decision", "Report"].map((step, index) => (
-              <li key={step}><span>{index + 1}</span><div><strong>{step}</strong><small>{index < 4 ? "Prototype ready" : "Ready to test"}</small></div></li>
+            {[
+              "Intake",
+              "Ingest & segment",
+              "Identify provisions",
+              "Generate flags",
+              "Human review",
+              "Disposition",
+              "Record decision",
+              "Report",
+            ].map((step, index) => (
+              <li key={step}>
+                <span>{index + 1}</span>
+                <div>
+                  <strong>{step}</strong>
+                  <small>
+                    {index < 4 ? "Prototype ready" : "Ready to test"}
+                  </small>
+                </div>
+              </li>
             ))}
           </ol>
         </div>
@@ -315,36 +473,72 @@ function Overview({
   );
 }
 
-function Metric({ label, value, note, tone }: { label: string; value: number; note: string; tone: string }) {
+function Metric({
+  label,
+  value,
+  note,
+  tone,
+}: {
+  label: string;
+  value: number;
+  note: string;
+  tone: string;
+}) {
   return (
     <article className={`metric-card metric-${tone}`}>
-      <span>{label}</span><strong>{value.toString().padStart(2, "0")}</strong><small>{note}</small>
+      <span>{label}</span>
+      <strong>{value.toString().padStart(2, "0")}</strong>
+      <small>{note}</small>
     </article>
   );
 }
 
 function RequesterTracker({ agreements }: { agreements: Agreement[] }) {
-  return <section>
-    <div className="page-heading"><span className="eyebrow">Requester tracker</span><h1>My submissions</h1><p>Track agreements submitted by the demo requester in this browser.</p></div>
-    {agreements.length === 0 ? <EmptyState title="No submissions yet" body="Submit an agreement to track its status here." /> :
-      <div className="agreement-list">{agreements.map((agreement) => <article className="panel tracker-record" key={agreement.id}>
-        <h2>{agreement.name}</h2><StatusPill status={agreement.status} />
-        <dl>
-          <dt>Reference</dt><dd>{agreement.id}</dd>
-          <dt>Vendor</dt><dd>{agreement.vendor}</dd>
-          <dt>Agreement type</dt><dd>{agreement.agreementType || "Not recorded"}</dd>
-          <dt>Business unit</dt><dd>{agreement.businessUnit || "Not recorded"}</dd>
-          <dt>Needed-by date</dt><dd>{agreement.neededBy || "Not recorded"}</dd>
-          <dt>Submitted</dt><dd>{formatDate(agreement.submittedAt)}</dd>
-        </dl>
-      </article>)}</div>}
-  </section>;
+  return (
+    <section>
+      <div className="page-heading">
+        <span className="eyebrow">Requester tracker</span>
+        <h1>My submissions</h1>
+        <p>Track agreements submitted by the demo requester in this browser.</p>
+      </div>
+      {agreements.length === 0 ? (
+        <EmptyState
+          title="No submissions yet"
+          body="Submit an agreement to track its status here."
+        />
+      ) : (
+        <div className="agreement-list">
+          {agreements.map((agreement) => (
+            <article className="panel tracker-record" key={agreement.id}>
+              <h2>{agreement.name}</h2>
+              <StatusPill status={agreement.status} />
+              <dl>
+                <dt>Reference</dt>
+                <dd>{agreement.id}</dd>
+                <dt>Vendor</dt>
+                <dd>{agreement.vendor}</dd>
+                <dt>Agreement type</dt>
+                <dd>{agreement.agreementType || "Not recorded"}</dd>
+                <dt>Business unit</dt>
+                <dd>{agreement.businessUnit || "Not recorded"}</dd>
+                <dt>Needed-by date</dt>
+                <dd>{agreement.neededBy || "Not recorded"}</dd>
+                <dt>Submitted</dt>
+                <dd>{formatDate(agreement.submittedAt)}</dd>
+              </dl>
+            </article>
+          ))}
+        </div>
+      )}
+    </section>
+  );
 }
 
 function ReviewQueue({
   agreements,
   active,
   role,
+  creator,
   onSelect,
   onUpdate,
   onNew,
@@ -352,13 +546,19 @@ function ReviewQueue({
   agreements: Agreement[];
   active?: Agreement;
   role: Role;
+  creator: string;
   onSelect: (id: string) => void;
   onUpdate: (agreement: Agreement) => void;
   onNew: () => void;
 }) {
-  const canReview = role !== "Requester";
+  const canReview =
+    active !== undefined &&
+    role !== "Requester" &&
+    active.submittedBy !== creator;
   const [activeFindingId, setActiveFindingId] = useState<string>();
-  const [manualCategory, setManualCategory] = useState(playbook[0].name);
+  const [manualFormOpen, setManualFormOpen] = useState(false);
+  const [editingFinding, setEditingFinding] = useState<Finding>();
+  const [decisionError, setDecisionError] = useState("");
 
   useEffect(() => {
     setActiveFindingId(active?.findings[0]?.id);
@@ -368,42 +568,102 @@ function ReviewQueue({
 
   if (!agreements.length || !active) {
     return (
-      <section className="narrow-page"><div className="page-heading"><span className="eyebrow">Review queue</span><h1>Nothing is waiting</h1></div><div className="panel"><EmptyState title="The queue is clear" body="Add an agreement to begin testing." /><div className="center-action"><button className="primary-button" onClick={onNew}>New agreement</button></div></div></section>
+      <section className="narrow-page">
+        <div className="page-heading">
+          <span className="eyebrow">Review queue</span>
+          <h1>Nothing is waiting</h1>
+        </div>
+        <div className="panel">
+          <EmptyState
+            title="The queue is clear"
+            body="Add an agreement to begin testing."
+          />
+          <div className="center-action">
+            <button className="primary-button" onClick={onNew}>
+              New agreement
+            </button>
+          </div>
+        </div>
+      </section>
     );
   }
 
   const activeFinding =
-    active.findings.find((finding) => finding.id === activeFindingId) ?? active.findings[0];
+    active.findings.find((finding) => finding.id === activeFindingId) ??
+    active.findings[0];
 
   const updateFinding = (patch: Partial<Finding>) => {
     if (!activeFinding) return;
+    const updatedFinding = auditFindingUpdate(activeFinding, patch, creator);
     onUpdate({
       ...active,
       status: active.status === "Needs review" ? "In review" : active.status,
       findings: active.findings.map((finding) =>
-        finding.id === activeFinding.id ? { ...finding, ...patch } : finding,
+        finding.id === activeFinding.id ? updatedFinding : finding,
       ),
     });
   };
 
-  const addManualFinding = () => {
-    const finding: Finding = {
-      id: crypto.randomUUID(),
-      category: manualCategory,
-      confidence: 1,
-      sourceText: active.rawText.slice(0, 280).replace(/\s+/g, " ") || "No source text available.",
-      decision: "pending",
-      note: "Added manually by reviewer.",
-      method: "Manual",
-    };
-    onUpdate({ ...active, status: "In review", findings: [...active.findings, finding] });
-    setActiveFindingId(finding.id);
+  const recordDecision = (decision: FindingDecision) => {
+    if (!activeFinding) return;
+    const reason = activeFinding.note?.trim() ?? "";
+    if (!reason) {
+      setDecisionError(
+        "Add a reason before accepting, dismissing, or escalating this flag.",
+      );
+      return;
+    }
+    setDecisionError("");
+    updateFinding({ decision });
+  };
+
+  const saveManualFinding = (input: ManualFindingInput) => {
+    if (editingFinding) {
+      const updatedFinding = auditFindingUpdate(
+        editingFinding,
+        {
+          category: input.category,
+          findingType: input.findingType,
+          severity: input.severity,
+          reason: input.reason,
+          note: input.reason,
+          sourceText: input.findingType === "Provision" ? input.sourceText : "",
+          playbookExpectation:
+            input.findingType === "Gap" ? input.playbookExpectation : "",
+          creator: editingFinding.creator ?? input.creator,
+        },
+        creator,
+      );
+      onUpdate({
+        ...active,
+        status: active.status === "Needs review" ? "In review" : active.status,
+        findings: active.findings.map((finding) =>
+          finding.id === editingFinding.id ? updatedFinding : finding,
+        ),
+      });
+      setActiveFindingId(updatedFinding.id);
+    } else {
+      const finding = createManualFinding(input);
+
+      onUpdate({
+        ...active,
+        status: "In review",
+        findings: [...active.findings, finding],
+      });
+      setActiveFindingId(finding.id);
+    }
+    setEditingFinding(undefined);
+    setManualFormOpen(false);
   };
 
   const completeReview = () => {
-    const hasPending = active.findings.some((finding) => finding.decision === "pending");
+    const hasPending = active.findings.some(
+      (finding) => finding.decision === "pending",
+    );
     if (hasPending) return;
-    const hasEscalation = active.findings.some((finding) => finding.decision === "escalated");
+    const hasEscalation = active.findings.some(
+      (finding) => finding.decision === "escalated",
+    );
     onUpdate({
       ...active,
       status: hasEscalation ? "Escalated" : "Approved",
@@ -414,19 +674,45 @@ function ReviewQueue({
   return (
     <section>
       <div className="page-heading queue-heading">
-        <div><span className="eyebrow">Human review</span><h1>Review queue</h1><p>Confirm each flag against its source before completing the review.</p></div>
-        <button className="secondary-button" onClick={onNew}>＋ Add agreement</button>
+        <div>
+          <span className="eyebrow">Human review</span>
+          <h1>Review queue</h1>
+          <p>
+            Confirm each flag against its source before completing the review.
+          </p>
+        </div>
+        <button className="secondary-button" onClick={onNew}>
+          ＋ Add agreement
+        </button>
       </div>
 
-      {role === "Requester" && <div className="permission-banner">Requester view shows status and outcomes. Switch to Reviewer or Approver to record decisions.</div>}
+      {role === "Requester" && (
+        <div className="permission-banner">
+          Requester view shows status and outcomes. Switch to Reviewer or
+          Approver to record decisions.
+        </div>
+      )}
 
       <div className="review-layout">
         <aside className="queue-list panel">
           <div className="queue-label">{agreements.length} agreements</div>
           {agreements.map((agreement) => (
-            <button key={agreement.id} className={`queue-row ${agreement.id === active.id ? "selected" : ""}`} onClick={() => onSelect(agreement.id)}>
-              <span className="file-tile small"><Icon name="file" /></span>
-              <span><strong>{agreement.name}</strong><small>{agreement.vendor}<br />{agreement.findings.length} findings</small></span>
+            <button
+              key={agreement.id}
+              className={`queue-row ${agreement.id === active.id ? "selected" : ""}`}
+              onClick={() => onSelect(agreement.id)}
+            >
+              <span className="file-tile small">
+                <Icon name="file" />
+              </span>
+              <span>
+                <strong>{agreement.name}</strong>
+                <small>
+                  {agreement.vendor}
+                  <br />
+                  {agreement.findings.length} findings
+                </small>
+              </span>
               <StatusPill status={agreement.status} />
             </button>
           ))}
@@ -434,57 +720,231 @@ function ReviewQueue({
 
         <div className="review-detail panel">
           <div className="document-heading">
-            <div><span className="eyebrow">{active.vendor}</span><h2>{active.name}</h2><p>Submitted {formatDate(active.submittedAt)}{active.pageCount ? ` · ${active.pageCount} pages` : ""}</p></div>
+            <div>
+              <span className="eyebrow">{active.vendor}</span>
+              <h2>{active.name}</h2>
+              <p>
+                Submitted {formatDate(active.submittedAt)}
+                {active.pageCount ? ` · ${active.pageCount} pages` : ""}
+              </p>
+            </div>
             <StatusPill status={active.status} />
           </div>
 
           {!!active.extractionWarnings?.length && (
             <div className="permission-banner">
-              <strong>Extraction notes:</strong> {active.extractionWarnings.join(" ")}
+              <strong>Extraction notes:</strong>{" "}
+              {active.extractionWarnings.join(" ")}
             </div>
           )}
 
           <div className="review-body">
             <div className="finding-nav">
-              <div className="finding-nav-title"><strong>Findings</strong><span>{active.findings.length}</span></div>
+              <div className="finding-nav-title">
+                <strong>Findings</strong>
+                <span>{active.findings.length}</span>
+              </div>
               {active.findings.map((finding) => (
-                <button key={finding.id} className={finding.id === activeFinding?.id ? "selected" : ""} onClick={() => setActiveFindingId(finding.id)}>
+                <button
+                  key={finding.id}
+                  className={finding.id === activeFinding?.id ? "selected" : ""}
+                  onClick={() => setActiveFindingId(finding.id)}
+                >
                   <span className={`decision-dot dot-${finding.decision}`} />
-                  <span><strong>{finding.category}</strong><small>{Math.round(finding.confidence * 100)}% confidence</small></span>
+                  <span>
+                    <strong>{finding.category}</strong>
+                    <small>
+                      {Math.round(finding.confidence * 100)}% confidence
+                    </small>
+                  </span>
                 </button>
               ))}
               {canReview && (
                 <div className="manual-add">
-                  <select value={manualCategory} onChange={(event) => setManualCategory(event.target.value)}>{playbook.map((item) => <option key={item.name}>{item.name}</option>)}</select>
-                  <button onClick={addManualFinding}>＋ Add manual finding</button>
+                  <button
+                    onClick={() => {
+                      setEditingFinding(undefined);
+                      setManualFormOpen(true);
+                    }}
+                  >
+                    ＋ Add manual flag
+                  </button>
                 </div>
               )}
             </div>
 
             <div className="finding-detail">
-              {activeFinding ? (
+              {manualFormOpen && canReview ? (
+                <ManualFindingForm
+                  key={editingFinding?.id ?? "new-manual-finding"}
+                  agreementText={active.rawText}
+                  creator={creator}
+                  finding={editingFinding}
+                  onCancel={() => {
+                    setManualFormOpen(false);
+                    setEditingFinding(undefined);
+                  }}
+                  onSave={saveManualFinding}
+                />
+              ) : activeFinding ? (
                 <>
-                  <div className="finding-title"><div><span className="eyebrow">{activeFinding.method}</span><h3>{activeFinding.category}</h3></div><span className="confidence">{Math.round(activeFinding.confidence * 100)}% <small>confidence</small></span></div>
-                  <div className="source-card"><span>Supporting source text</span><blockquote>{activeFinding.sourceText}</blockquote></div>
-                  <label className="notes-field"><span>Reviewer note</span><textarea value={activeFinding.note} disabled={!canReview} onChange={(event) => updateFinding({ note: event.target.value })} placeholder="Record why you accepted, dismissed, or escalated this finding…" /></label>
-                  {canReview && (
-                    <div className="decision-actions">
-                      <DecisionButton decision="accepted" current={activeFinding.decision} onClick={updateFinding} label="Accept" />
-                      <DecisionButton decision="dismissed" current={activeFinding.decision} onClick={updateFinding} label="Dismiss" />
-                      <DecisionButton decision="escalated" current={activeFinding.decision} onClick={updateFinding} label="Escalate" />
+                  <div className="finding-title">
+                    <div>
+                      <span className="eyebrow">
+                        {activeFinding.method} origin
+                      </span>
+                      <h3>{activeFinding.category}</h3>
                     </div>
+                    {activeFinding.method === "Manual" ? (
+                      <span className="flag-classification">
+                        {activeFinding.findingType} · {activeFinding.severity}
+                      </span>
+                    ) : (
+                      <span className="confidence">
+                        {Math.round(activeFinding.confidence * 100)}%{" "}
+                        <small>confidence</small>
+                      </span>
+                    )}
+                  </div>
+                  {activeFinding.findingType === "Gap" ? (
+                    <div className="source-card gap-source">
+                      <span>Contract evidence</span>
+                      <p>No contract text cited for this gap.</p>
+                      <strong>Playbook expectation</strong>
+                      <blockquote>
+                        {activeFinding.playbookExpectation}
+                      </blockquote>
+                    </div>
+                  ) : (
+                    <div className="source-card">
+                      <span>Supporting source text</span>
+                      <blockquote>{activeFinding.sourceText}</blockquote>
+                    </div>
+                  )}
+                  {activeFinding.reason && (
+                    <p className="manual-reason">
+                      <strong>Reason</strong>
+                      {activeFinding.reason}
+                    </p>
+                  )}
+                  {canReview && activeFinding.method === "Manual" && (
+                    <button
+                      className="text-button edit-manual-button"
+                      onClick={() => {
+                        setEditingFinding(activeFinding);
+                        setManualFormOpen(true);
+                      }}
+                    >
+                      Edit manual flag
+                    </button>
+                  )}
+
+                  {!canReview && active.submittedBy === creator && (
+                    <div className="permission-banner">
+                      You cannot review your own agreement. Switch to a
+                      different reviewer or ask another reviewer to decide this
+                      flag.
+                    </div>
+                  )}
+                  <label className="notes-field">
+                    <span>Reviewer note</span>
+                    <textarea
+                      value={activeFinding.note}
+                      disabled={!canReview}
+                      onChange={(event) =>
+                        updateFinding({ note: event.target.value })
+                      }
+                      placeholder="Record why you accepted, dismissed, or escalated this finding…"
+                    />
+                  </label>
+                  {!!activeFinding.history?.length && (
+                    <details className="audit-history">
+                      <summary>
+                        Audit history ({activeFinding.history.length})
+                      </summary>
+                      <ol>
+                        {activeFinding.history.map((entry, index) => (
+                          <li key={`${entry.at}-${index}`}>
+                            <strong>{entry.action}</strong>
+                            <span>
+                              {entry.actor} · {formatDate(entry.at)}
+                            </span>
+                            <small>
+                              {entry.after.category} ·{" "}
+                              {entry.after.findingType ?? "Rule finding"} ·{" "}
+                              {entry.after.decision}
+                              {entry.before?.decision &&
+                              entry.before.decision !== entry.after.decision
+                                ? ` (previously ${entry.before.decision})`
+                                : ""}
+                            </small>
+                          </li>
+                        ))}
+                      </ol>
+                    </details>
+                  )}
+                  {canReview && (
+                    <>
+                      <div className="decision-actions">
+                        <DecisionButton
+                          decision="accepted"
+                          current={activeFinding.decision}
+                          disabled={!activeFinding.note?.trim()}
+                          onClick={recordDecision}
+                          label="Accept"
+                        />
+                        <DecisionButton
+                          decision="dismissed"
+                          current={activeFinding.decision}
+                          disabled={!activeFinding.note?.trim()}
+                          onClick={recordDecision}
+                          label="Dismiss"
+                        />
+                        <DecisionButton
+                          decision="escalated"
+                          current={activeFinding.decision}
+                          disabled={!activeFinding.note?.trim()}
+                          onClick={recordDecision}
+                          label="Escalate"
+                        />
+                      </div>
+
+                      {decisionError && (
+                        <p className="error-message" role="alert">
+                          {decisionError}
+                        </p>
+                      )}
+                    </>
                   )}
                 </>
               ) : (
-                <EmptyState title="No rule-based findings" body="A reviewer can add a manual finding or complete the review with no flags." />
+                <EmptyState
+                  title="No rule-based findings"
+                  body="A reviewer can add a manual finding or complete the review with no flags."
+                />
               )}
             </div>
           </div>
 
           {canReview && (
             <div className="review-footer">
-              <p>{active.findings.filter((finding) => finding.decision === "pending").length} findings still need a decision</p>
-              <button className="primary-button" onClick={completeReview} disabled={active.findings.some((finding) => finding.decision === "pending")}>Complete review</button>
+              <p>
+                {
+                  active.findings.filter(
+                    (finding) => finding.decision === "pending",
+                  ).length
+                }{" "}
+                findings still need a decision
+              </p>
+              <button
+                className="primary-button"
+                onClick={completeReview}
+                disabled={active.findings.some(
+                  (finding) => finding.decision === "pending",
+                )}
+              >
+                Complete review
+              </button>
             </div>
           )}
         </div>
@@ -496,15 +956,25 @@ function ReviewQueue({
 function DecisionButton({
   decision,
   current,
+  disabled,
   label,
   onClick,
 }: {
   decision: FindingDecision;
   current: FindingDecision;
+  disabled: boolean;
   label: string;
-  onClick: (patch: Partial<Finding>) => void;
+  onClick: (decision: FindingDecision) => void;
 }) {
-  return <button className={`${current === decision ? "selected" : ""} decision-${decision}`} onClick={() => onClick({ decision })}>{label}</button>;
+  return (
+    <button
+      className={`${current === decision ? "selected" : ""} decision-${decision}`}
+      disabled={disabled}
+      onClick={() => onClick(decision)}
+    >
+      {label}
+    </button>
+  );
 }
 
 function Reports({ agreements }: { agreements: Agreement[] }) {
@@ -512,12 +982,18 @@ function Reports({ agreements }: { agreements: Agreement[] }) {
     () =>
       playbook
         .map((category) => {
-          const findings = agreements.flatMap((agreement) => agreement.findings).filter((finding) => finding.category === category.name);
+          const findings = agreements
+            .flatMap((agreement) => agreement.findings)
+            .filter((finding) => finding.category === category.name);
           return {
             category: category.name,
             total: findings.length,
-            accepted: findings.filter((finding) => finding.decision === "accepted").length,
-            escalated: findings.filter((finding) => finding.decision === "escalated").length,
+            accepted: findings.filter(
+              (finding) => finding.decision === "accepted",
+            ).length,
+            escalated: findings.filter(
+              (finding) => finding.decision === "escalated",
+            ).length,
           };
         })
         .sort((a, b) => b.total - a.total),
@@ -527,16 +1003,41 @@ function Reports({ agreements }: { agreements: Agreement[] }) {
 
   return (
     <section className="narrow-page reports-page">
-      <div className="page-heading"><span className="eyebrow">Prototype reporting</span><h1>Provision activity</h1><p>Counts are derived from the local flag table and update as reviews are completed.</p></div>
+      <div className="page-heading">
+        <span className="eyebrow">Prototype reporting</span>
+        <h1>Provision activity</h1>
+        <p>
+          Counts are derived from the local flag table and update as reviews are
+          completed.
+        </p>
+      </div>
       <div className="panel report-panel">
-        <div className="panel-heading"><div><h2>Findings by category</h2><p>{agreements.length} agreement{agreements.length === 1 ? "" : "s"} in this browser</p></div></div>
+        <div className="panel-heading">
+          <div>
+            <h2>Findings by category</h2>
+            <p>
+              {agreements.length} agreement{agreements.length === 1 ? "" : "s"}{" "}
+              in this browser
+            </p>
+          </div>
+        </div>
         <div className="report-table">
-          <div className="report-row report-header"><span>Category</span><span>Frequency</span><span>Total</span><span>Accepted</span><span>Escalated</span></div>
+          <div className="report-row report-header">
+            <span>Category</span>
+            <span>Frequency</span>
+            <span>Total</span>
+            <span>Accepted</span>
+            <span>Escalated</span>
+          </div>
           {rows.map((row) => (
             <div className="report-row" key={row.category}>
               <strong>{row.category}</strong>
-              <span className="bar-track"><i style={{ width: `${(row.total / max) * 100}%` }} /></span>
-              <span>{row.total}</span><span>{row.accepted}</span><span>{row.escalated}</span>
+              <span className="bar-track">
+                <i style={{ width: `${(row.total / max) * 100}%` }} />
+              </span>
+              <span>{row.total}</span>
+              <span>{row.accepted}</span>
+              <span>{row.escalated}</span>
             </div>
           ))}
         </div>
