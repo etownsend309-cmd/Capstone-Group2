@@ -208,7 +208,7 @@ describe("concurrent submission and review", () => {
     businessUnit: "Shared services",
     neededBy: "2026-11-01",
     submittedAt: "2026-10-01T12:00:00.000Z",
-    submittedBy: signedInUser.email,
+    submittedBy: "another-requester@example.test",
     status: "Needs review",
     rawText: "GOVERNING LAW. Governed by the laws of Georgia.",
     findings: [
@@ -244,6 +244,7 @@ describe("concurrent submission and review", () => {
 
     const nav = screen.getByRole("navigation", { name: /primary navigation/i });
     await userEvent.click(within(nav).getByRole("button", { name: /review queue/i }));
+    await userEvent.type(screen.getByLabelText("Reviewer note"), "Reviewed during concurrent submission.");
     await userEvent.click(screen.getByRole("button", { name: "Accept" }));
     expect(records()[0].findings[0].decision).toBe("accepted");
 
