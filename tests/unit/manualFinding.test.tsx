@@ -81,8 +81,103 @@ describe("manual finding validation", () => {
 
     expect(edited.decision).toBe("accepted");
     expect(edited.history?.map((entry) => entry.action)).toEqual(["created", "decision", "edited"]);
+    expect(edited.history?.[1].actor).toBe(signedInUser.email);
+    expect(edited.history?.[1].at).toMatch(/\d{4}-\d{2}-\d{2}T/);
     expect(edited.history?.[1].after.decision).toBe("accepted");
     expect(edited.history?.[2].before?.decision).toBe("accepted");
+  });
+
+  it("requires a reviewer reason before a decision can be recorded", async () => {
+    const agreement = {
+      id: "agreement-1",
+      name: "Northstar agreement",
+      vendor: "Northstar",
+      agreementType: "MSA",
+      businessUnit: "Legal",
+      neededBy: "2026-12-01",
+      submittedAt: "2026-10-01T10:00:00.000Z",
+      submittedBy: "other-reviewer@example.test",
+      status: "Needs review" as const,
+      rawText: agreementText,
+      findings: [{
+        id: "finding-1",
+        category: validProvision.category,
+        confidence: 1,
+        sourceText: validProvision.sourceText,
+        decision: "pending" as const,
+        note: "",
+        method: "Manual" as const,
+        findingType: validProvision.findingType,
+        severity: validProvision.severity,
+        reason: validProvision.reason,
+        creator: validProvision.creator,
+        playbookExpectation: "",
+      }],
+    };
+
+   
+
+    localStorage.setItem(STORAGE_KEY, JSON.stringify([agreement]));
+    render(<App user={signedInUser} onSignOut={() => {}} />);
+
+
+    await userEvent.click(screen.getByRole("button", { name: /review queue/i }));
+    const acceptButton = screen.getByRole("button", { name: "Accept" });
+    expect(acceptButton.hasAttribute("disabled")).toBe(true);
+
+
+
+    await userEvent.type(screen.getByLabelText("Reviewer note"), "This provision is materially relevant and should be accepted");
+    expect(screen.getByRole("button", { name: "Accept" }).hasAttribute("disabled")).toBe(false);
+  });
+
+  it("blocks a submitter from reviewing their own agreement", async () => {
+    const agreement = {
+      id: "agreement-1",
+      name: "Northstar agreement",
+      vendor: "Northstar",
+      agreementType: "MSA",
+      businessUnit: "Legal",
+      neededBy: "2026-12-01",
+      submittedAt: "2026-10-01T10:00:00.000Z",
+      submittedBy: signedInUser.email,
+      status: "Needs review" as const,
+      rawText: agreementText,
+      findings: [{
+        id: "finding-1",
+        category: validProvision.category,
+        confidence: 1,
+        sourceText: validProvision.sourceText,
+        decision: "pending" as const,
+        note: "",
+        method: "Manual" as const,
+        findingType: validProvision.findingType,
+        severity: validProvision.severity,
+        reason: validProvision.reason,
+        creator: validProvision.creator,
+        playbookExpectation: "",
+      }],
+    };
+
+
+    
+
+   
+
+
+    localStorage.setItem(STORAGE_KEY, JSON.stringify([agreement]));
+    render(<App user={signedInUser} onSignOut={() => {}} />);
+
+ 
+
+
+
+
+
+
+    await userEvent.click(screen.getByRole("button", { name: /review queue/i }));
+    expect(screen.queryByRole("button", { name: "Accept" })).toBeNull();
+    expect(screen.getByText(/You cannot review your own agreement/i)).not.toBeNull();
   });
 });
 
@@ -99,7 +194,7 @@ describe("manual finding persistence", () => {
           businessUnit: "Legal",
           neededBy: "2026-12-01",
           submittedAt: "2026-10-01T10:00:00.000Z",
-          submittedBy: signedInUser.email,
+          submittedBy: "other-reviewer@example.test",
           status: "Needs review",
           rawText: agreementText,
           findings: [],
