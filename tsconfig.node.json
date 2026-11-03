@@ -27,6 +27,7 @@
   "include": [
     "scripts",
     "experiments/**/*.ts",
+    "netlify/functions/**/*.ts",
     "tests/e2e",
     "vite.config.ts",
     "playwright.config.ts",

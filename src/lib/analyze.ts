@@ -1,7 +1,8 @@
 import type { Finding } from "../types";
+import type { ApprovedCategory } from "../shared/classifier";
 
 export interface PlaybookCategory {
-  name: string;
+  name: ApprovedCategory;
   patterns: RegExp[];
   confidence: number;
 }
@@ -95,6 +96,7 @@ export function analyzeAgreement(text: string): Finding[] {
             decision: "pending" as const,
             note: "",
             method: "Local rule" as const,
+            confidenceBasis: "prototype-rule" as const,
           },
         ];
       }

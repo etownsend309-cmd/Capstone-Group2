@@ -78,7 +78,7 @@ export function createManualFinding(input: ManualFindingInput): Finding {
     const finding: Finding = {
         id: crypto.randomUUID(),
         category: input.category,
-        confidence: 1,
+        confidenceBasis: "manual",
         sourceText: input.findingType === "Provision" ? input.sourceText : "",
         decision: "pending",
         note: input.reason,

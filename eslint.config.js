@@ -29,7 +29,7 @@ export default defineConfig(
     },
   },
   {
-    files: ["scripts/**/*.ts", "experiments/**/*.ts", "tests/**/*.{ts,tsx}", "*.{js,mjs,ts}"],
+    files: ["scripts/**/*.ts", "experiments/**/*.ts", "netlify/functions/**/*.ts", "tests/**/*.{ts,tsx}", "*.{js,mjs,ts}"],
     languageOptions: { globals: globals.node },
   },
 );

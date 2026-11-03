@@ -1,9 +1,13 @@
 import { useRef, useState } from "react";
 import { Icon } from "./Icon";
 import { demoAgreementText } from "../data";
-import { analyzeAgreement } from "../lib/analyze";
+import {
+  classifyAgreement,
+  ClassifierRequestError,
+  toPendingAiFindings,
+} from "../lib/classifyAgreement";
 import { extractText } from "../lib/extractText";
-import type { Agreement } from "../types";
+import type { Agreement, Finding } from "../types";
 
 type RequiredField = "document" | "vendor" | "agreementType" | "businessUnit" | "neededBy";
 type Errors = Partial<Record<RequiredField, string>>;
@@ -64,13 +68,45 @@ export function Intake({ onAdd, submittedBy }: { onAdd: (agreement: Agreement) =
     setIsLoading(true);
     try {
       const document = await extractText(file!);
+      const agreementId = crypto.randomUUID();
+      let classificationStatus: Agreement["classificationStatus"] = "manual_required";
+      let classificationRuns: Agreement["classificationRuns"] = [];
+      let classificationRejections: Agreement["classificationRejections"] = [];
+      let classificationRejectionHistory: Agreement["classificationRejectionHistory"] = [];
+      let findings: Finding[] = [];
+      try {
+        const classified = await classifyAgreement({
+          agreementId,
+          documentText: document.text,
+          extraction: {
+            strategy: document.strategy,
+            pageCount: document.pageCount,
+          },
+        });
+        classificationStatus = classified.status;
+        classificationRuns = [classified.run];
+        classificationRejections = classified.rejections;
+        classificationRejectionHistory = [{
+          runId: classified.run.id,
+          rejections: classified.rejections,
+        }];
+        findings = toPendingAiFindings(classified);
+      } catch (classificationError) {
+        if (
+          classificationError instanceof ClassifierRequestError &&
+          classificationError.run
+        ) {
+          classificationRuns = [classificationError.run];
+        }
+      }
       onAdd({
-        id: crypto.randomUUID(), name: title.trim() || file!.name,
+        id: agreementId, name: title.trim() || file!.name,
         vendor: vendor.trim(), agreementType: agreementType.trim(), businessUnit: businessUnit.trim(), neededBy,
         submittedAt: new Date().toISOString(), submittedBy, status: "Needs review",
         rawText: document.text, pageCount: document.pageCount,
         extractionStrategy: document.strategy, extractionWarnings: document.warnings,
-        findings: analyzeAgreement(document.text),
+        findings, classificationStatus, classificationRuns, classificationRejections,
+        classificationRejectionHistory,
       });
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Submission failed. Your agreement was not saved. Try again.");
@@ -113,7 +149,7 @@ export function Intake({ onAdd, submittedBy }: { onAdd: (agreement: Agreement) =
           <div className="form-actions"><button type="button" className="secondary-button" onClick={loadDemo}>Load demo agreement</button><button type="submit" className="primary-button">{isLoading ? "Submitting…" : "Create review →"}</button></div>
         </fieldset>
       </form>
-      <aside className="intake-aside"><div className="aside-block"><div><strong>Local prototype</strong><p>Your submission is saved in this browser. The demo requester identity will be replaced when login is connected.</p></div></div><div className="aside-block"><div><strong>Track your submission</strong><p>After submission, My submissions shows your reference number, details, and review status.</p></div></div></aside>
+      <aside className="intake-aside"><div className="aside-block"><div><strong>AI-assisted prototype</strong><p>Extracted text is sent through an authenticated Netlify Function to OpenAI for first-pass classification. Review records are saved in this browser.</p></div></div><div className="aside-block"><div><strong>Manual fallback</strong><p>If AI classification is unavailable or a source quote cannot be verified, the agreement is still created for manual review.</p></div></div></aside>
     </div>
   </section>;
 }

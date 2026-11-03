@@ -9,7 +9,7 @@
  * PDF viewer.
  */
 
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -36,12 +36,41 @@ const records = () => JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "[]");
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
   localStorage.clear();
 });
 
 beforeEach(() => {
   vi.mocked(extractText).mockReset();
   vi.mocked(extractText).mockResolvedValue({ text: "GOVERNING LAW. Governed by the laws of Georgia.", warnings: [] });
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({
+    status: "complete",
+    run: {
+      id: "524d8fcc-8858-4285-a41c-69516c4dd2ca",
+      provider: "OpenAI",
+      requestedModel: "gpt-5.6-terra",
+      returnedModel: "gpt-5.6-terra",
+      providerResponseId: "resp_test",
+      promptVersion: "clausepilot-classifier-v1",
+      schemaVersion: "classifier-output-v1",
+      modelConfigVersion: "openai-terra-low-v1",
+      startedAt: "2026-11-02T20:00:00.000Z",
+      completedAt: "2026-11-02T20:00:01.000Z",
+      latencyMs: 1000,
+      inputTokens: 20,
+      outputTokens: 10,
+      status: "complete",
+    },
+    findings: [{
+      category: "Governing Law",
+      sourceText: "Governed by the laws of Georgia.",
+      sourceStart: 15,
+      sourceEnd: 47,
+      confidenceIndicator: "high",
+      evidenceValidation: "exact",
+    }],
+    rejections: [],
+  }), { status: 200, headers: { "Content-Type": "application/json" } })));
   localStorage.clear();
 });
 
@@ -99,7 +128,79 @@ describe("agreement intake", () => {
     expect(records()[0]).toMatchObject({ vendor: "Northstar Data", agreementType: "Master services agreement", businessUnit: "Shared services", neededBy: "2026-12-01", status: "Needs review", submittedBy: signedInUser.email });
     expect(records()[0].id).toMatch(/^[0-9a-f-]{36}$/);
     expect(records()[0].findings[0].category).toBe("Governing Law");
+    expect(records()[0].findings[0]).toMatchObject({
+      method: "AI",
+      confidenceIndicator: "high",
+      confidenceBasis: "model-self-assessment",
+      evidenceValidation: "exact",
+      sourceStart: 15,
+      sourceEnd: 47,
+    });
+    expect(records()[0].classificationStatus).toBe("complete");
     expect(Number.isNaN(Date.parse(records()[0].submittedAt))).toBe(false);
+  });
+
+  it("saves the agreement for manual classification when AI is unavailable", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({
+      error: {
+        code: "AI_UNAVAILABLE",
+        message: "AI classification is unavailable. The agreement can still be reviewed manually.",
+      },
+      run: {
+        id: "c55dc256-ff0e-4caf-a3d4-d827793e3e72",
+        provider: "OpenAI",
+        requestedModel: "gpt-5.6-terra",
+        promptVersion: "clausepilot-classifier-v1",
+        schemaVersion: "classifier-output-v1",
+        modelConfigVersion: "openai-terra-low-v1",
+        startedAt: "2026-11-02T20:00:00.000Z",
+        completedAt: "2026-11-02T20:00:01.000Z",
+        latencyMs: 1000,
+        status: "manual_required",
+        errorCode: "AI_UNAVAILABLE",
+      },
+    }), { status: 503, headers: { "Content-Type": "application/json" } }));
+    const zone = await openIntake();
+    fireEvent.drop(zone, { dataTransfer: { files: [txtFile()] } });
+    await fillMetadata();
+    await userEvent.click(screen.getByRole("button", { name: /create review/i }));
+    await screen.findByRole("heading", { name: "My submissions" });
+
+    expect(screen.getByRole("status").textContent).toContain(
+      "saved, but AI classification failed or is unavailable",
+    );
+    expect(records()[0]).toMatchObject({
+      classificationStatus: "manual_required",
+      findings: [],
+    });
+    expect(records()[0].classificationRuns[0].errorCode).toBe("AI_UNAVAILABLE");
+  });
+
+  it("keeps valid findings and rejection metadata from a partial AI result", async () => {
+    const defaultResponse = await vi.mocked(fetch).getMockImplementation()!("/test");
+    const body = await defaultResponse.json();
+    vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({
+      ...body,
+      status: "partial",
+      run: { ...body.run, status: "partial" },
+      rejections: [{ category: "Audit Rights", reason: "unmatched_quote" }],
+    }), { status: 200, headers: { "Content-Type": "application/json" } }));
+
+    const zone = await openIntake();
+    fireEvent.drop(zone, { dataTransfer: { files: [txtFile()] } });
+    await fillMetadata();
+    await userEvent.click(screen.getByRole("button", { name: /create review/i }));
+    await screen.findByRole("heading", { name: "My submissions" });
+
+    expect(records()[0]).toMatchObject({
+      classificationStatus: "partial",
+      classificationRejections: [{ category: "Audit Rights", reason: "unmatched_quote" }],
+      classificationRejectionHistory: [{
+        runId: "524d8fcc-8858-4285-a41c-69516c4dd2ca",
+        rejections: [{ category: "Audit Rights", reason: "unmatched_quote" }],
+      }],
+    });
+    expect(records()[0].findings).toHaveLength(1);
   });
 });
 
@@ -256,6 +357,196 @@ describe("concurrent submission and review", () => {
     const reviewed = saved.find((item: { id: string }) => item.id === existingAgreement.id);
     expect(reviewed.findings[0].decision).toBe("accepted");
     expect(reviewed.status).toBe("In review");
+  });
+
+  it("retries AI classification without replacing an existing human decision", async () => {
+    const previousRun = {
+      id: "c55dc256-ff0e-4caf-a3d4-d827793e3e72",
+      provider: "OpenAI",
+      requestedModel: "proposed-model",
+      promptVersion: "clausepilot-classifier-v1",
+      schemaVersion: "classifier-output-v1",
+      modelConfigVersion: "openai-terra-low-v1",
+      startedAt: "2026-11-02T19:00:00.000Z",
+      completedAt: "2026-11-02T19:00:01.000Z",
+      latencyMs: 1000,
+      status: "partial",
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify([{
+      ...existingAgreement,
+      classificationStatus: "manual_required",
+      classificationRuns: [previousRun],
+      classificationRejections: [{ category: "Insurance", reason: "unmatched_quote" }],
+      classificationRejectionHistory: [{
+        runId: previousRun.id,
+        rejections: [{ category: "Insurance", reason: "unmatched_quote" }],
+      }],
+      findings: [{ ...existingAgreement.findings[0], decision: "accepted", note: "Already reviewed." }],
+    }]));
+    renderApp();
+    await userEvent.click(screen.getByRole("button", { name: /review queue/i }));
+    await userEvent.click(screen.getByRole("button", { name: /retry AI classification/i }));
+
+    await waitFor(() => expect(records()[0].classificationStatus).toBe("complete"));
+    const saved = records()[0];
+    expect(saved.findings).toHaveLength(1);
+    expect(saved.findings[0]).toMatchObject({
+      id: "existing-finding",
+      decision: "accepted",
+      note: "Already reviewed.",
+    });
+    expect(saved.classificationRuns).toHaveLength(2);
+    expect(saved.classificationRejectionHistory).toEqual([
+      {
+        runId: previousRun.id,
+        rejections: [{ category: "Insurance", reason: "unmatched_quote" }],
+      },
+      {
+        runId: "524d8fcc-8858-4285-a41c-69516c4dd2ca",
+        rejections: [],
+      },
+    ]);
+  });
+
+  it("merges a successful retry into a decision recorded while the retry is pending", async () => {
+    const defaultResponse = await vi.mocked(fetch).getMockImplementation()!("/test");
+    const responseBody = await defaultResponse.json();
+    let finishRetry!: (response: Response) => void;
+    vi.mocked(fetch).mockImplementationOnce(
+      () => new Promise((resolve) => { finishRetry = resolve; }),
+    );
+    localStorage.setItem(STORAGE_KEY, JSON.stringify([{
+      ...existingAgreement,
+      classificationStatus: "manual_required",
+      classificationRuns: [],
+    }]));
+    renderApp();
+    await userEvent.click(screen.getByRole("button", { name: /review queue/i }));
+    await userEvent.click(screen.getByRole("button", { name: /retry AI classification/i }));
+
+    await userEvent.type(screen.getByLabelText("Reviewer note"), "Decision made during retry.");
+    await userEvent.click(screen.getByRole("button", { name: "Accept" }));
+    expect(records()[0].findings[0].decision).toBe("accepted");
+
+    finishRetry(new Response(JSON.stringify(responseBody), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    }));
+    await waitFor(() => expect(records()[0].classificationStatus).toBe("complete"));
+
+    expect(records()[0].findings[0]).toMatchObject({
+      id: "existing-finding",
+      decision: "accepted",
+      note: "Decision made during retry.",
+    });
+  });
+
+  it("merges a failed retry into a decision recorded while the retry is pending", async () => {
+    let finishRetry!: (response: Response) => void;
+    vi.mocked(fetch).mockImplementationOnce(
+      () => new Promise((resolve) => { finishRetry = resolve; }),
+    );
+    localStorage.setItem(STORAGE_KEY, JSON.stringify([{
+      ...existingAgreement,
+      classificationStatus: "manual_required",
+      classificationRuns: [],
+    }]));
+    renderApp();
+    await userEvent.click(screen.getByRole("button", { name: /review queue/i }));
+    await userEvent.click(screen.getByRole("button", { name: /retry AI classification/i }));
+
+    await userEvent.type(screen.getByLabelText("Reviewer note"), "Decision survives failed retry.");
+    await userEvent.click(screen.getByRole("button", { name: "Dismiss" }));
+    finishRetry(new Response(JSON.stringify({
+      error: {
+        code: "AI_TIMEOUT",
+        message: "AI classification exceeded its time limit. Continue with manual review.",
+      },
+      run: {
+        id: "c55dc256-ff0e-4caf-a3d4-d827793e3e72",
+        provider: "OpenAI",
+        requestedModel: "proposed-model",
+        promptVersion: "clausepilot-classifier-v1",
+        schemaVersion: "classifier-output-v1",
+        modelConfigVersion: "openai-terra-low-v1",
+        startedAt: "2026-11-02T20:00:00.000Z",
+        completedAt: "2026-11-02T20:00:25.000Z",
+        latencyMs: 25_000,
+        status: "manual_required",
+        errorCode: "AI_TIMEOUT",
+      },
+    }), { status: 504, headers: { "Content-Type": "application/json" } }));
+
+    await waitFor(() => expect(records()[0].classificationRuns).toHaveLength(1));
+    expect(records()[0].findings[0]).toMatchObject({
+      id: "existing-finding",
+      decision: "dismissed",
+      note: "Decision survives failed retry.",
+    });
+    expect(records()[0].classificationRuns[0].errorCode).toBe("AI_TIMEOUT");
+  });
+
+  it("prevents overlapping retries and aborts safely when leaving the review", async () => {
+    let requestSignal!: AbortSignal;
+    vi.mocked(fetch).mockImplementationOnce(
+      (_input, options) =>
+        new Promise((_resolve, reject) => {
+          requestSignal = options?.signal as AbortSignal;
+          requestSignal.addEventListener(
+            "abort",
+            () => reject(new DOMException("Navigation cancelled the request.", "AbortError")),
+            { once: true },
+          );
+        }),
+    );
+    localStorage.setItem(STORAGE_KEY, JSON.stringify([{
+      ...existingAgreement,
+      classificationStatus: "manual_required",
+      classificationRuns: [],
+    }]));
+    renderApp();
+    await userEvent.click(screen.getByRole("button", { name: /review queue/i }));
+    await userEvent.click(screen.getByRole("button", { name: /retry AI classification/i }));
+    const retrying = screen.getByRole("button", { name: /retrying/i });
+    expect((retrying as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(retrying);
+    expect(fetch).toHaveBeenCalledTimes(1);
+
+    await userEvent.click(screen.getByRole("button", { name: /my submissions/i }));
+    await waitFor(() => expect(requestSignal.aborted).toBe(true));
+    expect(records()[0]).toMatchObject({
+      classificationStatus: "manual_required",
+      classificationRuns: [],
+    });
+  });
+
+  it("aborts a pending retry as soon as sign-out begins", async () => {
+    let requestSignal!: AbortSignal;
+    vi.mocked(fetch).mockImplementationOnce(
+      (_input, options) =>
+        new Promise((_resolve, reject) => {
+          requestSignal = options?.signal as AbortSignal;
+          requestSignal.addEventListener(
+            "abort",
+            () => reject(new DOMException("Sign-out cancelled the request.", "AbortError")),
+            { once: true },
+          );
+        }),
+    );
+    localStorage.setItem(STORAGE_KEY, JSON.stringify([{
+      ...existingAgreement,
+      classificationStatus: "manual_required",
+      classificationRuns: [],
+    }]));
+    const onSignOut = vi.fn();
+    render(<App user={signedInUser} onSignOut={onSignOut} />);
+    await userEvent.click(screen.getByRole("button", { name: /review queue/i }));
+    await userEvent.click(screen.getByRole("button", { name: /retry AI classification/i }));
+    await userEvent.click(screen.getByRole("button", { name: /sign out/i }));
+
+    expect(onSignOut).toHaveBeenCalledOnce();
+    await waitFor(() => expect(requestSignal.aborted).toBe(true));
+    expect(records()[0].classificationRuns).toEqual([]);
   });
 
   /**

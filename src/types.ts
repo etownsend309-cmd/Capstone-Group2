@@ -1,3 +1,10 @@
+import type {
+  ClassificationRun,
+  ClassificationStatus,
+  ConfidenceIndicator,
+  FindingRejection,
+} from "./shared/classifier";
+
 export type View = "overview" | "tracker" | "intake" | "review" | "reports";
 
 export type Role = "Requester" | "Reviewer" | "Approver" | "Administrator";
@@ -35,17 +42,29 @@ export type AgreementStatus =
 export interface Finding {
   id: string;
   category: string;
-  confidence: number;
+  /** Legacy numeric indicator used only by the local-rule prototype. */
+  confidence?: number;
+  confidenceIndicator?: ConfidenceIndicator;
+  confidenceBasis?: "model-self-assessment" | "prototype-rule" | "manual";
   sourceText: string;
+  sourceStart?: number;
+  sourceEnd?: number;
+  classificationRunId?: string;
+  evidenceValidation?: "exact";
   decision: FindingDecision;
   note: string;
-  method: "Local rule" | "Manual";
+  method: "AI" | "Local rule" | "Manual";
   findingType?: FindingType;
   severity?: FindingSeverity;
   reason?: string;
   creator?: string;
   playbookExpectation?: string;
   history?: FindingAuditEntry[];
+}
+
+export interface ClassificationRejectionRecord {
+  runId: string;
+  rejections: FindingRejection[];
 }
 
 export interface Agreement {
@@ -66,5 +85,10 @@ export interface Agreement {
   /** Non-fatal extraction notes, e.g. a low-text warning on a sparse document. */
   extractionWarnings?: string[];
   findings: Finding[];
+  classificationStatus?: ClassificationStatus;
+  classificationRuns?: ClassificationRun[];
+  /** Latest-run compatibility field; use history for run-specific diagnosis. */
+  classificationRejections?: FindingRejection[];
+  classificationRejectionHistory?: ClassificationRejectionRecord[];
   completedAt?: string;
 }

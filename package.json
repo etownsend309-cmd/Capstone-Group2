@@ -3,9 +3,9 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Agreement review prototype plus the KAN-402 PDF extraction harness. Client-side only: React, TypeScript, Vite, PDF.js.",
+  "description": "AI-assisted agreement review prototype with React, TypeScript, PDF.js, Netlify Functions, and the OpenAI Responses API.",
   "engines": {
-    "node": ">=20.19"
+    "node": ">=22.12"
   },
   "scripts": {
     "dev": "vite",
@@ -21,6 +21,9 @@
     "compare:pdf:sample": "python3 experiments/pdf-comparison/select_sample.py",
     "compare:pdf": "node --import tsx/esm experiments/pdf-comparison/runComparison.ts",
     "test:pdf-comparison": "PYTHONPATH=experiments/pdf-comparison/.local/python python3 -m unittest discover experiments/pdf-comparison -p 'test_*.py'",
+    "evaluate:ai:baseline": "node --import tsx/esm experiments/ai-evaluation/runEvaluation.ts --engine local-rule",
+    "evaluate:ai:cuad": "node --import tsx/esm experiments/ai-evaluation/runEvaluation.ts --engine openai",
+    "evaluate:ai:holdout": "node --import tsx/esm experiments/ai-evaluation/runEvaluation.ts --engine openai --holdout --frozen-config",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
@@ -29,10 +32,13 @@
     "clean:artifacts": "node -e \"require('fs').rmSync('artifacts',{recursive:true,force:true});require('fs').mkdirSync('artifacts')\""
   },
   "dependencies": {
+    "@netlify/functions": "^6.0.3",
     "@netlify/identity": "^2.0.0",
+    "openai": "^7.47.0",
     "pdfjs-dist": "^6.3.289",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "react-dom": "^19.2.0",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

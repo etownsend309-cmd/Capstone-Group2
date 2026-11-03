@@ -2,14 +2,17 @@
 
 Source code for MIST capstone project.
 
-The repository holds two things:
+The repository holds three things:
 
-1. **ClausePilot**, a local agreement review prototype. This is the default view.
+1. **ClausePilot**, an AI-assisted agreement review prototype. This is the default view.
 2. The **PDF text extraction harness** from Jira ticket KAN-402, kept as a
    separate view so its measurements stay reproducible.
+3. An authenticated Netlify Function that uses the OpenAI Responses API for
+   first-pass clause classification.
 
-Both run entirely in the browser. There is no backend, no database, and no
-Python.
+PDF extraction and review storage remain in the browser. Extracted text is sent
+to the serverless classifier when it is configured. There is no database, and
+the Python PDF-engine comparison is isolated from the application runtime.
 
 ## ClausePilot: the agreement review prototype
 
@@ -17,16 +20,21 @@ A local, testable first-pass workflow for vendor agreements. It can:
 
 - accept text-based PDF and TXT agreements;
 - extract PDF text in the browser;
-- identify the team's **12 approved CUAD playbook categories** with local
-  deterministic rules;
-- attach a confidence indicator and supporting source text to every finding;
+- identify the team's **12 approved CUAD playbook categories** through the
+  OpenAI Responses API;
+- reject AI findings unless their supporting quote matches extracted text
+  exactly;
+- attach a non-calibrated confidence indicator and supporting source text to
+  every AI finding;
 - let a reviewer accept, dismiss, escalate, or manually add findings;
 - complete a review and show category-level reporting;
 - switch between Requester, Reviewer, Approver, and Administrator views; and
-- keep its records in browser storage, so nothing leaves the machine.
+- keep review records in browser storage.
 
-No AI service or backend is required. **Prototype records are kept in browser
-storage, so do not use real confidential agreements.**
+If AI classification is unavailable, the agreement is still created for manual
+classification. **This prototype sends extracted agreement text to OpenAI and
+keeps review records in browser storage, so do not use real confidential
+agreements without organizational approval.**
 
 ### The 12 approved categories
 
@@ -63,7 +71,8 @@ columns of a two-column agreement.
 
 ## Requirements
 
-- Node.js 20.19 or newer (developed on Node 22)
+- Node.js 22.12 or newer. `.nvmrc`, `package.json`, and the Netlify build
+  configuration pin 22.12 because `@netlify/identity` requires it.
 - npm
 
 ## Installation
@@ -81,6 +90,27 @@ npx playwright install chromium
 ```
 
 ## Running the app
+
+For the complete AI-assisted flow, configure `OPENAI_API_KEY` and
+`OPENAI_MODEL` as scoped Netlify environment variables (see `.env.example`),
+then run through Netlify Dev or a Netlify deploy. The repository's default
+model name came from the approved implementation plan, not from a successful
+live request; verify access and explicitly approve the model before staging.
+
+```bash
+npx netlify dev
+```
+
+Never put the key in a `VITE_` variable. `npm run dev` still starts the
+frontend alone; because no Function is available there, submission deliberately
+falls back to manual classification.
+
+Netlify normally uses the build Node version for Functions, so `netlify.toml`
+pins Node 22.12. If a site overrides the Function runtime with
+`AWS_LAMBDA_JS_RUNTIME`, set that variable in Netlify (not `netlify.toml`) to a
+compatible Node 22 runtime before deploying.
+
+For frontend-only development:
 
 ```bash
 npm run dev
@@ -114,6 +144,9 @@ npm run preview
 | `npm test`             | Vitest: unit and component tests                                 |
 | `npm run test:e2e`     | Playwright browser tests                                         |
 | `npm run test:e2e:landing` | Chromium smoke test of the default landing page and browser errors |
+| `npm run evaluate:ai:baseline` | Evaluate the local-rule baseline against the 30-agreement CUAD manifest |
+| `npm run evaluate:ai:cuad` | Evaluate the configured OpenAI model against the CUAD development set |
+| `npm run evaluate:ai:holdout -- --manifest … --dataset-root …` | Run the sealed 10-agreement holdout after configuration is frozen |
 | `npm run fixtures`     | Regenerate the test PDFs in `fixtures/generated/`                |
 | `npm run benchmark`    | Measure every fixture and rewrite `artifacts/pdf-benchmark-results.{json,md}` |
 
@@ -186,6 +219,9 @@ comprehension review in the KAN-72 provenance log.
 | UI                  | React 19 + TypeScript 5.9                 |
 | Build / dev server  | Vite 7                                    |
 | PDF parsing         | `pdfjs-dist` 6.3.289 (PDF.js, legacy build) |
+| Serverless API      | Netlify Functions, Node.js and TypeScript |
+| AI classification  | OpenAI Responses API with strict Zod structured output |
+| Authentication     | Netlify Identity                         |
 | Unit and component tests | Vitest 5 (Node, plus jsdom for components) |
 | Browser tests       | Playwright                                |
 | Fixture generation  | `pdf-lib` and `jimp`                      |
@@ -200,6 +236,8 @@ src/App.tsx       ClausePilot: shell, intake, review queue, decisions, reports
 src/lib/          Playbook analyzer and the extraction adapter
 src/pdf/          PDF.js driver, the two reconstruction strategies, measurement, report
 src/poc/          The KAN-402 extraction harness and its components
+src/shared/       Browser/server classifier contracts and approved categories
+netlify/functions/  Authenticated AI classification endpoint and validators
 scripts/          Fixture generator and benchmark runner (TypeScript, run with tsx)
 tests/unit/       Vitest: pure functions, real-fixture extraction, jsdom component tests
 tests/e2e/        Playwright browser tests
@@ -228,11 +266,17 @@ only `fixtures/generated/`.
 
 ## Privacy
 
-This is for local evaluation only.
+This is an evaluation integration, not approved production architecture.
 
-- PDFs are processed in the browser. There is no server to upload them to.
-- Extracted text is never logged. Developer diagnostics go to `console.debug`
-  and carry no document content.
+- PDFs are processed in the browser and are not uploaded. Extracted text is sent
+  through the authenticated Netlify Function to OpenAI for classification.
+- The Function requests `store: false` and does not log agreement text, model
+  output, or supporting quotes. Organizational OpenAI retention terms still
+  require approval before real confidential use.
+- Provider calls have a 25-second overall deadline and at most one SDK retry,
+  leaving headroom inside Netlify's synchronous Function execution limit.
+- `OPENAI_API_KEY` is a server-only Netlify secret. Never prefix it with
+  `VITE_`, commit it, return it to the browser, or include it in logs.
 - No uploaded PDF is stored. Resetting or reloading discards it.
 - ClausePilot keeps agreement records, including extracted text, in this
   browser's `localStorage`. Clear site data to remove them.
@@ -241,20 +285,42 @@ This is for local evaluation only.
 - Do not commit real agreements. `fixtures/private/`, `artifacts/local/`, and
   exported `pdf-extraction-report-*` files are git-ignored.
 
+## AI evaluation
+
+The 30-agreement CUAD manifest is the development/evaluation set for
+per-category precision, recall, and F1. Run its deterministic local-rule
+baseline with `npm run evaluate:ai:baseline`. OpenAI evaluation additionally
+requires the server-only `OPENAI_API_KEY`; it uses the same prompt, strict
+schema, exact-quote validator, `store: false` setting, and configurable
+`OPENAI_MODEL` as the Netlify Function.
+
+Reports written to `artifacts/` contain document IDs, category outcomes,
+aggregate metrics, configuration versions, latency, and token totals. They
+exclude agreement text and source quotes. Failed requests count as empty
+predictions instead of silently disappearing from the denominator.
+
+The 10 modified agreements are a separate sealed holdout. They must not be
+used for prompt, model, or threshold selection. The holdout command refuses to
+run unless its manifest has exactly 10 records and `--frozen-config` is set by
+the package script. The holdout files and locked answer key are not included in
+this repository; provide their paths with `--manifest` and `--dataset-root`
+only after configuration is frozen.
+
 ## Known limitations
 
 ### The review workflow
 
-- **Rule confidence values are prototype indicators,** not evaluated model
-  scores. They are fixed constants per category.
-- **One finding per category.** The analyzer stops at the first pattern that
-  matches, so a second occurrence elsewhere in the document is not flagged.
+- **Model confidence is not evaluated reliability.** Low, medium, and high are
+  model self-assessments. They are not probabilities and do not automate review
+  decisions.
+- **One AI provision per category.** Gaps remain manual in the first milestone.
 - **Browser storage only.** Records live in `localStorage`, are not shared
   between browsers or machines, and have no migration path.
-- **No authentication or access control.** The role switcher changes what the
-  interface offers; it does not enforce anything.
-- **Not wired yet:** database persistence, server-side access control, and an
-  AI classifier.
+- **Authentication without resource authorization.** The Function verifies a
+  Netlify Identity user, but browser-only agreements give it no durable record
+  against which to enforce ownership or reviewer roles.
+- **Not wired yet:** database persistence, server-enforced agreement ownership,
+  calibrated confidence thresholds, and production rate/cost controls.
 
 ### Extraction
 
@@ -274,5 +340,5 @@ This is for local evaluation only.
   orders.
 - **No password-protected PDF support.** Encrypted files are reported as a
   failure with the fallback offered.
-- **Not production architecture.** No authentication, no persistence beyond the
-  browser, no deployment.
+- **Not production architecture.** Authentication exists, but agreement
+  persistence and authorization remain browser-only prototypes.

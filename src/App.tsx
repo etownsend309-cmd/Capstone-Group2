@@ -4,6 +4,11 @@ import { Icon } from "./components/Icon";
 import { Intake } from "./components/Intake";
 import { ManualFindingForm } from "./components/ManualFindingForm";
 import { playbook } from "./lib/analyze";
+import {
+  classifyAgreement,
+  ClassifierRequestError,
+  toPendingAiFindings,
+} from "./lib/classifyAgreement";
 import { auditFindingUpdate, createManualFinding } from "./lib/manualFinding";
 import type { ManualFindingInput } from "./lib/manualFinding";
 import type { Agreement, Finding, FindingDecision, Role, View } from "./types";
@@ -23,6 +28,17 @@ const today = new Intl.DateTimeFormat("en-US", {
   month: "long",
   day: "numeric",
 }).format(new Date());
+
+function confidenceLabel(finding: Finding): string {
+  if (finding.method === "AI" && finding.confidenceIndicator) {
+    return `${finding.confidenceIndicator[0].toUpperCase()}${finding.confidenceIndicator.slice(1)} model confidence · not calibrated`;
+  }
+  if (finding.method === "Manual") return "Manual finding";
+  if (typeof finding.confidence === "number") {
+    return `${Math.round(finding.confidence * 100)}% prototype rule indicator`;
+  }
+  return "No confidence indicator";
+}
 
 function StatusPill({ status }: { status: Agreement["status"] }) {
   return (
@@ -69,6 +85,15 @@ export default function App({
         agreementType: agreement.agreementType ?? "",
         businessUnit: agreement.businessUnit ?? "",
         neededBy: agreement.neededBy ?? "",
+        classificationRejectionHistory:
+          agreement.classificationRejectionHistory ??
+          (agreement.classificationRejections?.length &&
+          agreement.classificationRuns?.length
+            ? [{
+                runId: agreement.classificationRuns.at(-1).id,
+                rejections: agreement.classificationRejections,
+              }]
+            : []),
       })) as Agreement[];
     } catch {
       return [];
@@ -103,12 +128,19 @@ export default function App({
    * StrictMode runs the cleanup once before the real mount.
    */
   const live = useRef(true);
+  const sessionAbort = useRef(new AbortController());
   useEffect(() => {
     live.current = true;
     return () => {
       live.current = false;
     };
   }, []);
+
+  const endSession = () => {
+    live.current = false;
+    sessionAbort.current.abort();
+    onSignOut();
+  };
 
   const persist = (next: Agreement[]) => {
     if (!live.current) {
@@ -138,8 +170,14 @@ export default function App({
 
   const addAgreement = (agreement: Agreement) => {
     persist([agreement, ...agreementsRef.current]);
+    const classificationNotice =
+      agreement.classificationStatus === "manual_required"
+        ? " The agreement was saved, but AI classification failed or is unavailable. Continue with manual classification."
+        : agreement.classificationStatus === "partial"
+          ? " The agreement was saved with partial AI results; rejected findings require manual review."
+          : "";
     setNotice(
-      `Agreement "${agreement.name}" submitted successfully. Reference: ${agreement.id}. Status: Needs review.`,
+      `Agreement "${agreement.name}" submitted successfully. Reference: ${agreement.id}. Status: Needs review.${classificationNotice}`,
     );
     setView("tracker");
   };
@@ -158,6 +196,31 @@ export default function App({
           ? reason.message
           : "The review could not be saved.",
       );
+    }
+  };
+
+  const updateLatestAgreement = (
+    id: string,
+    updater: (current: Agreement) => Agreement,
+  ): boolean => {
+    try {
+      const current = agreementsRef.current.find((agreement) => agreement.id === id);
+      if (!current) return false;
+      const updated = updater(current);
+      persist(
+        agreementsRef.current.map((agreement) =>
+          agreement.id === id ? updated : agreement,
+        ),
+      );
+      setSaveError("");
+      return true;
+    } catch (reason) {
+      setSaveError(
+        reason instanceof Error
+          ? reason.message
+          : "The review could not be saved.",
+      );
+      return false;
     }
   };
 
@@ -216,16 +279,17 @@ export default function App({
           />
         </nav>
         <div className="sidebar-note">
-          <span className="eyebrow">Prototype mode</span>
+          <span className="eyebrow">AI-assisted prototype</span>
           <p>
-            Data stays in this browser. No contract is sent to an AI service.
+            Extracted agreement text is sent through an authenticated Netlify
+            Function to OpenAI. Review records remain in this browser.
           </p>
           <a href="?view=extraction-poc">Extraction test harness →</a>
         </div>
         <div className="sidebar-note sidebar-account">
           <span className="eyebrow">Signed in</span>
           <p>{requesterId}</p>
-          <button type="button" className="sign-out-link" onClick={onSignOut}>
+          <button type="button" className="sign-out-link" onClick={endSession}>
             Sign out
           </button>
         </div>
@@ -292,6 +356,8 @@ export default function App({
               creator={requesterId}
               onSelect={setActiveAgreementId}
               onUpdate={updateAgreement}
+              onUpdateLatest={updateLatestAgreement}
+              sessionSignal={sessionAbort.current.signal}
               onNew={() => startIntake()}
             />
           )}
@@ -541,6 +607,8 @@ function ReviewQueue({
   creator,
   onSelect,
   onUpdate,
+  onUpdateLatest,
+  sessionSignal,
   onNew,
 }: {
   agreements: Agreement[];
@@ -549,6 +617,11 @@ function ReviewQueue({
   creator: string;
   onSelect: (id: string) => void;
   onUpdate: (agreement: Agreement) => void;
+  onUpdateLatest: (
+    id: string,
+    updater: (current: Agreement) => Agreement,
+  ) => boolean;
+  sessionSignal: AbortSignal;
   onNew: () => void;
 }) {
   const canReview =
@@ -559,12 +632,28 @@ function ReviewQueue({
   const [manualFormOpen, setManualFormOpen] = useState(false);
   const [editingFinding, setEditingFinding] = useState<Finding>();
   const [decisionError, setDecisionError] = useState("");
+  const [classificationError, setClassificationError] = useState("");
+  const [classifying, setClassifying] = useState(false);
+  const retryController = useRef<AbortController | undefined>(undefined);
 
   useEffect(() => {
     setActiveFindingId(active?.findings[0]?.id);
     // Reset selection only when switching agreements, not when editing a finding.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active?.id]);
+
+  useEffect(() => {
+    return () => {
+      retryController.current?.abort();
+      retryController.current = undefined;
+    };
+  }, [active?.id]);
+
+  useEffect(() => {
+    const abortRetry = () => retryController.current?.abort();
+    sessionSignal.addEventListener("abort", abortRetry);
+    return () => sessionSignal.removeEventListener("abort", abortRetry);
+  }, [sessionSignal]);
 
   if (!agreements.length || !active) {
     return (
@@ -591,6 +680,70 @@ function ReviewQueue({
   const activeFinding =
     active.findings.find((finding) => finding.id === activeFindingId) ??
     active.findings[0];
+
+  const retryClassification = async () => {
+    if (retryController.current) return;
+    const controller = new AbortController();
+    retryController.current = controller;
+    setClassifying(true);
+    setClassificationError("");
+    const agreementId = active.id;
+    try {
+      const result = await classifyAgreement({
+        agreementId,
+        documentText: active.rawText,
+        extraction: {
+          strategy: active.extractionStrategy,
+          pageCount: active.pageCount,
+        },
+      }, { signal: controller.signal });
+      let firstAdditionId: string | undefined;
+      onUpdateLatest(agreementId, (current) => {
+        const representedCategories = new Set(
+          current.findings.map((finding) => finding.category),
+        );
+        const additions = toPendingAiFindings(result).filter(
+          (finding) => !representedCategories.has(finding.category),
+        );
+        firstAdditionId = additions[0]?.id;
+        return {
+          ...current,
+          findings: [...current.findings, ...additions],
+          classificationStatus: result.status,
+          classificationRuns: [...(current.classificationRuns ?? []), result.run],
+          classificationRejections: result.rejections,
+          classificationRejectionHistory: [
+            ...(current.classificationRejectionHistory ?? []),
+            { runId: result.run.id, rejections: result.rejections },
+          ],
+        };
+      });
+      if (!activeFindingId && firstAdditionId) setActiveFindingId(firstAdditionId);
+    } catch (reason) {
+      if (controller.signal.aborted) return;
+      const message =
+        reason instanceof Error
+          ? reason.message
+          : "AI classification failed. Continue with manual review.";
+      setClassificationError(message);
+      onUpdateLatest(agreementId, (current) => {
+        const run =
+          reason instanceof ClassifierRequestError ? reason.run : undefined;
+        return {
+          ...current,
+          classificationStatus: "manual_required",
+          classificationRuns: run
+            ? [...(current.classificationRuns ?? []), run]
+            : current.classificationRuns,
+        };
+      });
+    } finally {
+      if (retryController.current === controller) {
+        retryController.current = undefined;
+        setClassifying(false);
+      }
+    }
+  };
 
   const updateFinding = (patch: Partial<Finding>) => {
     if (!activeFinding) return;
@@ -737,6 +890,35 @@ function ReviewQueue({
               {active.extractionWarnings.join(" ")}
             </div>
           )}
+          {active.classificationStatus && (
+            <div className="permission-banner">
+              <strong>AI classification:</strong>{" "}
+              {active.classificationStatus === "complete"
+                ? "Complete. Every displayed quote passed exact source validation."
+                : active.classificationStatus === "partial"
+                  ? "Partial. Invalid or ambiguous findings were rejected; use manual flags for anything missing."
+                  : "Unavailable or invalid. Continue with manual classification."}
+              {(active.classificationStatus === "partial" ||
+                active.classificationStatus === "manual_required") && (
+                <>
+                  {" "}
+                  <button
+                    type="button"
+                    className="text-button"
+                    disabled={classifying}
+                    onClick={() => void retryClassification()}
+                  >
+                    {classifying ? "Retrying…" : "Retry AI classification"}
+                  </button>
+                </>
+              )}
+              {classificationError && (
+                <p className="error-message" role="alert">
+                  {classificationError}
+                </p>
+              )}
+            </div>
+          )}
 
           <div className="review-body">
             <div className="finding-nav">
@@ -753,9 +935,7 @@ function ReviewQueue({
                   <span className={`decision-dot dot-${finding.decision}`} />
                   <span>
                     <strong>{finding.category}</strong>
-                    <small>
-                      {Math.round(finding.confidence * 100)}% confidence
-                    </small>
+                    <small>{confidenceLabel(finding)}</small>
                   </span>
                 </button>
               ))}
@@ -801,8 +981,7 @@ function ReviewQueue({
                       </span>
                     ) : (
                       <span className="confidence">
-                        {Math.round(activeFinding.confidence * 100)}%{" "}
-                        <small>confidence</small>
+                        {confidenceLabel(activeFinding)}
                       </span>
                     )}
                   </div>
@@ -919,8 +1098,8 @@ function ReviewQueue({
                 </>
               ) : (
                 <EmptyState
-                  title="No rule-based findings"
-                  body="A reviewer can add a manual finding or complete the review with no flags."
+                  title="No validated AI findings"
+                  body="AI output may be empty or unavailable. A reviewer can add a manual finding or complete the review with no flags."
                 />
               )}
             </div>
