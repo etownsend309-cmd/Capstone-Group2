@@ -1,17 +1,21 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Icon } from "./components/Icon";
 import { Intake } from "./components/Intake";
+import { ManualFindingForm } from "./components/ManualFindingForm";
 import { UsersAdmin } from "./components/UsersAdmin";
 import { api } from "./lib/api";
-import { playbook } from "./lib/analyze";
 import {
+  FINDING_TYPE_LABELS,
+  SEVERITY_LABELS,
   STATUS_LABELS,
   type AgreementDetail,
   type AgreementStatusCode,
   type AgreementSummary,
   type CategoryReport,
   type FindingDecisionCode,
+  type FindingHistoryEntry,
   type FindingRecord,
+  type ManualFindingInput,
   type NewAgreementInput,
 } from "./shared/api";
 import type { Role, View } from "./types";
@@ -322,7 +326,9 @@ export default function App({ user, views, displayName, onSignOut }: AppProps) {
                   busy={inFlight > 0}
                   onSelect={setActiveAgreementId}
                   onDecide={(findingId, decision, note) => runAction(() => api.decideFinding(findingId, { decision, note }))}
-                  onAddManual={(agreementId, category, sourceText) => runAction(() => api.addManualFinding(agreementId, { category, sourceText }))}
+                  currentUser={user}
+                  onAddManual={(agreementId, input) => runAction(() => api.addManualFinding(agreementId, input))}
+                  onEditManual={(findingId, input) => runAction(() => api.editManualFinding(findingId, input))}
                   onComplete={(agreementId) => runAction(() => api.completeReview(agreementId))}
                   onNew={() => startIntake()}
                 />
@@ -480,9 +486,11 @@ function ReviewQueue({
   detailError,
   role,
   busy,
+  currentUser,
   onSelect,
   onDecide,
   onAddManual,
+  onEditManual,
   onComplete,
   onNew,
 }: {
@@ -492,16 +500,20 @@ function ReviewQueue({
   detailError: string;
   role: Role;
   busy: boolean;
+  currentUser: { id: string; email: string };
   onSelect: (id: string) => void;
   onDecide: (findingId: string, decision: FindingDecisionCode, note: string) => Promise<AgreementDetail | undefined>;
-  onAddManual: (agreementId: string, category: string, sourceText: string) => Promise<AgreementDetail | undefined>;
+  onAddManual: (agreementId: string, input: ManualFindingInput) => Promise<AgreementDetail | undefined>;
+  onEditManual: (findingId: string, input: ManualFindingInput) => Promise<AgreementDetail | undefined>;
   onComplete: (agreementId: string) => Promise<AgreementDetail | undefined>;
   onNew: () => void;
 }) {
   const [activeFindingId, setActiveFindingId] = useState<string>();
-  const [manualCategory, setManualCategory] = useState(playbook[0].name);
   /** Notes typed but not yet saved, by finding. A note is saved with the next decision, or when the field loses focus. */
   const [drafts, setDrafts] = useState<Record<string, string>>({});
+  /** The manual-flag form: closed, open for a new flag, or open on an existing one. */
+  const [form, setForm] = useState<{ kind: "closed" } | { kind: "new" } | { kind: "edit"; finding: FindingRecord }>({ kind: "closed" });
+  const [decisionError, setDecisionError] = useState("");
   // Guards against a double click adding two findings or completing twice.
   const pendingOnce = useRef(false);
 
@@ -510,6 +522,8 @@ function ReviewQueue({
   useEffect(() => {
     setActiveFindingId(undefined);
     setDrafts({});
+    setForm({ kind: "closed" });
+    setDecisionError("");
   }, [activeId]);
 
   if (!agreements.length || !active) {
@@ -522,7 +536,9 @@ function ReviewQueue({
   const findings = shown?.findings ?? [];
   const activeFinding = findings.find((finding) => finding.id === activeFindingId) ?? findings[0];
   const locked = !isOpen(active);
-  const canReview = role !== "Requester" && !locked && !!shown;
+  // Separation of duties: nobody reviews an agreement they submitted. The API refuses it too.
+  const ownAgreement = active.submittedBy.id === currentUser.id;
+  const canReview = role !== "Requester" && !locked && !!shown && !ownAgreement;
   const pendingCount = findings.filter((finding) => finding.decision === "pending").length;
 
   const noteFor = (finding: FindingRecord) => drafts[finding.id] ?? finding.note;
@@ -530,7 +546,13 @@ function ReviewQueue({
 
   const decide = async (decision: FindingDecisionCode) => {
     if (!activeFinding) return;
-    if (await onDecide(activeFinding.id, decision, noteFor(activeFinding))) clearDraft(activeFinding.id);
+    const note = noteFor(activeFinding);
+    if (!note.trim()) {
+      setDecisionError("Add a reason before accepting, dismissing, or escalating this flag.");
+      return;
+    }
+    setDecisionError("");
+    if (await onDecide(activeFinding.id, decision, note)) clearDraft(activeFinding.id);
   };
 
   /** Saves the open finding's unsaved note, if any. Resolves false only when a save was needed and failed. */
@@ -559,14 +581,24 @@ function ReviewQueue({
       await onComplete(shown.id);
     });
 
-  const addManualFinding = async () => {
-    if (!shown) return;
-    const sourceText = shown.rawText.slice(0, 280).replace(/\s+/g, " ").trim() || "No source text available.";
-    const before = new Set(shown.findings.map((finding) => finding.id));
-    const updated = await onAddManual(shown.id, manualCategory, sourceText);
-    const added = updated?.findings.find((finding) => !before.has(finding.id));
-    if (added) setActiveFindingId(added.id);
-  };
+  const saveManualFlag = (input: ManualFindingInput) =>
+    once(async () => {
+      if (!shown) return;
+      if (form.kind === "edit") {
+        if (await onEditManual(form.finding.id, input)) {
+          clearDraft(form.finding.id);
+          setForm({ kind: "closed" });
+        }
+        return;
+      }
+      const before = new Set(shown.findings.map((finding) => finding.id));
+      const updated = await onAddManual(shown.id, input);
+      const added = updated?.findings.find((finding) => !before.has(finding.id));
+      if (added) {
+        setActiveFindingId(added.id);
+        setForm({ kind: "closed" });
+      }
+    });
 
   return (
     <section>
@@ -615,40 +647,93 @@ function ReviewQueue({
                   ))}
                 </p>
               )}
+              {role !== "Requester" && ownAgreement && !locked && (
+                <div className="permission-banner">
+                  You cannot review your own agreement. Switch to a different reviewer or ask another reviewer to decide this flag.
+                </div>
+              )}
 
               <div className="review-body">
                 <div className="finding-nav">
                   <div className="finding-nav-title"><strong>Findings</strong><span>{findings.length}</span></div>
                   {findings.map((finding) => (
-                    <button key={finding.id} className={finding.id === activeFinding?.id ? "selected" : ""} onClick={() => setActiveFindingId(finding.id)}>
+                    <button
+                      key={finding.id}
+                      className={finding.id === activeFinding?.id && form.kind === "closed" ? "selected" : ""}
+                      onClick={() => {
+                        setActiveFindingId(finding.id);
+                        setForm({ kind: "closed" });
+                        setDecisionError("");
+                      }}
+                    >
                       <span className={`decision-dot dot-${finding.decision}`} />
-                      <span><strong>{finding.category}</strong><small>{Math.round(finding.confidence * 100)}% confidence</small></span>
+                      <span><strong>{finding.category}</strong><small>{findingSummary(finding)}</small></span>
                     </button>
                   ))}
                   {canReview && (
                     <div className="manual-add">
-                      <select value={manualCategory} onChange={(event) => setManualCategory(event.target.value)}>{playbook.map((item) => <option key={item.name}>{item.name}</option>)}</select>
-                      <button onClick={() => void once(addManualFinding)}>＋ Add manual finding</button>
+                      <button onClick={() => setForm({ kind: "new" })}>＋ Add manual flag</button>
                     </div>
                   )}
                 </div>
 
                 <div className="finding-detail">
-                  {activeFinding ? (
+                  {form.kind !== "closed" && canReview ? (
+                    <ManualFindingForm
+                      key={form.kind === "edit" ? form.finding.id : "new-manual-finding"}
+                      agreementText={shown.rawText}
+                      creator={form.kind === "edit" ? (form.finding.createdBy?.email ?? currentUser.email) : currentUser.email}
+                      finding={form.kind === "edit" ? form.finding : undefined}
+                      busy={busy}
+                      onCancel={() => setForm({ kind: "closed" })}
+                      onSave={(input) => void saveManualFlag(input)}
+                    />
+                  ) : activeFinding ? (
                     <>
-                      <div className="finding-title"><div><span className="eyebrow">{METHOD_LABELS[activeFinding.method]}</span><h3>{activeFinding.category}</h3></div><span className="confidence">{Math.round(activeFinding.confidence * 100)}% <small>confidence</small></span></div>
-                      <div className="source-card"><span>Supporting source text</span><blockquote>{activeFinding.sourceText}</blockquote></div>
-                      <label className="notes-field"><span>Reviewer note</span><textarea value={noteFor(activeFinding)} disabled={!canReview} onChange={(event) => setDrafts((current) => ({ ...current, [activeFinding.id]: event.target.value }))} onBlur={() => void saveNote()} placeholder="Record why you accepted, dismissed, or escalated this finding…" /></label>
-                      {canReview && (
-                        <div className="decision-actions">
-                          <DecisionButton decision="accepted" current={activeFinding.decision} onClick={decide} label="Accept" />
-                          <DecisionButton decision="dismissed" current={activeFinding.decision} onClick={decide} label="Dismiss" />
-                          <DecisionButton decision="escalated" current={activeFinding.decision} onClick={decide} label="Escalate" />
+                      <div className="finding-title">
+                        <div><span className="eyebrow">{METHOD_LABELS[activeFinding.method]} origin</span><h3>{activeFinding.category}</h3></div>
+                        {activeFinding.method === "manual" && activeFinding.findingType && activeFinding.severity ? (
+                          <span className="flag-classification">{FINDING_TYPE_LABELS[activeFinding.findingType]} · {SEVERITY_LABELS[activeFinding.severity]}</span>
+                        ) : (
+                          <span className="confidence">{Math.round(activeFinding.confidence * 100)}% <small>confidence</small></span>
+                        )}
+                      </div>
+                      {activeFinding.findingType === "gap" ? (
+                        <div className="source-card gap-source">
+                          <span>Contract evidence</span>
+                          <p>No contract text cited for this gap.</p>
+                          <strong>Playbook expectation</strong>
+                          <blockquote>{activeFinding.playbookExpectation}</blockquote>
                         </div>
+                      ) : (
+                        <div className="source-card"><span>Supporting source text</span><blockquote>{activeFinding.sourceText}</blockquote></div>
+                      )}
+                      {activeFinding.reason && (
+                        <p className="manual-reason"><strong>Reason</strong>{activeFinding.reason}</p>
+                      )}
+                      {activeFinding.method === "manual" && activeFinding.createdBy && (
+                        <p className="manual-creator">Flagged by {activeFinding.createdBy.displayName || activeFinding.createdBy.email}</p>
+                      )}
+                      {canReview && activeFinding.method === "manual" && (
+                        <button className="text-button edit-manual-button" onClick={() => setForm({ kind: "edit", finding: activeFinding })}>
+                          Edit manual flag
+                        </button>
+                      )}
+                      <label className="notes-field"><span>Reviewer note</span><textarea value={noteFor(activeFinding)} disabled={!canReview} onChange={(event) => { setDecisionError(""); setDrafts((current) => ({ ...current, [activeFinding.id]: event.target.value })); }} onBlur={() => void saveNote()} placeholder="Record why you accepted, dismissed, or escalated this finding…" /></label>
+                      {!!activeFinding.history.length && <FindingHistory history={activeFinding.history} />}
+                      {canReview && (
+                        <>
+                          <div className="decision-actions">
+                            <DecisionButton decision="accepted" current={activeFinding.decision} disabled={!noteFor(activeFinding).trim()} onClick={decide} label="Accept" />
+                            <DecisionButton decision="dismissed" current={activeFinding.decision} disabled={!noteFor(activeFinding).trim()} onClick={decide} label="Dismiss" />
+                            <DecisionButton decision="escalated" current={activeFinding.decision} disabled={!noteFor(activeFinding).trim()} onClick={decide} label="Escalate" />
+                          </div>
+                          {decisionError && <p className="error-message" role="alert">{decisionError}</p>}
+                        </>
                       )}
                     </>
                   ) : (
-                    <EmptyState title="No rule-based findings" body="A reviewer can add a manual finding or complete the review with no flags." />
+                    <EmptyState title="No rule-based findings" body="A reviewer can add a manual flag or complete the review with no flags." />
                   )}
                 </div>
               </div>
@@ -667,18 +752,50 @@ function ReviewQueue({
   );
 }
 
+/** The second line under a finding in the list: confidence for rule findings, type and severity for manual flags. */
+function findingSummary(finding: FindingRecord): string {
+  if (finding.method === "manual" && finding.findingType && finding.severity) {
+    return `${FINDING_TYPE_LABELS[finding.findingType]} · ${SEVERITY_LABELS[finding.severity]}`;
+  }
+  return `${Math.round(finding.confidence * 100)}% confidence`;
+}
+
+const HISTORY_LABELS: Record<FindingHistoryEntry["action"], string> = { created: "created", edited: "edited", decision: "decision" };
+
+function FindingHistory({ history }: { history: FindingHistoryEntry[] }) {
+  return (
+    <details className="audit-history">
+      <summary>Audit history ({history.length})</summary>
+      <ol>
+        {history.map((entry, index) => (
+          <li key={`${entry.at}-${index}`}>
+            <strong>{HISTORY_LABELS[entry.action]}</strong>
+            <span>{entry.actor ? entry.actor.displayName || entry.actor.email : "A reviewer"} · {formatDate(entry.at)}</span>
+            <small>
+              {entry.after.category} · {entry.after.findingType ? FINDING_TYPE_LABELS[entry.after.findingType] : "Rule finding"} · {entry.after.decision}
+              {entry.before && entry.before.decision !== entry.after.decision ? ` (previously ${entry.before.decision})` : ""}
+            </small>
+          </li>
+        ))}
+      </ol>
+    </details>
+  );
+}
+
 function DecisionButton({
   decision,
   current,
+  disabled,
   label,
   onClick,
 }: {
   decision: FindingDecisionCode;
   current: FindingDecisionCode;
+  disabled: boolean;
   label: string;
   onClick: (decision: FindingDecisionCode) => void;
 }) {
-  return <button className={`${current === decision ? "selected" : ""} decision-${decision}`} onClick={() => onClick(decision)}>{label}</button>;
+  return <button className={`${current === decision ? "selected" : ""} decision-${decision}`} disabled={disabled} onClick={() => onClick(decision)}>{label}</button>;
 }
 
 type ReportState = { kind: "loading" } | { kind: "ready"; report: CategoryReport } | { kind: "error"; message: string };

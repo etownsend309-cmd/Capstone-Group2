@@ -16,6 +16,7 @@ import {
   categoryReport,
   completeReview,
   decideFinding,
+  editManualFinding,
   getAgreement,
   listAgreements,
   parseDecision,
@@ -104,6 +105,12 @@ const routes: Route[] = [
     pattern: new RegExp(`^/api/findings/${ID}$`),
     handler: async ({ db, user, params, request }) =>
       json(await decideFinding(db, user.id, params[0]!, parseDecision(await readJson(request)))),
+  },
+  {
+    method: "PUT",
+    pattern: new RegExp(`^/api/findings/${ID}$`),
+    handler: async ({ db, user, params, request }) =>
+      json(await editManualFinding(db, user.id, params[0]!, parseManualFinding(await readJson(request)))),
   },
   {
     method: "POST",

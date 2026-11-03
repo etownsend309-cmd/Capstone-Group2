@@ -14,6 +14,7 @@ import App from "../../src/App";
 import { ApiRequestError } from "../../src/lib/api";
 import type { Role } from "../../src/types";
 import { fakeApi, makeAgreement, resetFakeApi, seed, signedInUser, stored } from "./support/fakeApi";
+import type { AgreementDetail } from "../../src/shared/api";
 
 vi.mock("../../src/lib/api", async () => (await import("./support/fakeApi")).mockApiModule());
 
@@ -31,15 +32,22 @@ async function openQueue(views: Role[] = ["Requester", "Reviewer", "Approver"]) 
 
 const detailPanel = () => document.querySelector<HTMLElement>(".review-detail")!;
 
+/** An agreement whose findings already carry a reviewer note, so a decision can be recorded at once. */
+const noted = (overrides: Partial<AgreementDetail> = {}) => {
+  const agreement = makeAgreement(overrides);
+  for (const finding of agreement.findings) finding.note = "Reviewed against the playbook.";
+  return agreement;
+};
+
 describe("review queue", () => {
   it("records a decision on the server and moves the agreement into review", async () => {
-    const agreement = makeAgreement({ rawText: TWO_FINDINGS });
+    const agreement = noted({ rawText: TWO_FINDINGS });
     seed(agreement);
     await openQueue();
 
     await userEvent.click(await screen.findByRole("button", { name: "Accept" }));
 
-    expect(fakeApi.decideFinding).toHaveBeenCalledWith(agreement.findings[0]!.id, { decision: "accepted", note: "" });
+    expect(fakeApi.decideFinding).toHaveBeenCalledWith(agreement.findings[0]!.id, { decision: "accepted", note: "Reviewed against the playbook." });
     expect(stored()[0]!.findings[0]!.decision).toBe("accepted");
     expect(await within(detailPanel()).findByText("In review")).toBeTruthy();
     expect(screen.getByText("1 findings still need a decision")).toBeTruthy();
@@ -74,11 +82,12 @@ describe("review queue", () => {
   });
 
   it("saves an unsaved note before completing the review", async () => {
-    const agreement = makeAgreement();
+    const agreement = noted();
     seed(agreement);
     await openQueue();
 
     await userEvent.click(await screen.findByRole("button", { name: "Accept" }));
+    await userEvent.clear(screen.getByLabelText("Reviewer note"));
     await userEvent.type(screen.getByLabelText("Reviewer note"), "Checked against the playbook.");
     await userEvent.click(screen.getByRole("button", { name: "Complete review" }));
 
@@ -86,25 +95,34 @@ describe("review queue", () => {
     expect(stored()[0]!.findings[0]).toMatchObject({ decision: "accepted", note: "Checked against the playbook." });
   });
 
-  it("adds a manual finding and selects it", async () => {
+  it("adds a manual flag and selects it", async () => {
     const agreement = makeAgreement();
     seed(agreement);
     await openQueue();
 
-    await screen.findByRole("button", { name: "Accept" });
-    await userEvent.selectOptions(within(detailPanel()).getByRole("combobox"), "Audit Rights");
-    await userEvent.click(screen.getByRole("button", { name: /add manual finding/i }));
+    await userEvent.click(await screen.findByRole("button", { name: /add manual flag/i }));
+    await userEvent.selectOptions(screen.getByLabelText("Playbook category"), "Audit Rights");
+    await userEvent.selectOptions(screen.getByLabelText("Finding type"), "Gap");
+    await userEvent.type(screen.getByLabelText("Applicable playbook expectation"), "Customer may audit vendor records yearly.");
+    await userEvent.type(screen.getByLabelText("Reason"), "No audit clause.");
+    await userEvent.click(screen.getByRole("button", { name: "Create flag" }));
 
     expect(fakeApi.addManualFinding).toHaveBeenCalledWith(agreement.id, {
       category: "Audit Rights",
-      sourceText: "GOVERNING LAW. Governed by the laws of Georgia.",
+      findingType: "gap",
+      severity: "medium",
+      reason: "No audit clause.",
+      sourceText: "",
+      playbookExpectation: "Customer may audit vendor records yearly.",
     });
     expect(await screen.findByRole("heading", { name: "Audit Rights" })).toBeTruthy();
-    expect(screen.getByText("Manual")).toBeTruthy();
+    expect(screen.getByText("Manual origin")).toBeTruthy();
+    // The reason doubles as the first note, so a decision can follow straight away.
+    expect((screen.getByRole("button", { name: "Accept" }) as HTMLButtonElement).disabled).toBe(false);
   });
 
   it("shows the server's reason when completing a review is refused", async () => {
-    seed(makeAgreement());
+    seed(noted());
     await openQueue(["Requester", "Reviewer"]);
     fakeApi.completeReview.mockRejectedValueOnce(new ApiRequestError(403, "Approving an agreement requires the Approver permission."));
 
@@ -116,7 +134,7 @@ describe("review queue", () => {
   });
 
   it("completes a review and then shows it read-only", async () => {
-    seed(makeAgreement());
+    seed(noted());
     await openQueue();
 
     await userEvent.click(await screen.findByRole("button", { name: "Accept" }));

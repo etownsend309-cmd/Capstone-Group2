@@ -17,7 +17,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "../../src/App";
 import { ApiRequestError } from "../../src/lib/api";
 import { extractText } from "../../src/lib/extractText";
-import { fakeApi, makeAgreement, resetFakeApi, seed, signedInUser, stored } from "./support/fakeApi";
+import { fakeApi, makeAgreement, me, resetFakeApi, seed, signedInUser, stored } from "./support/fakeApi";
 
 vi.mock("../../src/lib/extractText", () => ({ extractText: vi.fn() }));
 vi.mock("../../src/lib/api", async () => (await import("./support/fakeApi")).mockApiModule());
@@ -237,7 +237,7 @@ describe("KAN-40 validation and safe submission", () => {
   });
 
   it("shows only the signed-in person's own agreements under My submissions", async () => {
-    const own = makeAgreement({ name: "My own contract" });
+    const own = makeAgreement({ name: "My own contract", submittedBy: me });
     const other = makeAgreement({
       name: "Another requester's contract",
       submittedBy: { id: "a0000000-0000-4000-8000-000000000099", email: "other@example.test", displayName: "Other" },
@@ -269,6 +269,7 @@ describe("concurrent submission and review", () => {
    */
   it("keeps a decision recorded while extraction is still in flight", async () => {
     const existing = makeAgreement();
+    existing.findings[0]!.note = "Reviewed against the playbook.";
     seed(existing);
     const zone = await openIntake();
     fireEvent.drop(zone, { dataTransfer: { files: [txtFile("new-contract.txt")] } });
@@ -281,7 +282,7 @@ describe("concurrent submission and review", () => {
     const nav = screen.getByRole("navigation", { name: /primary navigation/i });
     await userEvent.click(within(nav).getByRole("button", { name: /review queue/i }));
     await userEvent.click(await screen.findByRole("button", { name: "Accept" }));
-    expect(fakeApi.decideFinding).toHaveBeenCalledWith(existing.findings[0]!.id, { decision: "accepted", note: "" });
+    expect(fakeApi.decideFinding).toHaveBeenCalledWith(existing.findings[0]!.id, { decision: "accepted", note: "Reviewed against the playbook." });
 
     resolve({ text: "GOVERNING LAW. Governed by the laws of Georgia.", warnings: [] });
     expect(await screen.findByRole("heading", { name: "My submissions" })).toBeTruthy();
@@ -291,8 +292,9 @@ describe("concurrent submission and review", () => {
     const reviewed = saved.find((item) => item.id === existing.id)!;
     expect(reviewed.findings[0]!.decision).toBe("accepted");
     expect(reviewed.status).toBe("in_review");
-    expect(screen.getByRole("heading", { name: existing.name })).toBeTruthy();
+    // My submissions lists only the new one: the reviewed agreement was someone else's.
     expect(screen.getByRole("heading", { name: "new-contract.txt" })).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: existing.name })).toBeNull();
   });
 
   /**

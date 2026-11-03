@@ -1,33 +1,42 @@
 import { useState, type FormEvent } from "react";
 import { playbook } from "../lib/analyze";
+import { validateManualFinding, type ManualFindingField } from "../lib/manualFinding";
 import {
-    validateManualFinding,
-    type ManualFindingField,
+    FINDING_SEVERITIES,
+    FINDING_TYPES,
+    FINDING_TYPE_LABELS,
+    SEVERITY_LABELS,
+    type FindingRecord,
     type ManualFindingInput,
-} from "../lib/manualFinding";
-import type { Finding } from "../types";
+} from "../shared/api";
 
+/**
+ * Creates or edits a manual flag. The rules shown here are checked again by
+ * the API, which also records who made the flag and every later change.
+ */
 export function ManualFindingForm({
     agreementText,
     creator,
     finding,
+    busy = false,
     onCancel,
     onSave,
 }: {
     agreementText: string;
+    /** Shown read-only: the flag's creator, or the person creating it. */
     creator: string;
-    finding?: Finding;
+    finding?: FindingRecord;
+    busy?: boolean;
     onCancel: () => void;
     onSave: (input: ManualFindingInput) => void;
 }) {
     const [input, setInput] = useState<ManualFindingInput>({
         category: finding?.category ?? playbook[0].name,
-        findingType: finding?.findingType ?? "Provision",
-        severity: finding?.severity ?? "Medium",
-        reason: finding?.reason ?? finding?.note ?? "",
+        findingType: finding?.findingType ?? "provision",
+        severity: finding?.severity ?? "medium",
+        reason: finding?.reason || finding?.note || "",
         sourceText: finding?.sourceText ?? "",
         playbookExpectation: finding?.playbookExpectation ?? "",
-        creator,
     });
     const [errors, setErrors] = useState<Partial<Record<ManualFindingField, string>>>({});
 
@@ -69,30 +78,28 @@ export function ManualFindingForm({
                         setInput((current) => ({
                             ...current,
                             findingType,
-                            sourceText: findingType === "Gap" ? "" : current.sourceText,
-                            playbookExpectation: findingType === "Provision" ? "" : current.playbookExpectation,
+                            sourceText: findingType === "gap" ? "" : current.sourceText,
+                            playbookExpectation: findingType === "provision" ? "" : current.playbookExpectation,
                         }));
                         setErrors({});
                     }}>
-                        <option>Provision</option>
-                        <option>Gap</option>
+                        {FINDING_TYPES.map((type) => <option key={type} value={type}>{FINDING_TYPE_LABELS[type]}</option>)}
                     </select>
                     {fieldError("findingType")}
                 </label>
                 <label>
                     Severity
                     <select id="manual-severity" value={input.severity} aria-invalid={Boolean(errors.severity)} aria-describedby={errors.severity ? "manual-severity-error" : undefined} onChange={(event) => update("severity", event.target.value as ManualFindingInput["severity"])}>
-                        <option>Low</option><option>Medium</option><option>High</option><option>Critical</option>
+                        {FINDING_SEVERITIES.map((severity) => <option key={severity} value={severity}>{SEVERITY_LABELS[severity]}</option>)}
                     </select>
                     {fieldError("severity")}
                 </label>
                 <label>
                     Creator
-                    <input id="manual-creator" value={creator} readOnly aria-invalid={Boolean(errors.creator)} aria-describedby={errors.creator ? "manual-creator-error" : undefined} />
-                    {fieldError("creator")}
+                    <input id="manual-creator" value={creator} readOnly />
                 </label>
             </div>
-            {input.findingType === "Provision" ? (
+            {input.findingType === "provision" ? (
                 <label className="manual-form-field">
                     Exact supporting source text
                     <textarea id="manual-sourceText" value={input.sourceText} aria-invalid={Boolean(errors.sourceText)} aria-describedby={errors.sourceText ? "manual-sourceText-error" : undefined} onChange={(event) => update("sourceText", event.target.value)} placeholder="Paste the exact text from the agreement" />
@@ -114,8 +121,8 @@ export function ManualFindingForm({
                 {fieldError("reason")}
             </label>
             <div className="manual-form-actions">
-                <button type="button" className="secondary-button" onClick={onCancel}>Cancel</button>
-                <button type="submit" className="primary-button">{finding ? "Save changes" : "Create flag"}</button>
+                <button type="button" className="secondary-button" onClick={onCancel} disabled={busy}>Cancel</button>
+                <button type="submit" className="primary-button" disabled={busy}>{finding ? "Save changes" : "Create flag"}</button>
             </div>
         </form>
     );

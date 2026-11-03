@@ -288,3 +288,4 @@
 | Strategy B - coordinate reconstruction | success | 16 | 0 | 28666 | 59.06 ms | 99.9% | 99.4% |
 | PyMuPDF default text | success | 16 | 0 | 28666 | 29.37 ms | 99.9% | 99.9% |
 | pdfplumber default text | success | 16 | 0 | 28666 | 403.36 ms | 99.9% | 99.5% |
+

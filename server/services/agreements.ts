@@ -8,8 +8,11 @@
  */
 
 import { analyzeAgreement, playbook } from "../../src/lib/analyze.ts";
+import { normalizeManualFinding, validateManualFinding } from "../../src/lib/manualFinding.ts";
 import {
   FINDING_DECISIONS,
+  FINDING_SEVERITIES,
+  FINDING_TYPES,
   LIMITS,
   type AgreementDetail,
   type AgreementStatusCode,
@@ -18,7 +21,11 @@ import {
   type DocumentRecord,
   type FindingDecisionCode,
   type FindingDecisionInput,
+  type FindingHistoryEntry,
   type FindingRecord,
+  type FindingSeverityCode,
+  type FindingSnapshot,
+  type FindingTypeCode,
   type ManualFindingInput,
   type NewAgreementInput,
 } from "../../src/shared/api.ts";
@@ -57,6 +64,7 @@ interface DetailRow extends SummaryRow {
 
 interface FindingRow {
   id: string;
+  agreement_id: string;
   category: string;
   confidence: string;
   source_text: string;
@@ -64,7 +72,35 @@ interface FindingRow {
   note: string;
   method: "local_rule" | "manual";
   decided_at: Date | null;
+  finding_type: FindingTypeCode | null;
+  severity: FindingSeverityCode | null;
+  reason: string;
+  playbook_expectation: string;
+  creator_email: string | null;
+  creator_name: string | null;
 }
+
+interface HistoryRow {
+  action: string;
+  detail: { findingId?: string; before?: FindingSnapshot; after?: FindingSnapshot };
+  created_at: Date;
+  actor_email: string | null;
+  actor_name: string | null;
+}
+
+// The creator's name comes through a LEFT JOIN: row-level security shows
+// requesters only their own account, so for them other people's names are null.
+const FINDING_COLUMNS = `
+  f.id, f.agreement_id, f.category, f.confidence, f.source_text, f.decision, f.note, f.method,
+  f.decided_at, f.finding_type, f.severity, f.reason, f.playbook_expectation,
+  c.email AS creator_email, c.display_name AS creator_name`;
+const FINDING_FROM = "findings f LEFT JOIN app_users c ON c.id = f.created_by";
+
+const HISTORY_ACTIONS: Record<string, FindingHistoryEntry["action"]> = {
+  "finding.added": "created",
+  "finding.edited": "edited",
+  "finding.decided": "decision",
+};
 
 interface DocumentRow {
   id: string;
@@ -108,7 +144,7 @@ function toSummary(row: SummaryRow): AgreementSummary {
   };
 }
 
-function toFinding(row: FindingRow): FindingRecord {
+function toFinding(row: FindingRow, history: FindingHistoryEntry[] = []): FindingRecord {
   return {
     id: row.id,
     category: row.category,
@@ -118,7 +154,68 @@ function toFinding(row: FindingRow): FindingRecord {
     note: row.note,
     method: row.method,
     decidedAt: iso(row.decided_at),
+    findingType: row.finding_type,
+    severity: row.severity,
+    reason: row.reason,
+    playbookExpectation: row.playbook_expectation,
+    createdBy:
+      row.method === "manual" && row.creator_email
+        ? { email: row.creator_email, displayName: row.creator_name ?? "" }
+        : null,
+    history,
   };
+}
+
+function snapshot(row: FindingRow): FindingSnapshot {
+  return {
+    category: row.category,
+    findingType: row.finding_type,
+    severity: row.severity,
+    reason: row.reason,
+    note: row.note,
+    sourceText: row.source_text,
+    playbookExpectation: row.playbook_expectation,
+    decision: row.decision,
+  };
+}
+
+const sameSnapshot = (a: FindingSnapshot, b: FindingSnapshot) =>
+  (Object.keys(a) as (keyof FindingSnapshot)[]).every((key) => a[key] === b[key]);
+
+async function loadFinding(db: Queryable, findingId: string): Promise<FindingRow> {
+  if (!isUuid(findingId)) throw notFound("That finding");
+  const { rows } = await db.query<FindingRow>(`SELECT ${FINDING_COLUMNS} FROM ${FINDING_FROM} WHERE f.id = $1`, [findingId]);
+  if (!rows[0]) throw notFound("That finding");
+  return rows[0];
+}
+
+/**
+ * Each finding's history, from the audit trail. Only events that carry a
+ * snapshot are history entries; older events without one are left out.
+ */
+async function findingHistory(db: Queryable, agreementId: string): Promise<Map<string, FindingHistoryEntry[]>> {
+  const { rows } = await db.query<HistoryRow>(
+    `SELECT e.action, e.detail, e.created_at, u.email AS actor_email, u.display_name AS actor_name
+       FROM audit_events e LEFT JOIN app_users u ON u.id = e.actor_id
+      WHERE e.agreement_id = $1 AND e.action = ANY($2) AND e.detail ? 'after'
+      ORDER BY e.created_at, e.id`,
+    [agreementId, Object.keys(HISTORY_ACTIONS)],
+  );
+  const byFinding = new Map<string, FindingHistoryEntry[]>();
+  for (const row of rows) {
+    const { findingId, before, after } = row.detail;
+    if (!findingId || !after) continue;
+    const entries = byFinding.get(findingId) ?? [];
+    entries.push({
+      action: HISTORY_ACTIONS[row.action]!,
+      actor: row.actor_email ? { email: row.actor_email, displayName: row.actor_name ?? "" } : null,
+      at: row.created_at.toISOString(),
+      before: before ?? null,
+      after,
+    });
+    byFinding.set(findingId, entries);
+  }
+  return byFinding;
 }
 
 export async function listAgreements(db: Queryable): Promise<AgreementSummary[]> {
@@ -169,10 +266,10 @@ export async function getAgreement(db: Queryable, id: string): Promise<Agreement
   if (!row) throw notFound("That agreement");
 
   const findings = await db.query<FindingRow>(
-    `SELECT id, category, confidence, source_text, decision, note, method, decided_at
-       FROM findings WHERE agreement_id = $1 ORDER BY created_at, category`,
+    `SELECT ${FINDING_COLUMNS} FROM ${FINDING_FROM} WHERE f.agreement_id = $1 ORDER BY f.created_at, f.category`,
     [id],
   );
+  const history = await findingHistory(db, id);
   const documents = await db.query<DocumentRow>(
     `SELECT id, file_name, content_type, byte_size, uploaded_at
        FROM agreement_documents WHERE agreement_id = $1 ORDER BY uploaded_at`,
@@ -186,7 +283,7 @@ export async function getAgreement(db: Queryable, id: string): Promise<Agreement
     extractionStrategy: row.extraction_strategy,
     extractionWarnings: row.extraction_warnings,
     approvedBy: row.approved_by,
-    findings: findings.rows.map(toFinding),
+    findings: findings.rows.map((finding) => toFinding(finding, history.get(finding.id))),
     documents: documents.rows.map((doc) => ({
       id: doc.id,
       fileName: doc.file_name,
@@ -282,10 +379,16 @@ export async function submitAgreement(db: Queryable, userId: string, input: NewA
   return getAgreement(db, id);
 }
 
-async function lockAgreement(db: Queryable, id: string): Promise<{ status: AgreementStatusCode }> {
+interface LockedAgreement {
+  status: AgreementStatusCode;
+  submitted_by: string;
+  raw_text: string;
+}
+
+async function lockAgreement(db: Queryable, id: string): Promise<LockedAgreement> {
   if (!isUuid(id)) throw notFound("That agreement");
-  const { rows } = await db.query<{ status: AgreementStatusCode }>(
-    "SELECT status FROM agreements WHERE id = $1 FOR UPDATE",
+  const { rows } = await db.query<LockedAgreement>(
+    "SELECT status, submitted_by, raw_text FROM agreements WHERE id = $1 FOR UPDATE",
     [id],
   );
   if (rows[0]) return rows[0];
@@ -295,6 +398,20 @@ async function lockAgreement(db: Queryable, id: string): Promise<{ status: Agree
   const visible = await db.query("SELECT 1 FROM agreements WHERE id = $1", [id]);
   if (visible.rowCount) throw forbidden("Only reviewers can change an agreement under review.");
   throw notFound("That agreement");
+}
+
+/**
+ * The checks every review action shares: the review is still open, and the
+ * person acting did not submit the agreement. Reviewing your own submission
+ * is refused even with the Reviewer or Administrator role.
+ */
+function assertCanReview(agreement: LockedAgreement, userId: string) {
+  if (agreement.status === "approved" || agreement.status === "escalated") {
+    throw conflict("This review is already complete.");
+  }
+  if (agreement.submitted_by === userId) {
+    throw forbidden("You cannot review your own agreement. Ask another reviewer to decide it.");
+  }
 }
 
 /** A reviewer touching a new agreement moves it into review. */
@@ -321,39 +438,63 @@ export async function decideFinding(
   findingId: string,
   input: FindingDecisionInput,
 ): Promise<AgreementDetail> {
-  if (!isUuid(findingId)) throw notFound("That finding");
-  const { rows } = await db.query<{ agreement_id: string }>(
-    "SELECT agreement_id FROM findings WHERE id = $1",
-    [findingId],
-  );
-  const agreementId = rows[0]?.agreement_id;
-  if (!agreementId) throw notFound("That finding");
+  const current = await loadFinding(db, findingId);
+  const agreement = await lockAgreement(db, current.agreement_id);
+  assertCanReview(agreement, userId);
 
-  const agreement = await lockAgreement(db, agreementId);
-  if (agreement.status === "approved" || agreement.status === "escalated") {
-    throw conflict("This review is already complete.");
+  const note = input.note ?? current.note;
+  if (input.decision !== "pending" && !note.trim()) {
+    throw badRequest("Add a reason before accepting, dismissing, or escalating this flag.");
   }
+  const before = snapshot(current);
+  const after: FindingSnapshot = { ...before, decision: input.decision, note };
+  if (sameSnapshot(before, after)) return getAgreement(db, current.agreement_id);
 
   const updated = await db.query(
-    "UPDATE findings SET decision = $2, note = COALESCE($3, note) WHERE id = $1",
-    [findingId, input.decision, input.note ?? null],
+    "UPDATE findings SET decision = $2, note = $3 WHERE id = $1",
+    [findingId, input.decision, note],
   );
   if (!updated.rowCount) throw forbidden("Only reviewers can record decisions.");
 
-  await markInReview(db, agreementId, agreement.status);
-  await recordAudit(db, userId, agreementId, "finding.decided", { findingId, decision: input.decision });
-  return getAgreement(db, agreementId);
+  await markInReview(db, current.agreement_id, agreement.status);
+  const action = after.decision !== before.decision ? "finding.decided" : "finding.edited";
+  await recordAudit(db, userId, current.agreement_id, action, { findingId, decision: input.decision, before, after });
+  return getAgreement(db, current.agreement_id);
 }
 
 export function parseManualFinding(body: unknown): ManualFindingInput {
   const input = (body ?? {}) as Record<string, unknown>;
   const category = requiredText(input.category, "Category");
   if (!CATEGORY_NAMES.has(category)) throw badRequest("That isn't one of the 12 approved categories.");
+  if (!FINDING_TYPES.includes(input.findingType as FindingTypeCode)) {
+    throw badRequest(`Finding type must be one of: ${FINDING_TYPES.join(", ")}.`);
+  }
+  if (!FINDING_SEVERITIES.includes(input.severity as FindingSeverityCode)) {
+    throw badRequest(`Severity must be one of: ${FINDING_SEVERITIES.join(", ")}.`);
+  }
   return {
     category,
-    sourceText: requiredText(input.sourceText, "Source text", LIMITS.noteChars),
-    note: input.note === undefined ? undefined : optionalText(input.note, "Note", LIMITS.noteChars),
+    findingType: input.findingType as FindingTypeCode,
+    severity: input.severity as FindingSeverityCode,
+    reason: requiredText(input.reason, "Reason", LIMITS.noteChars),
+    // Not trimmed: a provision's text must match the agreement exactly.
+    sourceText: optionalRawText(input.sourceText, "Source text", LIMITS.noteChars),
+    playbookExpectation: optionalText(input.playbookExpectation, "Playbook expectation", LIMITS.noteChars),
   };
+}
+
+function optionalRawText(value: unknown, label: string, max: number): string {
+  if (value === undefined || value === null) return "";
+  if (typeof value !== "string") throw badRequest(`${label} must be text.`);
+  if (value.length > max) throw badRequest(`${label} is too long.`);
+  return value;
+}
+
+/** Applies the same rules the review screen shows, against the agreement's own text. */
+function checkManualFinding(input: ManualFindingInput, agreementText: string): ManualFindingInput {
+  const errors = Object.values(validateManualFinding(input, agreementText));
+  if (errors.length) throw badRequest(errors[0]!);
+  return normalizeManualFinding(input);
 }
 
 export async function addManualFinding(
@@ -363,18 +504,66 @@ export async function addManualFinding(
   input: ManualFindingInput,
 ): Promise<AgreementDetail> {
   const agreement = await lockAgreement(db, agreementId);
-  if (agreement.status === "approved" || agreement.status === "escalated") {
-    throw conflict("This review is already complete.");
-  }
+  assertCanReview(agreement, userId);
+  const flag = checkManualFinding(input, agreement.raw_text);
 
-  await db.query(
-    `INSERT INTO findings (agreement_id, category, confidence, source_text, note, method)
-     VALUES ($1, $2, 1, $3, $4, 'manual')`,
-    [agreementId, input.category, input.sourceText, input.note ?? "Added manually by reviewer."],
+  // The reason doubles as the first reviewer note, so a decision can follow at once.
+  const { rows } = await db.query<{ id: string }>(
+    `INSERT INTO findings (
+       agreement_id, category, confidence, source_text, note, method,
+       finding_type, severity, reason, playbook_expectation)
+     VALUES ($1, $2, 1, $3, $4, 'manual', $5, $6, $4, $7)
+     RETURNING id`,
+    [agreementId, flag.category, flag.sourceText, flag.reason, flag.findingType, flag.severity, flag.playbookExpectation],
   );
+  const created = await loadFinding(db, rows[0]!.id);
   await markInReview(db, agreementId, agreement.status);
-  await recordAudit(db, userId, agreementId, "finding.added", { category: input.category });
+  await recordAudit(db, userId, agreementId, "finding.added", {
+    findingId: created.id,
+    category: flag.category,
+    after: snapshot(created),
+  });
   return getAgreement(db, agreementId);
+}
+
+/** Edits a manual flag. Rule findings come from the playbook and are not editable. */
+export async function editManualFinding(
+  db: Queryable,
+  userId: string,
+  findingId: string,
+  input: ManualFindingInput,
+): Promise<AgreementDetail> {
+  const current = await loadFinding(db, findingId);
+  if (current.method !== "manual") throw badRequest("Only manual flags can be edited.");
+  const agreement = await lockAgreement(db, current.agreement_id);
+  assertCanReview(agreement, userId);
+  const flag = checkManualFinding(input, agreement.raw_text);
+
+  const before = snapshot(current);
+  const after: FindingSnapshot = {
+    ...before,
+    category: flag.category,
+    findingType: flag.findingType,
+    severity: flag.severity,
+    reason: flag.reason,
+    note: flag.reason,
+    sourceText: flag.sourceText,
+    playbookExpectation: flag.playbookExpectation,
+  };
+  if (sameSnapshot(before, after)) return getAgreement(db, current.agreement_id);
+
+  const updated = await db.query(
+    `UPDATE findings
+        SET category = $2, finding_type = $3, severity = $4, reason = $5, note = $5,
+            source_text = $6, playbook_expectation = $7
+      WHERE id = $1`,
+    [findingId, after.category, after.findingType, after.severity, after.reason, after.sourceText, after.playbookExpectation],
+  );
+  if (!updated.rowCount) throw forbidden("Only reviewers can edit flags.");
+
+  await markInReview(db, current.agreement_id, agreement.status);
+  await recordAudit(db, userId, current.agreement_id, "finding.edited", { findingId, before, after });
+  return getAgreement(db, current.agreement_id);
 }
 
 /**
@@ -384,9 +573,7 @@ export async function addManualFinding(
  */
 export async function completeReview(db: Queryable, userId: string, agreementId: string): Promise<AgreementDetail> {
   const agreement = await lockAgreement(db, agreementId);
-  if (agreement.status === "approved" || agreement.status === "escalated") {
-    throw conflict("This review is already complete.");
-  }
+  assertCanReview(agreement, userId);
 
   const { rows } = await db.query<{ pending: number; escalated: number }>(
     `SELECT count(*) FILTER (WHERE decision = 'pending')::int AS pending,

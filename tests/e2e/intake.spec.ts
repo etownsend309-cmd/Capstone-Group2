@@ -11,6 +11,9 @@ const fields = [
   ["Business unit", "Shared services", "Enter a business unit."],
   ["Needed-by date", "2026-12-01", "Enter a needed-by date."],
 ] as const;
+/** Text that triggers several playbook rules, for agreements seeded as someone else's. */
+const demoText =
+  "GOVERNING LAW. This Agreement is governed by the laws of the State of Georgia. Vendor may not assign this Agreement without prior written consent. Customer may terminate this Agreement for any reason upon thirty days' written notice.";
 const fixture = (name: string) => path.resolve("fixtures/generated", name);
 async function openIntake(page: Page) {
   await page.goto("/");
@@ -119,7 +122,8 @@ test("a server failure never reports success", async ({ page, server }) => {
   await expect(page.getByRole("heading", { name: "No submissions yet" })).toBeVisible();
 });
 
-test("a reviewer records decisions and completes the review", async ({ page, server }) => {
+test("a reviewer can't review their own submission, but can review a colleague's", async ({ page, server }) => {
+  const colleagues = server.addAgreement({ name: "Harbor Logistics MSA", vendor: "Harbor Logistics", rawText: demoText });
   await openIntake(page);
   await page.getByRole("button", { name: "Load demo agreement" }).click();
   await page.getByRole("button", { name: /Create review/ }).click();
@@ -128,25 +132,33 @@ test("a reviewer records decisions and completes the review", async ({ page, ser
   await page.getByLabel("Viewing as").selectOption("Reviewer");
   await page.getByRole("button", { name: /Review queue/ }).click();
   const detail = page.locator(".review-detail");
+  // Their own submission is newest, so it opens first, read-only.
   await expect(detail.getByRole("link", { name: "Northstar MSA.txt" })).toBeVisible();
+  await expect(page.getByText("You cannot review your own agreement.", { exact: false })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Accept" })).toHaveCount(0);
 
-  const findings = server.agreements()[0]!.findings;
-  expect(findings.length).toBeGreaterThan(0);
+  await page.locator(".queue-list").getByRole("button", { name: /Harbor Logistics MSA/ }).click();
+  await expect(detail.getByRole("heading", { name: "Harbor Logistics MSA" })).toBeVisible();
+  const findings = colleagues.findings;
+  expect(findings.length).toBeGreaterThan(1);
+
+  await expect(page.getByRole("button", { name: "Escalate" })).toBeDisabled();
   await page.getByLabel("Reviewer note").fill("Escalating for legal.");
   await page.getByRole("button", { name: "Escalate" }).click();
   for (let index = 1; index < findings.length; index++) {
     await detail.locator(".finding-nav > button").nth(index).click();
+    await page.getByLabel("Reviewer note").fill("Standard wording.");
     await page.getByRole("button", { name: "Accept" }).click();
   }
   await expect(page.getByText("0 findings still need a decision")).toBeVisible();
   await page.getByRole("button", { name: "Complete review" }).click();
 
   await expect(detail.locator(".document-heading .status")).toHaveText("Escalated");
-  const [saved] = server.agreements();
-  expect(saved!.status).toBe("escalated");
-  expect(saved!.findings[0]).toMatchObject({ decision: "escalated", note: "Escalating for legal." });
-  expect(saved!.findings.slice(1).every((f) => f.decision === "accepted")).toBe(true);
+  const saved = server.agreements().find((a) => a.id === colleagues.id)!;
+  expect(saved.status).toBe("escalated");
+  expect(saved.findings[0]).toMatchObject({ decision: "escalated", note: "Escalating for legal." });
+  expect(saved.findings.slice(1).every((f) => f.decision === "accepted")).toBe(true);
 
   await page.getByRole("button", { name: "Reports" }).click();
-  await expect(page.getByText("1 agreement visible to you")).toBeVisible();
+  await expect(page.getByText("2 agreements visible to you")).toBeVisible();
 });

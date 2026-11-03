@@ -23,6 +23,12 @@ export type FindingDecisionCode = (typeof FINDING_DECISIONS)[number];
 
 export type FindingMethodCode = "local_rule" | "manual";
 
+export const FINDING_TYPES = ["provision", "gap"] as const;
+export type FindingTypeCode = (typeof FINDING_TYPES)[number];
+
+export const FINDING_SEVERITIES = ["low", "medium", "high", "critical"] as const;
+export type FindingSeverityCode = (typeof FINDING_SEVERITIES)[number];
+
 export interface SessionUser {
   id: string;
   email: string;
@@ -48,6 +54,27 @@ export interface AgreementSummary {
   pendingFindingCount: number;
 }
 
+/** A finding as it stood at one point in its history. */
+export interface FindingSnapshot {
+  category: string;
+  findingType: FindingTypeCode | null;
+  severity: FindingSeverityCode | null;
+  reason: string;
+  note: string;
+  sourceText: string;
+  playbookExpectation: string;
+  decision: FindingDecisionCode;
+}
+
+export interface FindingHistoryEntry {
+  action: "created" | "edited" | "decision";
+  /** Who made the change, when the viewer may see that person; null otherwise. */
+  actor: { email: string; displayName: string } | null;
+  at: string;
+  before: FindingSnapshot | null;
+  after: FindingSnapshot;
+}
+
 export interface FindingRecord {
   id: string;
   category: string;
@@ -57,6 +84,17 @@ export interface FindingRecord {
   note: string;
   method: FindingMethodCode;
   decidedAt: string | null;
+  /** Manual flags only; null for rule findings. */
+  findingType: FindingTypeCode | null;
+  severity: FindingSeverityCode | null;
+  /** Why a manual flag was raised; empty for rule findings. */
+  reason: string;
+  /** For a gap: the playbook expectation the agreement does not meet. */
+  playbookExpectation: string;
+  /** Who created a manual flag, when the viewer may see that person. */
+  createdBy: { email: string; displayName: string } | null;
+  /** Oldest first. Rule findings have entries only once someone changes them. */
+  history: FindingHistoryEntry[];
 }
 
 export interface DocumentRecord {
@@ -95,10 +133,18 @@ export interface FindingDecisionInput {
   note?: string;
 }
 
+/**
+ * A manual flag, as created or edited. A provision cites `sourceText`, which
+ * must appear exactly in the agreement, and no expectation; a gap cites no
+ * text and names the `playbookExpectation` it fails.
+ */
 export interface ManualFindingInput {
   category: string;
+  findingType: FindingTypeCode;
+  severity: FindingSeverityCode;
+  reason: string;
   sourceText: string;
-  note?: string;
+  playbookExpectation: string;
 }
 
 /** Finding counts for one playbook category, across the agreements the person may see. */
@@ -151,6 +197,15 @@ export const STATUS_LABELS: Record<AgreementStatusCode, AgreementStatus> = {
   in_review: "In review",
   approved: "Approved",
   escalated: "Escalated",
+};
+
+export const FINDING_TYPE_LABELS: Record<FindingTypeCode, string> = { provision: "Provision", gap: "Gap" };
+
+export const SEVERITY_LABELS: Record<FindingSeverityCode, string> = {
+  low: "Low",
+  medium: "Medium",
+  high: "High",
+  critical: "Critical",
 };
 
 export const ROLE_LABELS: Record<AppRole, Role> = {

@@ -3,22 +3,28 @@
  * component tests.
  *
  * It follows the server's workflow rules closely enough for the screens:
- * findings come from the same playbook rules on submit, a decision moves a new
- * agreement into review, and completing a review approves or escalates it.
- * Access control is not modelled; tests/integration covers that against the
- * real handler and database. Every method is a `vi.fn`, so tests can assert
+ * findings come from the same playbook rules on submit, a decision needs a
+ * reason and moves a new agreement into review, nobody reviews their own
+ * agreement, manual flags are validated and keep a history, and completing a
+ * review approves or escalates it. Role-based access control is not
+ * modelled; tests/integration covers that against the real handler and
+ * database. Every method is a `vi.fn`, so tests can assert
  * calls or make one fail.
  */
 
 import { vi } from "vitest";
 
 import { analyzeAgreement, playbook } from "../../../src/lib/analyze";
+import { normalizeManualFinding, validateManualFinding } from "../../../src/lib/manualFinding";
 import type {
   AgreementDetail,
   AgreementSummary,
   CategoryReport,
   DocumentRecord,
   FindingDecisionInput,
+  FindingHistoryEntry,
+  FindingRecord,
+  FindingSnapshot,
   ManagedUser,
   ManualFindingInput,
   NewAgreementInput,
@@ -35,7 +41,11 @@ export async function mockApiModule() {
 }
 
 export const signedInUser = { id: "a0000000-0000-4000-8000-000000000001", email: "requester@example.test" };
-const submitter = { id: signedInUser.id, email: signedInUser.email, displayName: "Riley Requester" };
+/** The signed-in person, as the submitter of an agreement. */
+export const me = { id: signedInUser.id, email: signedInUser.email, displayName: "Riley Requester" };
+/** Someone else, so the signed-in person may review what they submitted. */
+export const colleague = { id: "a0000000-0000-4000-8000-000000000099", email: "colleague@example.test", displayName: "Casey Colleague" };
+const actor = { email: me.email, displayName: me.displayName };
 
 let store = new Map<string, AgreementDetail>();
 let accounts = new Map<string, ManagedUser>();
@@ -62,6 +72,57 @@ function assertOpen(detail: AgreementDetail) {
   if (detail.status === "approved" || detail.status === "escalated") {
     throw new ApiRequestError(409, "This review is already complete.");
   }
+  if (detail.submittedBy.id === me.id) {
+    throw new ApiRequestError(403, "You cannot review your own agreement. Ask another reviewer to decide it.");
+  }
+}
+
+function findingWith(findingId: string): { detail: AgreementDetail; finding: FindingRecord } {
+  const detail = [...store.values()].find((d) => d.findings.some((f) => f.id === findingId));
+  if (!detail) throw new ApiRequestError(404, "That finding was not found.");
+  return { detail, finding: detail.findings.find((f) => f.id === findingId)! };
+}
+
+const snapshot = (f: FindingRecord): FindingSnapshot => ({
+  category: f.category,
+  findingType: f.findingType,
+  severity: f.severity,
+  reason: f.reason,
+  note: f.note,
+  sourceText: f.sourceText,
+  playbookExpectation: f.playbookExpectation,
+  decision: f.decision,
+});
+
+function record(finding: FindingRecord, action: FindingHistoryEntry["action"], before: FindingSnapshot | null) {
+  finding.history.push({ action, actor, at: new Date().toISOString(), before, after: snapshot(finding) });
+}
+
+function checkFlag(input: ManualFindingInput, agreementText: string): ManualFindingInput {
+  const errors = Object.values(validateManualFinding(input, agreementText));
+  if (errors.length) throw new ApiRequestError(400, errors[0]!);
+  return normalizeManualFinding(input);
+}
+
+/** A rule finding as the server returns it. */
+export function makeRuleFinding(overrides: Partial<FindingRecord> = {}): FindingRecord {
+  return {
+    id: nextId(),
+    category: "Governing Law",
+    confidence: 0.98,
+    sourceText: "Governed by the laws of Georgia.",
+    decision: "pending",
+    note: "",
+    method: "local_rule",
+    decidedAt: null,
+    findingType: null,
+    severity: null,
+    reason: "",
+    playbookExpectation: "",
+    createdBy: null,
+    history: [],
+    ...overrides,
+  };
 }
 
 /** Builds a stored agreement; tests use it to seed what the server already holds. */
@@ -74,7 +135,7 @@ export function makeAgreement(overrides: Partial<AgreementDetail> = {}): Agreeme
     agreementType: "Master services agreement",
     businessUnit: "Shared services",
     neededBy: "2026-11-01",
-    submittedBy: submitter,
+    submittedBy: colleague,
     submittedAt: "2026-10-01T12:00:00.000Z",
     status: "needs_review",
     completedAt: null,
@@ -87,16 +148,9 @@ export function makeAgreement(overrides: Partial<AgreementDetail> = {}): Agreeme
     extractionWarnings: [],
     approvedBy: null,
     documents: [],
-    findings: analyzeAgreement(rawText).map((finding) => ({
-      id: nextId(),
-      category: finding.category,
-      confidence: finding.confidence,
-      sourceText: finding.sourceText,
-      decision: "pending",
-      note: "",
-      method: "local_rule",
-      decidedAt: null,
-    })),
+    findings: analyzeAgreement(rawText).map((finding) =>
+      makeRuleFinding({ category: finding.category, confidence: finding.confidence, sourceText: finding.sourceText }),
+    ),
     ...overrides,
   };
 }
@@ -145,6 +199,7 @@ export const fakeApi = {
       pageCount: input.pageCount ?? null,
       extractionStrategy: input.extractionStrategy ?? null,
       extractionWarnings: input.extractionWarnings ?? [],
+      submittedBy: me,
       submittedAt: new Date().toISOString(),
     });
     store.set(detail.id, detail);
@@ -161,29 +216,44 @@ export const fakeApi = {
     return copy(detail);
   }),
   decideFinding: vi.fn(async (findingId: string, input: FindingDecisionInput): Promise<AgreementDetail> => {
-    const detail = [...store.values()].find((d) => d.findings.some((f) => f.id === findingId));
-    if (!detail) throw new ApiRequestError(404, "That finding was not found.");
+    const { detail, finding } = findingWith(findingId);
     assertOpen(detail);
-    const finding = detail.findings.find((f) => f.id === findingId)!;
+    const note = input.note ?? finding.note;
+    if (input.decision !== "pending" && !note.trim()) {
+      throw new ApiRequestError(400, "Add a reason before accepting, dismissing, or escalating this flag.");
+    }
+    if (finding.decision === input.decision && finding.note === note) return copy(detail);
+    const before = snapshot(finding);
     finding.decision = input.decision;
-    if (input.note !== undefined) finding.note = input.note;
+    finding.note = note;
+    record(finding, before.decision !== input.decision ? "decision" : "edited", before);
     if (detail.status === "needs_review") detail.status = "in_review";
     return copy(detail);
   }),
   addManualFinding: vi.fn(async (agreementId: string, input: ManualFindingInput): Promise<AgreementDetail> => {
     const detail = find(agreementId);
     assertOpen(detail);
-    detail.findings.push({
-      id: nextId(),
-      category: input.category,
+    const flag = checkFlag(input, detail.rawText);
+    const finding = makeRuleFinding({
+      ...flag,
       confidence: 1,
-      sourceText: input.sourceText,
-      decision: "pending",
-      note: input.note ?? "Added manually by reviewer.",
+      note: flag.reason,
       method: "manual",
-      decidedAt: null,
+      createdBy: actor,
     });
+    record(finding, "created", null);
+    detail.findings.push(finding);
     if (detail.status === "needs_review") detail.status = "in_review";
+    return copy(detail);
+  }),
+  editManualFinding: vi.fn(async (findingId: string, input: ManualFindingInput): Promise<AgreementDetail> => {
+    const { detail, finding } = findingWith(findingId);
+    if (finding.method !== "manual") throw new ApiRequestError(400, "Only manual flags can be edited.");
+    assertOpen(detail);
+    const flag = checkFlag(input, detail.rawText);
+    const before = snapshot(finding);
+    Object.assign(finding, flag, { note: flag.reason });
+    record(finding, "edited", before);
     return copy(detail);
   }),
   uploadDocument: vi.fn(async (agreementId: string, file: File): Promise<DocumentRecord> => {

@@ -23,7 +23,12 @@ A local, testable first-pass workflow for vendor agreements. It can:
 - identify the team's **12 approved CUAD playbook categories** with local
   deterministic rules;
 - attach a confidence indicator and supporting source text to every finding;
-- let a reviewer accept, dismiss, escalate, or manually add findings;
+- let a reviewer accept, dismiss, or escalate each finding, with a reason;
+- let a reviewer add and edit manual flags: a **Provision** that cites exact
+  text from the agreement, or a **Gap** that names the playbook expectation
+  the agreement doesn't meet, each with a severity and a reason;
+- keep an audit history for every finding: who created, edited or decided it,
+  and when;
 - complete a review and show category-level reporting;
 - switch between the Requester, Reviewer, Approver, and Administrator views
   the signed-in person's roles allow; and
@@ -71,7 +76,7 @@ administrator makes applies on the person's very next request.
 | Role / permission | Can |
 | ----------------- | --- |
 | Requester         | Submit agreements, attach documents to their own new submissions, and see only their own agreements |
-| Reviewer          | See every agreement, record decisions, add manual findings, and complete a review as escalated |
+| Reviewer          | See every agreement, record decisions, add and edit manual flags, and complete a review as escalated |
 | Approver (permission) | Approve a completed review. Granted on top of Reviewer or Administrator, never alone |
 | Administrator     | Everything a reviewer can do, plus manage accounts, roles and the Approver permission |
 
@@ -115,6 +120,13 @@ history.
   `%PDF-`), capped at 25 MB, and stored under keys the server generates.
   Each deploy context has its own store, so previews never write into
   production's.
+- **Review rules on the server.** Nobody can review an agreement they
+  submitted, even with a reviewing role. Accepting, dismissing or escalating
+  needs a reason. Manual flags are checked by the same rules the form shows
+  (`src/lib/manualFinding.ts`), including that a provision's text appears
+  exactly in the agreement. Every change to a finding is written to
+  `audit_events` with a before-and-after snapshot, which is where its history
+  comes from.
 - **Server-side findings.** Submitting an agreement re-runs the playbook rules
   on the server. Findings sent by the browser are ignored.
 
@@ -127,24 +139,14 @@ automatically on each deploy (production and deploy previews):
 2. `…_create_agreements.sql`: agreements, findings, documents and the audit trail
 3. `…_row_level_security.sql`: the application role, helper functions, policies and grants
 4. `…_seed_demo_data.sql`: four demo accounts and four sample agreements
-5. `…_clear_agreement_data.sql`: a clean start. Deletes every agreement, with
-   its findings, document records and audit history, and keeps accounts and
-   roles.
-6. `…_remove_other_users.sql`: removes every account except
-   `etownsend309@gmail.com` and `ejt41483@uga.edu`, with their roles. It stops
-   with an error instead if an agreement was submitted, approved or given a
-   file by someone it would remove. A fresh database therefore starts with no
-   agreements and only those two accounts, once those two people have signed
-   in.
+5. `…_manual_flag_fields.sql`: finding type, severity, reason and playbook
+   expectation for manual flags. Existing manual findings become Medium
+   provisions, with their note as the reason.
 
 The seeded accounts are `requester@`, `reviewer@`, `approver@` and
 `admin@example.test`. Each one is claimed by whoever first signs in with that
 email, and Identity is invite-only. To use them, invite those addresses from
 the Netlify Identity dashboard, or change the emails in a new migration.
-
-The API tests in `tests/integration/` apply every migration except the two
-production clean-ups (5 and 6), so they still run against the demo accounts
-and agreements, and test each clean-up separately.
 
 Never edit a migration that has been deployed. Add a new one instead.
 
@@ -156,7 +158,7 @@ Never edit a migration that has been deployed. Add a new one instead.
 | `GET /api/agreements`, `GET /api/agreements/:id` | Filtered to what the person may see |
 | `POST /api/agreements` | Requesters, Administrators |
 | `POST /api/agreements/:id/documents`, `GET /api/documents/:id` | Upload: the submitter while new, or reviewers. Download: anyone who can see the agreement |
-| `PATCH /api/findings/:id`, `POST /api/agreements/:id/findings` | Reviewers |
+| `PATCH /api/findings/:id` (decision and note), `POST /api/agreements/:id/findings` (add a manual flag), `PUT /api/findings/:id` (edit a manual flag) | Reviewers, never on an agreement they submitted |
 | `POST /api/agreements/:id/complete` | Reviewers; approving needs the Approver permission |
 | `GET /api/reports/categories` | Anyone signed in; counts only the agreements the person may see |
 | `GET /api/users`, `PUT /api/users/:id/access` | Administrators |

@@ -67,6 +67,8 @@ export const api = {
 
   decideFinding: (findingId: string, input: FindingDecisionInput) =>
     request<AgreementDetail>(`/api/findings/${encodeURIComponent(findingId)}`, sendJson("PATCH", input)),
+  editManualFinding: (findingId: string, input: ManualFindingInput) =>
+    request<AgreementDetail>(`/api/findings/${encodeURIComponent(findingId)}`, sendJson("PUT", input)),
   addManualFinding: (agreementId: string, input: ManualFindingInput) =>
     request<AgreementDetail>(`/api/agreements/${encodeURIComponent(agreementId)}/findings`, sendJson("POST", input)),
 

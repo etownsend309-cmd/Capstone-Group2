@@ -12,10 +12,6 @@
  * row-level security policies, not just the service code above them.
  */
 
-import { copyFileSync, mkdtempSync, readdirSync } from "node:fs";
-import { tmpdir } from "node:os";
-import path from "node:path";
-
 import { NetlifyDB } from "@netlify/database-dev";
 import pg from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -29,24 +25,7 @@ import type { IdentityUser } from "../../server/session.ts";
 
 const ORIGIN = "https://clausepilot.example";
 const MIGRATIONS = new URL("../../netlify/database/migrations", import.meta.url).pathname;
-const CLEAR_MIGRATION = "20261028183000_clear_agreement_data.sql";
-const REMOVE_USERS_MIGRATION = "20261028192000_remove_other_users.sql";
 
-/** A directory holding every migration except the named ones. */
-function migrationsWithout(...skip: string[]) {
-  const dir = mkdtempSync(path.join(tmpdir(), "clausepilot-migrations-"));
-  for (const file of readdirSync(MIGRATIONS)) {
-    if (!skip.includes(file)) copyFileSync(path.join(MIGRATIONS, file), path.join(dir, file));
-  }
-  return dir;
-}
-
-/**
- * Every migration except the production clean-ups, which delete the demo
- * agreements and accounts these tests are written against. Each clean-up has
- * its own tests below.
- */
-const FIXTURE_MIGRATIONS = migrationsWithout(CLEAR_MIGRATION, REMOVE_USERS_MIGRATION);
 
 /** Netlify Identity users; the seeded app accounts are claimed by these emails. */
 const people = {
@@ -56,8 +35,6 @@ const people = {
   admin: { id: "idp-admin", email: "admin@example.test", name: "Alex" },
   stranger: { id: "idp-stranger", email: "stranger@example.test", name: "Sam" },
   founder: { id: "idp-founder", email: "Founder@Example.test", name: "Fran" },
-  owner: { id: "idp-owner", email: "etownsend309@gmail.com", name: "E Townsend" },
-  partner: { id: "idp-partner", email: "EJT41483@uga.edu", name: "EJT" },
 } satisfies Record<string, IdentityUser>;
 type Person = keyof typeof people;
 
@@ -89,7 +66,7 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await netlifyDb.reset();
-  await netlifyDb.applyMigrations(FIXTURE_MIGRATIONS);
+  await netlifyDb.applyMigrations(MIGRATIONS);
   documents = createMemoryDocumentStore();
   handle = createApiHandler({
     database: createDatabase(pool as unknown as ConnectionPool),
@@ -265,7 +242,7 @@ describe("submitting and reviewing", () => {
   async function acceptAll(agreementId: string, as: Person) {
     const detail = await callJson<AgreementDetail>(`/api/agreements/${agreementId}`, { as });
     for (const finding of detail.body.findings) {
-      await call(`/api/findings/${finding.id}`, { as, method: "PATCH", body: { decision: "accepted" } });
+      await call(`/api/findings/${finding.id}`, { as, method: "PATCH", body: { decision: "accepted", note: "Matches the playbook." } });
     }
   }
 
@@ -295,9 +272,9 @@ describe("submitting and reviewing", () => {
   it("lets any reviewer complete a review as escalated", async () => {
     const detail = await callJson<AgreementDetail>(`/api/agreements/${SEEDED.newAgreement}`, { as: "reviewer" });
     const [first, ...rest] = detail.body.findings;
-    await call(`/api/findings/${first!.id}`, { as: "reviewer", method: "PATCH", body: { decision: "escalated" } });
+    await call(`/api/findings/${first!.id}`, { as: "reviewer", method: "PATCH", body: { decision: "escalated", note: "Needs Legal." } });
     for (const finding of rest) {
-      await call(`/api/findings/${finding.id}`, { as: "reviewer", method: "PATCH", body: { decision: "dismissed" } });
+      await call(`/api/findings/${finding.id}`, { as: "reviewer", method: "PATCH", body: { decision: "dismissed", note: "Not material." } });
     }
     const { status, body } = await callJson<AgreementDetail>(`/api/agreements/${SEEDED.newAgreement}/complete`, {
       as: "reviewer",
@@ -308,21 +285,193 @@ describe("submitting and reviewing", () => {
     expect(body.completedAt).not.toBeNull();
   });
 
-  it("adds manual findings only in the approved categories", async () => {
-    const bad = await callJson(`/api/agreements/${SEEDED.newAgreement}/findings`, {
+  it("requires a reason before a decision", async () => {
+    const detail = await callJson<AgreementDetail>(`/api/agreements/${SEEDED.newAgreement}`, { as: "reviewer" });
+    const finding = detail.body.findings[0]!;
+    const refused = await callJson<{ error: string }>(`/api/findings/${finding.id}`, {
       as: "reviewer",
-      method: "POST",
-      body: { category: "Indemnification", sourceText: "x" },
+      method: "PATCH",
+      body: { decision: "accepted", note: "   " },
     });
-    expect(bad.status).toBe(400);
+    expect(refused.status).toBe(400);
+    expect(refused.body.error).toBe("Add a reason before accepting, dismissing, or escalating this flag.");
 
-    const good = await callJson<AgreementDetail>(`/api/agreements/${SEEDED.newAgreement}/findings`, {
+    // A note saved earlier counts as the reason.
+    await call(`/api/findings/${finding.id}`, { as: "reviewer", method: "PATCH", body: { decision: "pending", note: "Standard clause." } });
+    const accepted = await callJson<AgreementDetail>(`/api/findings/${finding.id}`, {
       as: "reviewer",
-      method: "POST",
-      body: { category: "Insurance", sourceText: "Vendor maintains insurance." },
+      method: "PATCH",
+      body: { decision: "accepted" },
     });
-    expect(good.status).toBe(201);
-    expect(good.body.findings.some((f) => f.method === "manual" && f.category === "Insurance")).toBe(true);
+    expect(accepted.status).toBe(200);
+  });
+
+  it("won't let anyone review an agreement they submitted", async () => {
+    // The founder is a Requester and an Administrator, so they may both submit and review.
+    const own = await callJson<AgreementDetail>("/api/agreements", { as: "founder", method: "POST", body: newAgreement });
+    const finding = own.body.findings[0]!;
+
+    for (const attempt of [
+      call(`/api/findings/${finding.id}`, { as: "founder", method: "PATCH", body: { decision: "accepted", note: "Mine." } }),
+      call(`/api/agreements/${own.body.id}/findings`, { as: "founder", method: "POST", body: gapFlag }),
+      call(`/api/agreements/${own.body.id}/complete`, { as: "founder", method: "POST" }),
+    ]) {
+      const response = await attempt;
+      expect(response.status).toBe(403);
+      expect(((await response.json()) as { error: string }).error).toMatch(/cannot review your own agreement/);
+    }
+
+    const byReviewer = await call(`/api/findings/${finding.id}`, {
+      as: "reviewer",
+      method: "PATCH",
+      body: { decision: "accepted", note: "Fine." },
+    });
+    expect(byReviewer.status).toBe(200);
+  });
+});
+
+const NEW_AGREEMENT_TEXT = "This Agreement is governed by the laws of the State of Georgia.";
+const provisionFlag = {
+  category: "Governing Law",
+  findingType: "provision",
+  severity: "high",
+  reason: "The clause selects an unexpected governing law.",
+  sourceText: NEW_AGREEMENT_TEXT,
+  playbookExpectation: "",
+};
+const gapFlag = {
+  category: "Insurance",
+  findingType: "gap",
+  severity: "medium",
+  reason: "No insurance requirement appears anywhere.",
+  sourceText: "",
+  playbookExpectation: "Vendors must carry commercial general liability insurance.",
+};
+
+describe("manual flags", () => {
+  const addFlag = (body: unknown, as: Person = "reviewer") =>
+    callJson<AgreementDetail & { error?: string }>(`/api/agreements/${SEEDED.newAgreement}/findings`, { as, method: "POST", body });
+  const manual = (detail: AgreementDetail) => detail.findings.filter((f) => f.method === "manual");
+
+  it("creates a provision flag with its type, severity, reason, evidence, creator and history", async () => {
+    const { status, body } = await addFlag(provisionFlag);
+    expect(status).toBe(201);
+    expect(body.status).toBe("in_review");
+    const [flag] = manual(body);
+    expect(flag).toMatchObject({
+      category: "Governing Law",
+      findingType: "provision",
+      severity: "high",
+      reason: provisionFlag.reason,
+      note: provisionFlag.reason,
+      sourceText: NEW_AGREEMENT_TEXT,
+      playbookExpectation: "",
+      decision: "pending",
+      confidence: 1,
+      createdBy: { email: "reviewer@example.test" },
+    });
+    expect(flag!.history).toHaveLength(1);
+    expect(flag!.history[0]).toMatchObject({ action: "created", before: null, actor: { email: "reviewer@example.test" } });
+    expect(flag!.history[0]!.after).toMatchObject({ findingType: "provision", severity: "high", decision: "pending" });
+  });
+
+  it("creates a gap flag that cites no contract text", async () => {
+    const { status, body } = await addFlag(gapFlag);
+    expect(status).toBe(201);
+    expect(manual(body)[0]).toMatchObject({ findingType: "gap", sourceText: "", playbookExpectation: gapFlag.playbookExpectation });
+  });
+
+  it.each([
+    ["a category outside the playbook", { ...provisionFlag, category: "Indemnification" }, /12 approved categories/],
+    ["text that isn't in the agreement", { ...provisionFlag, sourceText: "Governed by the laws of Mars." }, /must match text in the agreement exactly/],
+    ["a provision with no text", { ...provisionFlag, sourceText: " " }, /Enter exact supporting text/],
+    ["a gap that cites contract text", { ...gapFlag, sourceText: "invented contract text" }, /cannot include invented contract text/],
+    ["a gap with no expectation", { ...gapFlag, playbookExpectation: "" }, /Reference the applicable playbook expectation/],
+    ["no reason", { ...provisionFlag, reason: " " }, /Reason is required/],
+    ["an unknown severity", { ...provisionFlag, severity: "urgent" }, /Severity must be one of/],
+  ])("refuses %s", async (_case, body, message) => {
+    const { status, body: error } = await addFlag(body);
+    expect(status).toBe(400);
+    expect(error.error).toMatch(message);
+  });
+
+  it("edits a flag and keeps its history: created, decision, edited", async () => {
+    const created = manual((await addFlag(provisionFlag)).body)[0]!;
+    await callJson(`/api/findings/${created.id}`, { as: "reviewer", method: "PATCH", body: { decision: "accepted" } });
+    const edited = await callJson<AgreementDetail>(`/api/findings/${created.id}`, {
+      as: "reviewer",
+      method: "PUT",
+      body: { ...provisionFlag, reason: "Updated after accepting the finding." },
+    });
+    expect(edited.status).toBe(200);
+    const flag = manual(edited.body)[0]!;
+    expect(flag).toMatchObject({ reason: "Updated after accepting the finding.", decision: "accepted" });
+    expect(flag.history.map((entry) => entry.action)).toEqual(["created", "decision", "edited"]);
+    expect(flag.history[1]).toMatchObject({ before: { decision: "pending" }, after: { decision: "accepted" } });
+    expect(flag.history[2]!.before).toMatchObject({ decision: "accepted", reason: provisionFlag.reason });
+
+    // Saving the same values again adds nothing.
+    await call(`/api/findings/${created.id}`, { as: "reviewer", method: "PUT", body: { ...provisionFlag, reason: "Updated after accepting the finding." } });
+    const again = await callJson<AgreementDetail>(`/api/agreements/${SEEDED.newAgreement}`, { as: "reviewer" });
+    expect(manual(again.body)[0]!.history).toHaveLength(3);
+  });
+
+  it("changes a provision into a gap, dropping the cited text", async () => {
+    const created = manual((await addFlag(provisionFlag)).body)[0]!;
+    const { body } = await callJson<AgreementDetail>(`/api/findings/${created.id}`, {
+      as: "reviewer",
+      method: "PUT",
+      body: { ...gapFlag, category: "Governing Law" },
+    });
+    expect(manual(body)[0]).toMatchObject({ findingType: "gap", sourceText: "", playbookExpectation: gapFlag.playbookExpectation });
+  });
+
+  it("records a decision change, and a note change as an edit", async () => {
+    const detail = await callJson<AgreementDetail>(`/api/agreements/${SEEDED.newAgreement}`, { as: "reviewer" });
+    const rule = detail.body.findings[0]!;
+    expect(rule.history).toEqual([]);
+    await call(`/api/findings/${rule.id}`, { as: "reviewer", method: "PATCH", body: { decision: "accepted", note: "Fine." } });
+    await call(`/api/findings/${rule.id}`, { as: "reviewer", method: "PATCH", body: { decision: "escalated" } });
+    const { body } = await callJson<AgreementDetail>(`/api/findings/${rule.id}`, {
+      as: "reviewer",
+      method: "PATCH",
+      body: { decision: "escalated", note: "Needs Legal after all." },
+    });
+    const history = body.findings.find((f) => f.id === rule.id)!.history;
+    expect(history.map((entry) => entry.action)).toEqual(["decision", "decision", "edited"]);
+    expect(history[1]).toMatchObject({ before: { decision: "accepted" }, after: { decision: "escalated" } });
+  });
+
+  it("won't edit a rule finding", async () => {
+    const detail = await callJson<AgreementDetail>(`/api/agreements/${SEEDED.newAgreement}`, { as: "reviewer" });
+    const { status, body } = await callJson<{ error: string }>(`/api/findings/${detail.body.findings[0]!.id}`, {
+      as: "reviewer",
+      method: "PUT",
+      body: provisionFlag,
+    });
+    expect(status).toBe(400);
+    expect(body.error).toBe("Only manual flags can be edited.");
+  });
+
+  it("won't let a requester add or edit flags", async () => {
+    const created = manual((await addFlag(provisionFlag)).body)[0]!;
+    expect((await addFlag(gapFlag, "requester")).status).toBe(403);
+    const edit = await call(`/api/findings/${created.id}`, { as: "requester", method: "PUT", body: gapFlag });
+    expect(edit.status).toBe(403);
+  });
+
+  it("shows the requester the history but not reviewers' names", async () => {
+    await addFlag(provisionFlag);
+    const { body } = await callJson<AgreementDetail>(`/api/agreements/${SEEDED.newAgreement}`, { as: "requester" });
+    const flag = manual(body)[0]!;
+    expect(flag.history).toHaveLength(1);
+    expect(flag.history[0]!.actor).toBeNull();
+    expect(flag.createdBy).toBeNull();
+  });
+
+  it("backfills manual findings made before these fields existed", async () => {
+    const { body } = await callJson<AgreementDetail>(`/api/agreements/${SEEDED.adminSubmitted}`, { as: "reviewer" });
+    expect(manual(body)[0]).toMatchObject({ findingType: "provision", severity: "medium", reason: "Added during review." });
   });
 });
 
@@ -410,7 +559,7 @@ describe("category report", () => {
     const before = await callJson<CategoryReport>("/api/reports/categories", { as: "reviewer" });
     const detail = await callJson<AgreementDetail>(`/api/agreements/${SEEDED.newAgreement}`, { as: "reviewer" });
     const finding = detail.body.findings[0]!;
-    await callJson(`/api/findings/${finding.id}`, { as: "reviewer", method: "PATCH", body: { decision: "escalated" } });
+    await callJson(`/api/findings/${finding.id}`, { as: "reviewer", method: "PATCH", body: { decision: "escalated", note: "Needs Legal." } });
 
     const after = await callJson<CategoryReport>("/api/reports/categories", { as: "reviewer" });
     const row = (report: CategoryReport) => report.categories.find((r) => r.category === finding.category)!;
@@ -466,85 +615,5 @@ describe("account administration", () => {
     const { status, body } = await callJson<{ error: string }>("/api/agreements", { as: "reviewer" });
     expect(status).toBe(403);
     expect(body.error).toMatch(/deactivated/);
-  });
-});
-
-describe("clean start migration", () => {
-  const count = async (sql: string) => Number((await pool.query<{ n: string }>(sql)).rows[0]!.n);
-
-  it("removes every agreement and its history but keeps accounts and access", async () => {
-    await callJson("/api/agreements", { as: "requester", method: "POST", body: newAgreement });
-    await callJson(`/api/users/${SEEDED.reviewerUser}/access`, {
-      as: "admin",
-      method: "PUT",
-      body: { roles: ["reviewer"], approve: true, isActive: true },
-    });
-    const accountsBefore = await count("SELECT count(*) AS n FROM app_users");
-    const rolesBefore = await count("SELECT count(*) AS n FROM user_roles");
-    expect(await count("SELECT count(*) AS n FROM agreements")).toBe(5);
-
-    await netlifyDb.applyMigrations(migrationsWithout(REMOVE_USERS_MIGRATION));
-
-    for (const table of ["agreements", "findings", "agreement_documents"]) {
-      expect(await count(`SELECT count(*) AS n FROM ${table}`), table).toBe(0);
-    }
-    expect(await count("SELECT count(*) AS n FROM audit_events WHERE action <> 'user.access_changed'")).toBe(0);
-    expect(await count("SELECT count(*) AS n FROM audit_events WHERE action = 'user.access_changed'")).toBe(1);
-    expect(await count("SELECT count(*) AS n FROM app_users")).toBe(accountsBefore);
-    expect(await count("SELECT count(*) AS n FROM user_roles")).toBe(rolesBefore);
-
-    const session = await callJson<SessionUser>("/api/session", { as: "reviewer" });
-    expect(session.body.permissions).toEqual(["approve"]);
-    const list = await callJson<AgreementSummary[]>("/api/agreements", { as: "reviewer" });
-    expect(list.body).toEqual([]);
-
-    // The workspace keeps working afterwards.
-    const created = await callJson<AgreementDetail>("/api/agreements", { as: "requester", method: "POST", body: newAgreement });
-    expect(created.status).toBe(201);
-  });
-});
-
-describe("removing every account but two", () => {
-  const emails = async () => (await pool.query<{ email: string }>("SELECT email FROM app_users ORDER BY email")).rows.map((r) => r.email);
-
-  it("keeps only the two named accounts, with their access, and clears other people from the history", async () => {
-    // Both kept people have signed in, and an administrator has changed someone's access.
-    await callJson("/api/session", { as: "owner" });
-    const partner = await callJson<SessionUser>("/api/session", { as: "partner" });
-    const founder = await callJson<SessionUser>("/api/session", { as: "founder" });
-    await callJson(`/api/users/${partner.body.id}/access`, {
-      as: "founder",
-      method: "PUT",
-      body: { roles: ["reviewer"], approve: true, isActive: true },
-    });
-
-    // The clean start runs first in production, so no agreement refers to anyone.
-    await netlifyDb.applyMigrations(MIGRATIONS);
-
-    expect(await emails()).toEqual(["ejt41483@uga.edu", "etownsend309@gmail.com"]);
-    const kept = await callJson<SessionUser>("/api/session", { as: "partner" });
-    expect(kept.body).toMatchObject({ id: partner.body.id, roles: ["reviewer"], permissions: ["approve"] });
-
-    const actors = await pool.query<{ actor_id: string | null }>(
-      "SELECT actor_id FROM audit_events WHERE action = 'user.access_changed'",
-    );
-    expect(actors.rows).toEqual([{ actor_id: null }]);
-    expect(await pool.query("SELECT 1 FROM app_users WHERE id = $1", [founder.body.id])).toMatchObject({ rowCount: 0 });
-
-    // A removed person who signs in again only gets a fresh Requester account.
-    const returning = await callJson<SessionUser>("/api/session", { as: "reviewer" });
-    expect(returning.body.roles).toEqual(["requester"]);
-    expect(returning.body.id).not.toBe(SEEDED.reviewerUser);
-  });
-
-  it("refuses, removing nobody, while an agreement still needs one of the people", async () => {
-    await callJson("/api/session", { as: "owner" });
-    const before = await emails();
-
-    // The demo agreements are still here, submitted by accounts that would go.
-    await expect(netlifyDb.applyMigrations(migrationsWithout(CLEAR_MIGRATION))).rejects.toThrow(
-      /Not removing accounts: .*requester@example\.test/,
-    );
-    expect(await emails()).toEqual(before);
   });
 });
