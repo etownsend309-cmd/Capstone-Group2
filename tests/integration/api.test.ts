@@ -12,11 +12,16 @@
  * row-level security policies, not just the service code above them.
  */
 
+import { copyFileSync, mkdtempSync, readdirSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+
 import { NetlifyDB } from "@netlify/database-dev";
 import pg from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
-import type { AgreementDetail, AgreementSummary, ManagedUser, SessionUser } from "../../src/shared/api.ts";
+import type { AgreementDetail, AgreementSummary, CategoryReport, ManagedUser, SessionUser } from "../../src/shared/api.ts";
+import { playbook } from "../../src/lib/analyze.ts";
 import { createApiHandler } from "../../server/api.ts";
 import { createDatabase, type ConnectionPool } from "../../server/db.ts";
 import { createMemoryDocumentStore } from "../../server/documentStore.ts";
@@ -24,6 +29,24 @@ import type { IdentityUser } from "../../server/session.ts";
 
 const ORIGIN = "https://clausepilot.example";
 const MIGRATIONS = new URL("../../netlify/database/migrations", import.meta.url).pathname;
+const CLEAR_MIGRATION = "20261028183000_clear_agreement_data.sql";
+const REMOVE_USERS_MIGRATION = "20261028192000_remove_other_users.sql";
+
+/** A directory holding every migration except the named ones. */
+function migrationsWithout(...skip: string[]) {
+  const dir = mkdtempSync(path.join(tmpdir(), "clausepilot-migrations-"));
+  for (const file of readdirSync(MIGRATIONS)) {
+    if (!skip.includes(file)) copyFileSync(path.join(MIGRATIONS, file), path.join(dir, file));
+  }
+  return dir;
+}
+
+/**
+ * Every migration except the production clean-ups, which delete the demo
+ * agreements and accounts these tests are written against. Each clean-up has
+ * its own tests below.
+ */
+const FIXTURE_MIGRATIONS = migrationsWithout(CLEAR_MIGRATION, REMOVE_USERS_MIGRATION);
 
 /** Netlify Identity users; the seeded app accounts are claimed by these emails. */
 const people = {
@@ -33,6 +56,8 @@ const people = {
   admin: { id: "idp-admin", email: "admin@example.test", name: "Alex" },
   stranger: { id: "idp-stranger", email: "stranger@example.test", name: "Sam" },
   founder: { id: "idp-founder", email: "Founder@Example.test", name: "Fran" },
+  owner: { id: "idp-owner", email: "etownsend309@gmail.com", name: "E Townsend" },
+  partner: { id: "idp-partner", email: "EJT41483@uga.edu", name: "EJT" },
 } satisfies Record<string, IdentityUser>;
 type Person = keyof typeof people;
 
@@ -64,7 +89,7 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await netlifyDb.reset();
-  await netlifyDb.applyMigrations(MIGRATIONS);
+  await netlifyDb.applyMigrations(FIXTURE_MIGRATIONS);
   documents = createMemoryDocumentStore();
   handle = createApiHandler({
     database: createDatabase(pool as unknown as ConnectionPool),
@@ -348,6 +373,51 @@ describe("private document storage", () => {
   });
 });
 
+describe("category report", () => {
+  /** What the report should say, worked out from the agreements this person can open. */
+  async function expectedReport(as: Person) {
+    const list = await callJson<AgreementSummary[]>("/api/agreements", { as });
+    const details = await Promise.all(list.body.map((a) => callJson<AgreementDetail>(`/api/agreements/${a.id}`, { as })));
+    const findings = details.flatMap((d) => d.body.findings);
+    return {
+      agreementCount: list.body.length,
+      categories: playbook.map(({ name }) => {
+        const inCategory = findings.filter((f) => f.category === name);
+        return {
+          category: name,
+          total: inCategory.length,
+          accepted: inCategory.filter((f) => f.decision === "accepted").length,
+          escalated: inCategory.filter((f) => f.decision === "escalated").length,
+        };
+      }),
+    };
+  }
+
+  it.each(["requester", "reviewer"] as const)("counts only what the %s may see", async (as) => {
+    const { status, body } = await callJson<CategoryReport>("/api/reports/categories", { as });
+    expect(status).toBe(200);
+    expect(body).toEqual(await expectedReport(as));
+  });
+
+  it("lists every approved category, even with no findings", async () => {
+    const { body } = await callJson<CategoryReport>("/api/reports/categories", { as: "stranger" });
+    expect(body.agreementCount).toBe(0);
+    expect(body.categories.map((row) => row.category)).toEqual(playbook.map((c) => c.name));
+    expect(body.categories.every((row) => row.total === 0)).toBe(true);
+  });
+
+  it("reflects a decision as soon as it is recorded", async () => {
+    const before = await callJson<CategoryReport>("/api/reports/categories", { as: "reviewer" });
+    const detail = await callJson<AgreementDetail>(`/api/agreements/${SEEDED.newAgreement}`, { as: "reviewer" });
+    const finding = detail.body.findings[0]!;
+    await callJson(`/api/findings/${finding.id}`, { as: "reviewer", method: "PATCH", body: { decision: "escalated" } });
+
+    const after = await callJson<CategoryReport>("/api/reports/categories", { as: "reviewer" });
+    const row = (report: CategoryReport) => report.categories.find((r) => r.category === finding.category)!;
+    expect(row(after.body).escalated).toBe(row(before.body).escalated + 1);
+  });
+});
+
 describe("account administration", () => {
   it("is limited to administrators", async () => {
     expect((await callJson("/api/users", { as: "reviewer" })).status).toBe(403);
@@ -396,5 +466,85 @@ describe("account administration", () => {
     const { status, body } = await callJson<{ error: string }>("/api/agreements", { as: "reviewer" });
     expect(status).toBe(403);
     expect(body.error).toMatch(/deactivated/);
+  });
+});
+
+describe("clean start migration", () => {
+  const count = async (sql: string) => Number((await pool.query<{ n: string }>(sql)).rows[0]!.n);
+
+  it("removes every agreement and its history but keeps accounts and access", async () => {
+    await callJson("/api/agreements", { as: "requester", method: "POST", body: newAgreement });
+    await callJson(`/api/users/${SEEDED.reviewerUser}/access`, {
+      as: "admin",
+      method: "PUT",
+      body: { roles: ["reviewer"], approve: true, isActive: true },
+    });
+    const accountsBefore = await count("SELECT count(*) AS n FROM app_users");
+    const rolesBefore = await count("SELECT count(*) AS n FROM user_roles");
+    expect(await count("SELECT count(*) AS n FROM agreements")).toBe(5);
+
+    await netlifyDb.applyMigrations(migrationsWithout(REMOVE_USERS_MIGRATION));
+
+    for (const table of ["agreements", "findings", "agreement_documents"]) {
+      expect(await count(`SELECT count(*) AS n FROM ${table}`), table).toBe(0);
+    }
+    expect(await count("SELECT count(*) AS n FROM audit_events WHERE action <> 'user.access_changed'")).toBe(0);
+    expect(await count("SELECT count(*) AS n FROM audit_events WHERE action = 'user.access_changed'")).toBe(1);
+    expect(await count("SELECT count(*) AS n FROM app_users")).toBe(accountsBefore);
+    expect(await count("SELECT count(*) AS n FROM user_roles")).toBe(rolesBefore);
+
+    const session = await callJson<SessionUser>("/api/session", { as: "reviewer" });
+    expect(session.body.permissions).toEqual(["approve"]);
+    const list = await callJson<AgreementSummary[]>("/api/agreements", { as: "reviewer" });
+    expect(list.body).toEqual([]);
+
+    // The workspace keeps working afterwards.
+    const created = await callJson<AgreementDetail>("/api/agreements", { as: "requester", method: "POST", body: newAgreement });
+    expect(created.status).toBe(201);
+  });
+});
+
+describe("removing every account but two", () => {
+  const emails = async () => (await pool.query<{ email: string }>("SELECT email FROM app_users ORDER BY email")).rows.map((r) => r.email);
+
+  it("keeps only the two named accounts, with their access, and clears other people from the history", async () => {
+    // Both kept people have signed in, and an administrator has changed someone's access.
+    await callJson("/api/session", { as: "owner" });
+    const partner = await callJson<SessionUser>("/api/session", { as: "partner" });
+    const founder = await callJson<SessionUser>("/api/session", { as: "founder" });
+    await callJson(`/api/users/${partner.body.id}/access`, {
+      as: "founder",
+      method: "PUT",
+      body: { roles: ["reviewer"], approve: true, isActive: true },
+    });
+
+    // The clean start runs first in production, so no agreement refers to anyone.
+    await netlifyDb.applyMigrations(MIGRATIONS);
+
+    expect(await emails()).toEqual(["ejt41483@uga.edu", "etownsend309@gmail.com"]);
+    const kept = await callJson<SessionUser>("/api/session", { as: "partner" });
+    expect(kept.body).toMatchObject({ id: partner.body.id, roles: ["reviewer"], permissions: ["approve"] });
+
+    const actors = await pool.query<{ actor_id: string | null }>(
+      "SELECT actor_id FROM audit_events WHERE action = 'user.access_changed'",
+    );
+    expect(actors.rows).toEqual([{ actor_id: null }]);
+    expect(await pool.query("SELECT 1 FROM app_users WHERE id = $1", [founder.body.id])).toMatchObject({ rowCount: 0 });
+
+    // A removed person who signs in again only gets a fresh Requester account.
+    const returning = await callJson<SessionUser>("/api/session", { as: "reviewer" });
+    expect(returning.body.roles).toEqual(["requester"]);
+    expect(returning.body.id).not.toBe(SEEDED.reviewerUser);
+  });
+
+  it("refuses, removing nobody, while an agreement still needs one of the people", async () => {
+    await callJson("/api/session", { as: "owner" });
+    const before = await emails();
+
+    // The demo agreements are still here, submitted by accounts that would go.
+    await expect(netlifyDb.applyMigrations(migrationsWithout(CLEAR_MIGRATION))).rejects.toThrow(
+      /Not removing accounts: .*requester@example\.test/,
+    );
+    expect(await emails()).toEqual(before);
   });
 });
