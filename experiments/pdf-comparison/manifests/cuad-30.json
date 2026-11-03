@@ -1,0 +1,407 @@
+{
+  "schemaVersion": 1,
+  "selectionSeed": "clausepilot-cuad-30-v1",
+  "source": "CUAD v1",
+  "datasetRootHint": "/Users/jskelton/Desktop/CUAD_v1",
+  "categories": [
+    "Governing Law",
+    "Anti-Assignment",
+    "Cap On Liability",
+    "Audit Rights",
+    "Termination For Convenience",
+    "Exclusivity",
+    "Renewal Term",
+    "Insurance",
+    "Change Of Control",
+    "Uncapped Liability",
+    "Notice Period To Terminate Renewal",
+    "Warranty Duration"
+  ],
+  "contracts": [
+    {
+      "pdfFile": "ENERGOUSCORP_03_16_2017-EX-10.24-STRATEGIC ALLIANCE AGREEMENT.PDF",
+      "txtFile": "ENERGOUSCORP_03_16_2017-EX-10.24-STRATEGIC ALLIANCE AGREEMENT.txt",
+      "contractType": "STRATEGIC ALLIANCE AGREEMENT",
+      "lengthChars": 81926,
+      "positiveCategories": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Cap On Liability",
+        "Audit Rights",
+        "Termination For Convenience",
+        "Exclusivity",
+        "Renewal Term",
+        "Insurance",
+        "Change Of Control",
+        "Uncapped Liability",
+        "Notice Period To Terminate Renewal",
+        "Warranty Duration"
+      ]
+    },
+    {
+      "pdfFile": "NANOPHASETECHNOLOGIESCORP_11_01_2005-EX-99.1-DISTRIBUTOR AGREEMENT.PDF",
+      "txtFile": "NANOPHASETECHNOLOGIESCORP_11_01_2005-EX-99.1-DISTRIBUTOR AGREEMENT.txt",
+      "contractType": "DISTRIBUTOR AGREEMENT",
+      "lengthChars": 48612,
+      "positiveCategories": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Cap On Liability",
+        "Audit Rights",
+        "Termination For Convenience",
+        "Exclusivity",
+        "Renewal Term",
+        "Insurance",
+        "Uncapped Liability",
+        "Notice Period To Terminate Renewal",
+        "Warranty Duration"
+      ]
+    },
+    {
+      "pdfFile": "PACIRA PHARMACEUTICALS, INC. - A&R STRATEGIC LICENSING, DISTRIBUTION AND MARKETING AGREEMENT .PDF",
+      "txtFile": "PACIRA PHARMACEUTICALS, INC. - A_R STRATEGIC LICENSING, DISTRIBUTION AND MARKETING AGREEMENT .txt",
+      "contractType": "A&R STRATEGIC LICENSING, DISTRIBUTION AND MARKETING AGREEMENT",
+      "lengthChars": 145168,
+      "positiveCategories": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Cap On Liability",
+        "Audit Rights",
+        "Termination For Convenience",
+        "Exclusivity",
+        "Renewal Term",
+        "Insurance",
+        "Change Of Control",
+        "Uncapped Liability",
+        "Notice Period To Terminate Renewal"
+      ]
+    },
+    {
+      "pdfFile": "AgapeAtpCorp_20191202_10-KA_EX-10.1_11911128_EX-10.1_Supply Agreement.pdf",
+      "txtFile": "AgapeAtpCorp_20191202_10-KA_EX-10.1_11911128_EX-10.1_Supply Agreement.txt",
+      "contractType": "10.1 Supply Agreement",
+      "lengthChars": 20693,
+      "positiveCategories": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Exclusivity",
+        "Renewal Term",
+        "Insurance",
+        "Change Of Control",
+        "Notice Period To Terminate Renewal",
+        "Warranty Duration"
+      ]
+    },
+    {
+      "pdfFile": "ATENTOSA_07_06_2020-EX-99.1-JOINT FILING AGREEMENT.PDF",
+      "txtFile": "ATENTOSA_07_06_2020-EX-99.1-JOINT FILING AGREEMENT.txt",
+      "contractType": "JOINT FILING AGREEMENT",
+      "lengthChars": 2298,
+      "positiveCategories": []
+    },
+    {
+      "pdfFile": "SUNTRONCORP_05_17_2006-EX-10.22-MAINTENANCE AGREEMENT.PDF",
+      "txtFile": "SUNTRONCORP_05_17_2006-EX-10.22-MAINTENANCE AGREEMENT.txt",
+      "contractType": "MAINTENANCE AGREEMENT",
+      "lengthChars": 32263,
+      "positiveCategories": [
+        "Governing Law",
+        "Cap On Liability"
+      ]
+    },
+    {
+      "pdfFile": "GSVINC_05_15_1998-EX-10-SPONSORSHIP AGREEMENT.PDF",
+      "txtFile": "GSVINC_05_15_1998-EX-10-SPONSORSHIP AGREEMENT.txt",
+      "contractType": "SPONSORSHIP AGREEMENT",
+      "lengthChars": 50835,
+      "positiveCategories": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Cap On Liability",
+        "Audit Rights"
+      ]
+    },
+    {
+      "pdfFile": "LejuHoldingsLtd_20140121_DRS (on F-1)_EX-10.26_8473102_EX-10.26_Content License Agreement2.pdf",
+      "txtFile": "LejuHoldingsLtd_20140121_DRS (on F-1)_EX-10.26_8473102_EX-10.26_Content License Agreement2.txt",
+      "contractType": "10.26 Content License Agreement2",
+      "lengthChars": 2180,
+      "positiveCategories": [
+        "Governing Law"
+      ]
+    },
+    {
+      "pdfFile": "ArmstrongFlooringInc_20190107_8-K_EX-10.2_11471795_EX-10.2_Intellectual Property Agreement.pdf",
+      "txtFile": "ArmstrongFlooringInc_20190107_8-K_EX-10.2_11471795_EX-10.2_Intellectual Property Agreement.txt",
+      "contractType": "10.2 Intellectual Property Agreement",
+      "lengthChars": 56858,
+      "positiveCategories": [
+        "Governing Law",
+        "Anti-Assignment"
+      ]
+    },
+    {
+      "pdfFile": "PAXMEDICA,INC_07_02_2020-EX-10.12-Master Service Agreement.PDF",
+      "txtFile": "PAXMEDICA,INC_07_02_2020-EX-10.12-Master Service Agreement.txt",
+      "contractType": "Master Service Agreement",
+      "lengthChars": 16792,
+      "positiveCategories": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Cap On Liability",
+        "Termination For Convenience",
+        "Uncapped Liability"
+      ]
+    },
+    {
+      "pdfFile": "StaarSurgicalCompany_20180801_10-Q_EX-10.37_11289449_EX-10.37_Distributor Agreement.pdf",
+      "txtFile": "StaarSurgicalCompany_20180801_10-Q_EX-10.37_11289449_EX-10.37_Distributor Agreement.txt",
+      "contractType": "10.37 Distributor Agreement",
+      "lengthChars": 49760,
+      "positiveCategories": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Cap On Liability",
+        "Termination For Convenience",
+        "Exclusivity",
+        "Renewal Term",
+        "Insurance",
+        "Uncapped Liability",
+        "Warranty Duration"
+      ]
+    },
+    {
+      "pdfFile": "ConformisInc_20191101_10-Q_EX-10.6_11861402_EX-10.6_Development Agreement.pdf",
+      "txtFile": "ConformisInc_20191101_10-Q_EX-10.6_11861402_EX-10.6_Development Agreement.txt",
+      "contractType": "10.6 Development Agreement",
+      "lengthChars": 63217,
+      "positiveCategories": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Cap On Liability",
+        "Exclusivity",
+        "Change Of Control",
+        "Uncapped Liability"
+      ]
+    },
+    {
+      "pdfFile": "BOLIVARMININGCORP_05_23_2003-EX-2.1-VISP WEB SITE BUILDING AND HOSTING AGREEMENT.PDF",
+      "txtFile": "BOLIVARMININGCORP_05_23_2003-EX-2.1-VISP WEB SITE BUILDING AND HOSTING AGREEMENT.txt",
+      "contractType": "VISP WEB SITE BUILDING AND HOSTING AGREEMENT",
+      "lengthChars": 11539,
+      "positiveCategories": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Renewal Term",
+        "Notice Period To Terminate Renewal"
+      ]
+    },
+    {
+      "pdfFile": "Columbia Laboratories, (Bermuda) Ltd. - AMEND NO. 2 TO MANUFACTURING AND SUPPLY AGREEMENT.PDF",
+      "txtFile": "Columbia Laboratories, (Bermuda) Ltd. - AMEND NO. 2 TO MANUFACTURING AND SUPPLY AGREEMENT.txt",
+      "contractType": "AMEND NO. 2 TO MANUFACTURING AND SUPPLY AGREEMENT",
+      "lengthChars": 45846,
+      "positiveCategories": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Audit Rights",
+        "Insurance",
+        "Change Of Control"
+      ]
+    },
+    {
+      "pdfFile": "EdietsComInc_20001030_10QSB_EX-10.4_2606646_EX-10.4_Co-Branding Agreement.pdf",
+      "txtFile": "EdietsComInc_20001030_10QSB_EX-10.4_2606646_EX-10.4_Co-Branding Agreement.txt",
+      "contractType": "Branding Agreement",
+      "lengthChars": 64192,
+      "positiveCategories": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Cap On Liability",
+        "Exclusivity",
+        "Renewal Term",
+        "Change Of Control",
+        "Uncapped Liability",
+        "Notice Period To Terminate Renewal"
+      ]
+    },
+    {
+      "pdfFile": "HERTZGLOBALHOLDINGS,INC_07_07_2016-EX-10.4-INTELLECTUAL PROPERTY AGREEMENT.PDF",
+      "txtFile": "HERTZGLOBALHOLDINGS,INC_07_07_2016-EX-10.4-INTELLECTUAL PROPERTY AGREEMENT.txt",
+      "contractType": "INTELLECTUAL PROPERTY AGREEMENT",
+      "lengthChars": 30968,
+      "positiveCategories": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Insurance"
+      ]
+    },
+    {
+      "pdfFile": "RgcResourcesInc_20151216_8-K_EX-10.3_9372751_EX-10.3_Franchise Agreement.pdf",
+      "txtFile": "RgcResourcesInc_20151216_8-K_EX-10.3_9372751_EX-10.3_Franchise Agreement.txt",
+      "contractType": "10.3 Franchise Agreement",
+      "lengthChars": 5171,
+      "positiveCategories": []
+    },
+    {
+      "pdfFile": "ElPolloLocoHoldingsInc_20200306_10-K_EX-10.16_12041700_EX-10.16_Development Agreement.pdf",
+      "txtFile": "ElPolloLocoHoldingsInc_20200306_10-K_EX-10.16_12041700_EX-10.16_Development Agreement.txt",
+      "contractType": "10.16 Development Agreement",
+      "lengthChars": 60618,
+      "positiveCategories": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Termination For Convenience",
+        "Exclusivity",
+        "Insurance",
+        "Change Of Control"
+      ]
+    },
+    {
+      "pdfFile": "GULFSOUTHMEDICALSUPPLYINC_12_24_1997-EX-4-AFFILIATE AGREEMENT.PDF",
+      "txtFile": "GULFSOUTHMEDICALSUPPLYINC_12_24_1997-EX-4-AFFILIATE AGREEMENT.txt",
+      "contractType": "AFFILIATE AGREEMENT",
+      "lengthChars": 27015,
+      "positiveCategories": [
+        "Governing Law"
+      ]
+    },
+    {
+      "pdfFile": "GpaqAcquisitionHoldingsInc_20200123_S-4A_EX-10.8_11951679_EX-10.8_Service Agreement.pdf",
+      "txtFile": "GpaqAcquisitionHoldingsInc_20200123_S-4A_EX-10.8_11951679_EX-10.8_Service Agreement.txt",
+      "contractType": "10.8 Service Agreement",
+      "lengthChars": 55075,
+      "positiveCategories": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Audit Rights",
+        "Exclusivity",
+        "Insurance"
+      ]
+    },
+    {
+      "pdfFile": "WEBHELPCOMINC_03_22_2000-EX-10.8-HOSTING AGREEMENT.PDF",
+      "txtFile": "WEBHELPCOMINC_03_22_2000-EX-10.8-HOSTING AGREEMENT.txt",
+      "contractType": "HOSTING AGREEMENT",
+      "lengthChars": 19257,
+      "positiveCategories": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Cap On Liability",
+        "Renewal Term",
+        "Uncapped Liability",
+        "Notice Period To Terminate Renewal"
+      ]
+    },
+    {
+      "pdfFile": "MOSSIMOINC_04_14_2000-EX-10.14-ENDORSEMENT AGREEMENT.PDF",
+      "txtFile": "MOSSIMOINC_04_14_2000-EX-10.14-ENDORSEMENT AGREEMENT.txt",
+      "contractType": "ENDORSEMENT AGREEMENT",
+      "lengthChars": 24307,
+      "positiveCategories": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Cap On Liability",
+        "Exclusivity",
+        "Insurance",
+        "Change Of Control"
+      ]
+    },
+    {
+      "pdfFile": "MetLife, Inc. - Remarketing Agreement.PDF",
+      "txtFile": "MetLife, Inc. - Remarketing Agreement.txt",
+      "contractType": "Remarketing Agreement",
+      "lengthChars": 111249,
+      "positiveCategories": [
+        "Governing Law",
+        "Cap On Liability",
+        "Insurance"
+      ]
+    },
+    {
+      "pdfFile": "LohaCompanyltd_20191209_F-1_EX-10.16_11917878_EX-10.16_Supply Agreement.pdf",
+      "txtFile": "LohaCompanyltd_20191209_F-1_EX-10.16_11917878_EX-10.16_Supply Agreement.txt",
+      "contractType": "10.16 Supply Agreement",
+      "lengthChars": 11475,
+      "positiveCategories": [
+        "Governing Law",
+        "Insurance",
+        "Warranty Duration"
+      ]
+    },
+    {
+      "pdfFile": "ArtaraTherapeuticsInc_20200110_8-K_EX-10.5_11943350_EX-10.5_License Agreement.pdf",
+      "txtFile": "ArtaraTherapeuticsInc_20200110_8-K_EX-10.5_11943350_EX-10.5_License Agreement.txt",
+      "contractType": "10.5 License Agreement",
+      "lengthChars": 38330,
+      "positiveCategories": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Cap On Liability",
+        "Audit Rights",
+        "Termination For Convenience",
+        "Exclusivity",
+        "Insurance"
+      ]
+    },
+    {
+      "pdfFile": "ATHENSBANCSHARESCORP_11_02_2009-EX-1.2-AGENCY AGREEMENT , 2009.PDF",
+      "txtFile": "ATHENSBANCSHARESCORP_11_02_2009-EX-1.2-AGENCY AGREEMENT , 2009.txt",
+      "contractType": "AGENCY AGREEMENT , 2009",
+      "lengthChars": 145307,
+      "positiveCategories": [
+        "Governing Law",
+        "Cap On Liability",
+        "Exclusivity"
+      ]
+    },
+    {
+      "pdfFile": "VEONEER,INC_02_21_2020-EX-10.11-JOINT VENTURE AGREEMENT.PDF",
+      "txtFile": "VEONEER,INC_02_21_2020-EX-10.11-JOINT VENTURE AGREEMENT.txt",
+      "contractType": "JOINT VENTURE AGREEMENT",
+      "lengthChars": 8257,
+      "positiveCategories": [
+        "Governing Law"
+      ]
+    },
+    {
+      "pdfFile": "FEDERATEDGOVERNMENTINCOMESECURITIESINC_04_28_2020-EX-99.SERV AGREE-SERVICES AGREEMENT_POWEROF.pdf",
+      "txtFile": "FEDERATEDGOVERNMENTINCOMESECURITIESINC_04_28_2020-EX-99.SERV AGREE-SERVICES AGREEMENT_POWEROF.txt",
+      "contractType": "SERVICES AGREEMENT POWEROF",
+      "lengthChars": 14384,
+      "positiveCategories": [
+        "Governing Law",
+        "Anti-Assignment"
+      ]
+    },
+    {
+      "pdfFile": "JOINTCORP_09_19_2014-EX-10.15-FRANCHISE AGREEMENT.PDF",
+      "txtFile": "JOINTCORP_09_19_2014-EX-10.15-FRANCHISE AGREEMENT.txt",
+      "contractType": "FRANCHISE AGREEMENT",
+      "lengthChars": 167259,
+      "positiveCategories": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Cap On Liability",
+        "Audit Rights",
+        "Termination For Convenience",
+        "Exclusivity",
+        "Renewal Term",
+        "Insurance",
+        "Change Of Control",
+        "Uncapped Liability"
+      ]
+    },
+    {
+      "pdfFile": "RareElementResourcesLtd_20171019_SC 13D_EX-99.4_10897534_EX-99.4_Intellectual Property Agreement.pdf",
+      "txtFile": "RareElementResourcesLtd_20171019_SC 13D_EX-99.4_10897534_EX-99.4_Intellectual Property Agreement.txt",
+      "contractType": "99.4 Intellectual Property Agreement",
+      "lengthChars": 34461,
+      "positiveCategories": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Exclusivity"
+      ]
+    }
+  ]
+}

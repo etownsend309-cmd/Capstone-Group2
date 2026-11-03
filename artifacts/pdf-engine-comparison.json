@@ -1,0 +1,2909 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-11-02T19:41:40.530Z",
+  "sample": {
+    "source": "CUAD v1",
+    "size": 30,
+    "seed": "clausepilot-cuad-30-v1",
+    "categories": [
+      "Governing Law",
+      "Anti-Assignment",
+      "Cap On Liability",
+      "Audit Rights",
+      "Termination For Convenience",
+      "Exclusivity",
+      "Renewal Term",
+      "Insurance",
+      "Change Of Control",
+      "Uncapped Liability",
+      "Notice Period To Terminate Renewal",
+      "Warranty Duration"
+    ]
+  },
+  "runtimes": {
+    "node": "v22.22.2",
+    "pdfjs": "6.3.289",
+    "pymupdf": "1.28.2",
+    "pdfplumber": "0.11.10"
+  },
+  "caveats": [
+    "CUAD TXT files were themselves converted from the PDFs and are not exact layout ground truth.",
+    "Latency is a single local run and should be treated as directional.",
+    "Full extracted text is retained only in the ignored .local intermediate."
+  ],
+  "summaries": [
+    {
+      "engineId": "pdfjs-content-order",
+      "engineName": "Strategy A - content-stream order",
+      "version": "6.3.289",
+      "documents": 30,
+      "successes": 30,
+      "warnings": 0,
+      "failures": 0,
+      "medianLatencyMs": 57.84,
+      "meanPrecision": 0.9932,
+      "meanRecall": 0.9934,
+      "meanF1": 0.9933,
+      "meanSequenceSimilarity": 0.9933
+    },
+    {
+      "engineId": "pdfjs-coordinate-order",
+      "engineName": "Strategy B - coordinate reconstruction",
+      "version": "6.3.289",
+      "documents": 30,
+      "successes": 30,
+      "warnings": 0,
+      "failures": 0,
+      "medianLatencyMs": 57.84,
+      "meanPrecision": 0.9944,
+      "meanRecall": 0.9953,
+      "meanF1": 0.9949,
+      "meanSequenceSimilarity": 0.9908
+    },
+    {
+      "engineId": "pymupdf-default",
+      "engineName": "PyMuPDF default text",
+      "version": "1.28.2",
+      "documents": 30,
+      "successes": 30,
+      "warnings": 0,
+      "failures": 0,
+      "medianLatencyMs": 31.61,
+      "meanPrecision": 0.9949,
+      "meanRecall": 0.9958,
+      "meanF1": 0.9953,
+      "meanSequenceSimilarity": 0.9957
+    },
+    {
+      "engineId": "pdfplumber-default",
+      "engineName": "pdfplumber default text",
+      "version": "0.11.10",
+      "documents": 30,
+      "successes": 30,
+      "warnings": 0,
+      "failures": 0,
+      "medianLatencyMs": 401.82,
+      "meanPrecision": 0.9943,
+      "meanRecall": 0.9947,
+      "meanF1": 0.9945,
+      "meanSequenceSimilarity": 0.9942
+    }
+  ],
+  "contracts": [
+    {
+      "pdfFile": "ENERGOUSCORP_03_16_2017-EX-10.24-STRATEGIC ALLIANCE AGREEMENT.PDF",
+      "contractType": "STRATEGIC ALLIANCE AGREEMENT",
+      "positiveCategories": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Cap On Liability",
+        "Audit Rights",
+        "Termination For Convenience",
+        "Exclusivity",
+        "Renewal Term",
+        "Insurance",
+        "Change Of Control",
+        "Uncapped Liability",
+        "Notice Period To Terminate Renewal",
+        "Warranty Duration"
+      ],
+      "sizeBytes": 207400,
+      "engines": [
+        {
+          "engineId": "pdfjs-content-order",
+          "engineName": "Strategy A - content-stream order",
+          "version": "6.3.289",
+          "status": "success",
+          "elapsedMs": 399.77,
+          "pageCount": 32,
+          "printableCharacterCount": 68548,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.99,
+            "tokenRecall": 0.99,
+            "tokenF1": 0.99,
+            "sequenceSimilarity": 0.9896666666666667,
+            "expectedTokens": 6000,
+            "extractedTokens": 6000
+          }
+        },
+        {
+          "engineId": "pdfjs-coordinate-order",
+          "engineName": "Strategy B - coordinate reconstruction",
+          "version": "6.3.289",
+          "status": "success",
+          "elapsedMs": 399.77,
+          "pageCount": 32,
+          "printableCharacterCount": 68548,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.99,
+            "tokenRecall": 0.99,
+            "tokenF1": 0.99,
+            "sequenceSimilarity": 0.9896666666666667,
+            "expectedTokens": 6000,
+            "extractedTokens": 6000
+          }
+        },
+        {
+          "engineId": "pymupdf-default",
+          "engineName": "PyMuPDF default text",
+          "version": "1.28.2",
+          "status": "success",
+          "elapsedMs": 79.53,
+          "pageCount": 32,
+          "printableCharacterCount": 68548,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.99,
+            "tokenRecall": 0.99,
+            "tokenF1": 0.99,
+            "sequenceSimilarity": 0.9896666666666667,
+            "expectedTokens": 6000,
+            "extractedTokens": 6000
+          }
+        },
+        {
+          "engineId": "pdfplumber-default",
+          "engineName": "pdfplumber default text",
+          "version": "0.11.10",
+          "status": "success",
+          "elapsedMs": 802.01,
+          "pageCount": 32,
+          "printableCharacterCount": 68548,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.99,
+            "tokenRecall": 0.99,
+            "tokenF1": 0.99,
+            "sequenceSimilarity": 0.9896666666666667,
+            "expectedTokens": 6000,
+            "extractedTokens": 6000
+          }
+        }
+      ]
+    },
+    {
+      "pdfFile": "NANOPHASETECHNOLOGIESCORP_11_01_2005-EX-99.1-DISTRIBUTOR AGREEMENT.PDF",
+      "contractType": "DISTRIBUTOR AGREEMENT",
+      "positiveCategories": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Cap On Liability",
+        "Audit Rights",
+        "Termination For Convenience",
+        "Exclusivity",
+        "Renewal Term",
+        "Insurance",
+        "Uncapped Liability",
+        "Notice Period To Terminate Renewal",
+        "Warranty Duration"
+      ],
+      "sizeBytes": 146968,
+      "engines": [
+        {
+          "engineId": "pdfjs-content-order",
+          "engineName": "Strategy A - content-stream order",
+          "version": "6.3.289",
+          "status": "success",
+          "elapsedMs": 89.01,
+          "pageCount": 16,
+          "printableCharacterCount": 40431,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.982,
+            "tokenRecall": 0.982,
+            "tokenF1": 0.982,
+            "sequenceSimilarity": 0.9816666666666667,
+            "expectedTokens": 6000,
+            "extractedTokens": 6000
+          }
+        },
+        {
+          "engineId": "pdfjs-coordinate-order",
+          "engineName": "Strategy B - coordinate reconstruction",
+          "version": "6.3.289",
+          "status": "success",
+          "elapsedMs": 89.01,
+          "pageCount": 16,
+          "printableCharacterCount": 40431,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.982,
+            "tokenRecall": 0.982,
+            "tokenF1": 0.982,
+            "sequenceSimilarity": 0.9703333333333334,
+            "expectedTokens": 6000,
+            "extractedTokens": 6000
+          }
+        },
+        {
+          "engineId": "pymupdf-default",
+          "engineName": "PyMuPDF default text",
+          "version": "1.28.2",
+          "status": "success",
+          "elapsedMs": 38.61,
+          "pageCount": 16,
+          "printableCharacterCount": 40431,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.982,
+            "tokenRecall": 0.982,
+            "tokenF1": 0.982,
+            "sequenceSimilarity": 0.9816666666666667,
+            "expectedTokens": 6000,
+            "extractedTokens": 6000
+          }
+        },
+        {
+          "engineId": "pdfplumber-default",
+          "engineName": "pdfplumber default text",
+          "version": "0.11.10",
+          "status": "success",
+          "elapsedMs": 449.53,
+          "pageCount": 16,
+          "printableCharacterCount": 40431,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.982,
+            "tokenRecall": 0.982,
+            "tokenF1": 0.982,
+            "sequenceSimilarity": 0.9816666666666667,
+            "expectedTokens": 6000,
+            "extractedTokens": 6000
+          }
+        }
+      ]
+    },
+    {
+      "pdfFile": "PACIRA PHARMACEUTICALS, INC. - A&R STRATEGIC LICENSING, DISTRIBUTION AND MARKETING AGREEMENT .PDF",
+      "contractType": "A&R STRATEGIC LICENSING, DISTRIBUTION AND MARKETING AGREEMENT",
+      "positiveCategories": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Cap On Liability",
+        "Audit Rights",
+        "Termination For Convenience",
+        "Exclusivity",
+        "Renewal Term",
+        "Insurance",
+        "Change Of Control",
+        "Uncapped Liability",
+        "Notice Period To Terminate Renewal"
+      ],
+      "sizeBytes": 335267,
+      "engines": [
+        {
+          "engineId": "pdfjs-content-order",
+          "engineName": "Strategy A - content-stream order",
+          "version": "6.3.289",
+          "status": "success",
+          "elapsedMs": 727.09,
+          "pageCount": 88,
+          "printableCharacterCount": 118635,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.9908333333333333,
+            "tokenRecall": 0.9908333333333333,
+            "tokenF1": 0.9908333333333333,
+            "sequenceSimilarity": 0.9903333333333333,
+            "expectedTokens": 6000,
+            "extractedTokens": 6000
+          }
+        },
+        {
+          "engineId": "pdfjs-coordinate-order",
+          "engineName": "Strategy B - coordinate reconstruction",
+          "version": "6.3.289",
+          "status": "success",
+          "elapsedMs": 727.09,
+          "pageCount": 88,
+          "printableCharacterCount": 118635,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.9908333333333333,
+            "tokenRecall": 0.9908333333333333,
+            "tokenF1": 0.9908333333333333,
+            "sequenceSimilarity": 0.9841666666666666,
+            "expectedTokens": 6000,
+            "extractedTokens": 6000
+          }
+        },
+        {
+          "engineId": "pymupdf-default",
+          "engineName": "PyMuPDF default text",
+          "version": "1.28.2",
+          "status": "success",
+          "elapsedMs": 155.97,
+          "pageCount": 88,
+          "printableCharacterCount": 118635,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.9908333333333333,
+            "tokenRecall": 0.9908333333333333,
+            "tokenF1": 0.9908333333333333,
+            "sequenceSimilarity": 0.9903333333333333,
+            "expectedTokens": 6000,
+            "extractedTokens": 6000
+          }
+        },
+        {
+          "engineId": "pdfplumber-default",
+          "engineName": "pdfplumber default text",
+          "version": "0.11.10",
+          "status": "success",
+          "elapsedMs": 4728.07,
+          "pageCount": 88,
+          "printableCharacterCount": 118635,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.9908333333333333,
+            "tokenRecall": 0.9908333333333333,
+            "tokenF1": 0.9908333333333333,
+            "sequenceSimilarity": 0.9841666666666666,
+            "expectedTokens": 6000,
+            "extractedTokens": 6000
+          }
+        }
+      ]
+    },
+    {
+      "pdfFile": "AgapeAtpCorp_20191202_10-KA_EX-10.1_11911128_EX-10.1_Supply Agreement.pdf",
+      "contractType": "10.1 Supply Agreement",
+      "positiveCategories": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Exclusivity",
+        "Renewal Term",
+        "Insurance",
+        "Change Of Control",
+        "Notice Period To Terminate Renewal",
+        "Warranty Duration"
+      ],
+      "sizeBytes": 178486,
+      "engines": [
+        {
+          "engineId": "pdfjs-content-order",
+          "engineName": "Strategy A - content-stream order",
+          "version": "6.3.289",
+          "status": "success",
+          "elapsedMs": 64.45,
+          "pageCount": 13,
+          "printableCharacterCount": 17328,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.9939301972685888,
+            "tokenRecall": 0.9915228580078717,
+            "tokenF1": 0.9927250682024856,
+            "sequenceSimilarity": 0.9915228580078717,
+            "expectedTokens": 3303,
+            "extractedTokens": 3295
+          }
+        },
+        {
+          "engineId": "pdfjs-coordinate-order",
+          "engineName": "Strategy B - coordinate reconstruction",
+          "version": "6.3.289",
+          "status": "success",
+          "elapsedMs": 64.45,
+          "pageCount": 13,
+          "printableCharacterCount": 17328,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.9975808890232839,
+            "tokenRecall": 0.9987889797154103,
+            "tokenF1": 0.9981845688350983,
+            "sequenceSimilarity": 0.9836512261580381,
+            "expectedTokens": 3303,
+            "extractedTokens": 3307
+          }
+        },
+        {
+          "engineId": "pymupdf-default",
+          "engineName": "PyMuPDF default text",
+          "version": "1.28.2",
+          "status": "success",
+          "elapsedMs": 21.71,
+          "pageCount": 13,
+          "printableCharacterCount": 17328,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.9972776769509982,
+            "tokenRecall": 0.9981834695731153,
+            "tokenF1": 0.9977303676804359,
+            "sequenceSimilarity": 0.9981834695731153,
+            "expectedTokens": 3303,
+            "extractedTokens": 3306
+          }
+        },
+        {
+          "engineId": "pdfplumber-default",
+          "engineName": "pdfplumber default text",
+          "version": "0.11.10",
+          "status": "success",
+          "elapsedMs": 227.68,
+          "pageCount": 13,
+          "printableCharacterCount": 17328,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.9972776769509982,
+            "tokenRecall": 0.9981834695731153,
+            "tokenF1": 0.9977303676804359,
+            "sequenceSimilarity": 0.9963669391462306,
+            "expectedTokens": 3303,
+            "extractedTokens": 3306
+          }
+        }
+      ]
+    },
+    {
+      "pdfFile": "ATENTOSA_07_06_2020-EX-99.1-JOINT FILING AGREEMENT.PDF",
+      "contractType": "JOINT FILING AGREEMENT",
+      "positiveCategories": [],
+      "sizeBytes": 93991,
+      "engines": [
+        {
+          "engineId": "pdfjs-content-order",
+          "engineName": "Strategy A - content-stream order",
+          "version": "6.3.289",
+          "status": "success",
+          "elapsedMs": 12.66,
+          "pageCount": 3,
+          "printableCharacterCount": 1924,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 1,
+            "tokenRecall": 1,
+            "tokenF1": 1,
+            "sequenceSimilarity": 1,
+            "expectedTokens": 356,
+            "extractedTokens": 356
+          }
+        },
+        {
+          "engineId": "pdfjs-coordinate-order",
+          "engineName": "Strategy B - coordinate reconstruction",
+          "version": "6.3.289",
+          "status": "success",
+          "elapsedMs": 12.66,
+          "pageCount": 3,
+          "printableCharacterCount": 1924,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 1,
+            "tokenRecall": 1,
+            "tokenF1": 1,
+            "sequenceSimilarity": 1,
+            "expectedTokens": 356,
+            "extractedTokens": 356
+          }
+        },
+        {
+          "engineId": "pymupdf-default",
+          "engineName": "PyMuPDF default text",
+          "version": "1.28.2",
+          "status": "success",
+          "elapsedMs": 4.85,
+          "pageCount": 3,
+          "printableCharacterCount": 1924,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 1,
+            "tokenRecall": 1,
+            "tokenF1": 1,
+            "sequenceSimilarity": 1,
+            "expectedTokens": 356,
+            "extractedTokens": 356
+          }
+        },
+        {
+          "engineId": "pdfplumber-default",
+          "engineName": "pdfplumber default text",
+          "version": "0.11.10",
+          "status": "success",
+          "elapsedMs": 25.52,
+          "pageCount": 3,
+          "printableCharacterCount": 1924,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 1,
+            "tokenRecall": 1,
+            "tokenF1": 1,
+            "sequenceSimilarity": 1,
+            "expectedTokens": 356,
+            "extractedTokens": 356
+          }
+        }
+      ]
+    },
+    {
+      "pdfFile": "SUNTRONCORP_05_17_2006-EX-10.22-MAINTENANCE AGREEMENT.PDF",
+      "contractType": "MAINTENANCE AGREEMENT",
+      "positiveCategories": [
+        "Governing Law",
+        "Cap On Liability"
+      ],
+      "sizeBytes": 65732,
+      "engines": [
+        {
+          "engineId": "pdfjs-content-order",
+          "engineName": "Strategy A - content-stream order",
+          "version": "6.3.289",
+          "status": "success",
+          "elapsedMs": 49.23,
+          "pageCount": 7,
+          "printableCharacterCount": 25407,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 1,
+            "tokenRecall": 1,
+            "tokenF1": 1,
+            "sequenceSimilarity": 1,
+            "expectedTokens": 4818,
+            "extractedTokens": 4818
+          }
+        },
+        {
+          "engineId": "pdfjs-coordinate-order",
+          "engineName": "Strategy B - coordinate reconstruction",
+          "version": "6.3.289",
+          "status": "success",
+          "elapsedMs": 49.23,
+          "pageCount": 7,
+          "printableCharacterCount": 25407,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 1,
+            "tokenRecall": 1,
+            "tokenF1": 1,
+            "sequenceSimilarity": 1,
+            "expectedTokens": 4818,
+            "extractedTokens": 4818
+          }
+        },
+        {
+          "engineId": "pymupdf-default",
+          "engineName": "PyMuPDF default text",
+          "version": "1.28.2",
+          "status": "success",
+          "elapsedMs": 25.96,
+          "pageCount": 7,
+          "printableCharacterCount": 25407,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 1,
+            "tokenRecall": 1,
+            "tokenF1": 1,
+            "sequenceSimilarity": 1,
+            "expectedTokens": 4818,
+            "extractedTokens": 4818
+          }
+        },
+        {
+          "engineId": "pdfplumber-default",
+          "engineName": "pdfplumber default text",
+          "version": "0.11.10",
+          "status": "success",
+          "elapsedMs": 327.15,
+          "pageCount": 7,
+          "printableCharacterCount": 25407,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 1,
+            "tokenRecall": 1,
+            "tokenF1": 1,
+            "sequenceSimilarity": 1,
+            "expectedTokens": 4818,
+            "extractedTokens": 4818
+          }
+        }
+      ]
+    },
+    {
+      "pdfFile": "GSVINC_05_15_1998-EX-10-SPONSORSHIP AGREEMENT.PDF",
+      "contractType": "SPONSORSHIP AGREEMENT",
+      "positiveCategories": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Cap On Liability",
+        "Audit Rights"
+      ],
+      "sizeBytes": 75017,
+      "engines": [
+        {
+          "engineId": "pdfjs-content-order",
+          "engineName": "Strategy A - content-stream order",
+          "version": "6.3.289",
+          "status": "success",
+          "elapsedMs": 60.43,
+          "pageCount": 10,
+          "printableCharacterCount": 31280,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.9991502379333786,
+            "tokenRecall": 1,
+            "tokenF1": 0.9995749383660631,
+            "sequenceSimilarity": 1,
+            "expectedTokens": 5879,
+            "extractedTokens": 5884
+          }
+        },
+        {
+          "engineId": "pdfjs-coordinate-order",
+          "engineName": "Strategy B - coordinate reconstruction",
+          "version": "6.3.289",
+          "status": "success",
+          "elapsedMs": 60.43,
+          "pageCount": 10,
+          "printableCharacterCount": 31280,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.9991502379333786,
+            "tokenRecall": 1,
+            "tokenF1": 0.9995749383660631,
+            "sequenceSimilarity": 1,
+            "expectedTokens": 5879,
+            "extractedTokens": 5884
+          }
+        },
+        {
+          "engineId": "pymupdf-default",
+          "engineName": "PyMuPDF default text",
+          "version": "1.28.2",
+          "status": "success",
+          "elapsedMs": 37.15,
+          "pageCount": 10,
+          "printableCharacterCount": 31280,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.9991502379333786,
+            "tokenRecall": 1,
+            "tokenF1": 0.9995749383660631,
+            "sequenceSimilarity": 1,
+            "expectedTokens": 5879,
+            "extractedTokens": 5884
+          }
+        },
+        {
+          "engineId": "pdfplumber-default",
+          "engineName": "pdfplumber default text",
+          "version": "0.11.10",
+          "status": "success",
+          "elapsedMs": 544.23,
+          "pageCount": 10,
+          "printableCharacterCount": 31280,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.9991502379333786,
+            "tokenRecall": 1,
+            "tokenF1": 0.9995749383660631,
+            "sequenceSimilarity": 1,
+            "expectedTokens": 5879,
+            "extractedTokens": 5884
+          }
+        }
+      ]
+    },
+    {
+      "pdfFile": "LejuHoldingsLtd_20140121_DRS (on F-1)_EX-10.26_8473102_EX-10.26_Content License Agreement2.pdf",
+      "contractType": "10.26 Content License Agreement2",
+      "positiveCategories": [
+        "Governing Law"
+      ],
+      "sizeBytes": 118202,
+      "engines": [
+        {
+          "engineId": "pdfjs-content-order",
+          "engineName": "Strategy A - content-stream order",
+          "version": "6.3.289",
+          "status": "success",
+          "elapsedMs": 16.43,
+          "pageCount": 2,
+          "printableCharacterCount": 1775,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.9939024390243902,
+            "tokenRecall": 0.9878787878787879,
+            "tokenF1": 0.9908814589665653,
+            "sequenceSimilarity": 0.9878787878787879,
+            "expectedTokens": 330,
+            "extractedTokens": 328
+          }
+        },
+        {
+          "engineId": "pdfjs-coordinate-order",
+          "engineName": "Strategy B - coordinate reconstruction",
+          "version": "6.3.289",
+          "status": "success",
+          "elapsedMs": 16.43,
+          "pageCount": 2,
+          "printableCharacterCount": 1775,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 1,
+            "tokenRecall": 1,
+            "tokenF1": 1,
+            "sequenceSimilarity": 0.9696969696969697,
+            "expectedTokens": 330,
+            "extractedTokens": 330
+          }
+        },
+        {
+          "engineId": "pymupdf-default",
+          "engineName": "PyMuPDF default text",
+          "version": "1.28.2",
+          "status": "success",
+          "elapsedMs": 6.04,
+          "pageCount": 2,
+          "printableCharacterCount": 1775,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 1,
+            "tokenRecall": 1,
+            "tokenF1": 1,
+            "sequenceSimilarity": 1,
+            "expectedTokens": 330,
+            "extractedTokens": 330
+          }
+        },
+        {
+          "engineId": "pdfplumber-default",
+          "engineName": "pdfplumber default text",
+          "version": "0.11.10",
+          "status": "success",
+          "elapsedMs": 35.37,
+          "pageCount": 2,
+          "printableCharacterCount": 1775,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.9846153846153847,
+            "tokenRecall": 0.9696969696969697,
+            "tokenF1": 0.9770992366412214,
+            "sequenceSimilarity": 0.9696969696969697,
+            "expectedTokens": 330,
+            "extractedTokens": 325
+          }
+        }
+      ]
+    },
+    {
+      "pdfFile": "ArmstrongFlooringInc_20190107_8-K_EX-10.2_11471795_EX-10.2_Intellectual Property Agreement.pdf",
+      "contractType": "10.2 Intellectual Property Agreement",
+      "positiveCategories": [
+        "Governing Law",
+        "Anti-Assignment"
+      ],
+      "sizeBytes": 616962,
+      "engines": [
+        {
+          "engineId": "pdfjs-content-order",
+          "engineName": "Strategy A - content-stream order",
+          "version": "6.3.289",
+          "status": "success",
+          "elapsedMs": 185.41,
+          "pageCount": 40,
+          "printableCharacterCount": 48247,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.994,
+            "tokenRecall": 0.994,
+            "tokenF1": 0.994,
+            "sequenceSimilarity": 0.994,
+            "expectedTokens": 6000,
+            "extractedTokens": 6000
+          }
+        },
+        {
+          "engineId": "pdfjs-coordinate-order",
+          "engineName": "Strategy B - coordinate reconstruction",
+          "version": "6.3.289",
+          "status": "success",
+          "elapsedMs": 185.41,
+          "pageCount": 40,
+          "printableCharacterCount": 48247,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.9966666666666667,
+            "tokenRecall": 0.9966666666666667,
+            "tokenF1": 0.9966666666666667,
+            "sequenceSimilarity": 0.9966666666666667,
+            "expectedTokens": 6000,
+            "extractedTokens": 6000
+          }
+        },
+        {
+          "engineId": "pymupdf-default",
+          "engineName": "PyMuPDF default text",
+          "version": "1.28.2",
+          "status": "success",
+          "elapsedMs": 51.41,
+          "pageCount": 40,
+          "printableCharacterCount": 48247,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.9966666666666667,
+            "tokenRecall": 0.9966666666666667,
+            "tokenF1": 0.9966666666666667,
+            "sequenceSimilarity": 0.9966666666666667,
+            "expectedTokens": 6000,
+            "extractedTokens": 6000
+          }
+        },
+        {
+          "engineId": "pdfplumber-default",
+          "engineName": "pdfplumber default text",
+          "version": "0.11.10",
+          "status": "success",
+          "elapsedMs": 690.04,
+          "pageCount": 40,
+          "printableCharacterCount": 48247,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.9966666666666667,
+            "tokenRecall": 0.9966666666666667,
+            "tokenF1": 0.9966666666666667,
+            "sequenceSimilarity": 0.9966666666666667,
+            "expectedTokens": 6000,
+            "extractedTokens": 6000
+          }
+        }
+      ]
+    },
+    {
+      "pdfFile": "PAXMEDICA,INC_07_02_2020-EX-10.12-Master Service Agreement.PDF",
+      "contractType": "Master Service Agreement",
+      "positiveCategories": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Cap On Liability",
+        "Termination For Convenience",
+        "Uncapped Liability"
+      ],
+      "sizeBytes": 140385,
+      "engines": [
+        {
+          "engineId": "pdfjs-content-order",
+          "engineName": "Strategy A - content-stream order",
+          "version": "6.3.289",
+          "status": "success",
+          "elapsedMs": 29.87,
+          "pageCount": 7,
+          "printableCharacterCount": 14068,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.994807121661721,
+            "tokenRecall": 0.9973968017850502,
+            "tokenF1": 0.996100278551532,
+            "sequenceSimilarity": 0.9973968017850502,
+            "expectedTokens": 2689,
+            "extractedTokens": 2696
+          }
+        },
+        {
+          "engineId": "pdfjs-coordinate-order",
+          "engineName": "Strategy B - coordinate reconstruction",
+          "version": "6.3.289",
+          "status": "success",
+          "elapsedMs": 29.87,
+          "pageCount": 7,
+          "printableCharacterCount": 14068,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.994807121661721,
+            "tokenRecall": 0.9973968017850502,
+            "tokenF1": 0.996100278551532,
+            "sequenceSimilarity": 0.9895872071402008,
+            "expectedTokens": 2689,
+            "extractedTokens": 2696
+          }
+        },
+        {
+          "engineId": "pymupdf-default",
+          "engineName": "PyMuPDF default text",
+          "version": "1.28.2",
+          "status": "success",
+          "elapsedMs": 16.59,
+          "pageCount": 7,
+          "printableCharacterCount": 14068,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.994807121661721,
+            "tokenRecall": 0.9973968017850502,
+            "tokenF1": 0.996100278551532,
+            "sequenceSimilarity": 0.9973968017850502,
+            "expectedTokens": 2689,
+            "extractedTokens": 2696
+          }
+        },
+        {
+          "engineId": "pdfplumber-default",
+          "engineName": "pdfplumber default text",
+          "version": "0.11.10",
+          "status": "success",
+          "elapsedMs": 202.46,
+          "pageCount": 7,
+          "printableCharacterCount": 14068,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.994807121661721,
+            "tokenRecall": 0.9973968017850502,
+            "tokenF1": 0.996100278551532,
+            "sequenceSimilarity": 0.9973968017850502,
+            "expectedTokens": 2689,
+            "extractedTokens": 2696
+          }
+        }
+      ]
+    },
+    {
+      "pdfFile": "StaarSurgicalCompany_20180801_10-Q_EX-10.37_11289449_EX-10.37_Distributor Agreement.pdf",
+      "contractType": "10.37 Distributor Agreement",
+      "positiveCategories": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Cap On Liability",
+        "Termination For Convenience",
+        "Exclusivity",
+        "Renewal Term",
+        "Insurance",
+        "Uncapped Liability",
+        "Warranty Duration"
+      ],
+      "sizeBytes": 191632,
+      "engines": [
+        {
+          "engineId": "pdfjs-content-order",
+          "engineName": "Strategy A - content-stream order",
+          "version": "6.3.289",
+          "status": "success",
+          "elapsedMs": 64.48,
+          "pageCount": 18,
+          "printableCharacterCount": 41989,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.9861666666666666,
+            "tokenRecall": 0.9861666666666666,
+            "tokenF1": 0.9861666666666666,
+            "sequenceSimilarity": 0.9861666666666666,
+            "expectedTokens": 6000,
+            "extractedTokens": 6000
+          }
+        },
+        {
+          "engineId": "pdfjs-coordinate-order",
+          "engineName": "Strategy B - coordinate reconstruction",
+          "version": "6.3.289",
+          "status": "success",
+          "elapsedMs": 64.48,
+          "pageCount": 18,
+          "printableCharacterCount": 41989,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.9885,
+            "tokenRecall": 0.9885,
+            "tokenF1": 0.9885,
+            "sequenceSimilarity": 0.988,
+            "expectedTokens": 6000,
+            "extractedTokens": 6000
+          }
+        },
+        {
+          "engineId": "pymupdf-default",
+          "engineName": "PyMuPDF default text",
+          "version": "1.28.2",
+          "status": "success",
+          "elapsedMs": 41.2,
+          "pageCount": 18,
+          "printableCharacterCount": 41989,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.9885,
+            "tokenRecall": 0.9885,
+            "tokenF1": 0.9885,
+            "sequenceSimilarity": 0.988,
+            "expectedTokens": 6000,
+            "extractedTokens": 6000
+          }
+        },
+        {
+          "engineId": "pdfplumber-default",
+          "engineName": "pdfplumber default text",
+          "version": "0.11.10",
+          "status": "success",
+          "elapsedMs": 531.14,
+          "pageCount": 18,
+          "printableCharacterCount": 41989,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.9885,
+            "tokenRecall": 0.9885,
+            "tokenF1": 0.9885,
+            "sequenceSimilarity": 0.988,
+            "expectedTokens": 6000,
+            "extractedTokens": 6000
+          }
+        }
+      ]
+    },
+    {
+      "pdfFile": "ConformisInc_20191101_10-Q_EX-10.6_11861402_EX-10.6_Development Agreement.pdf",
+      "contractType": "10.6 Development Agreement",
+      "positiveCategories": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Cap On Liability",
+        "Exclusivity",
+        "Change Of Control",
+        "Uncapped Liability"
+      ],
+      "sizeBytes": 262917,
+      "engines": [
+        {
+          "engineId": "pdfjs-content-order",
+          "engineName": "Strategy A - content-stream order",
+          "version": "6.3.289",
+          "status": "success",
+          "elapsedMs": 101.79,
+          "pageCount": 33,
+          "printableCharacterCount": 52315,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.9916666666666667,
+            "tokenRecall": 0.9916666666666667,
+            "tokenF1": 0.9916666666666667,
+            "sequenceSimilarity": 0.9916666666666667,
+            "expectedTokens": 6000,
+            "extractedTokens": 6000
+          }
+        },
+        {
+          "engineId": "pdfjs-coordinate-order",
+          "engineName": "Strategy B - coordinate reconstruction",
+          "version": "6.3.289",
+          "status": "success",
+          "elapsedMs": 101.79,
+          "pageCount": 33,
+          "printableCharacterCount": 52315,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.9946666666666667,
+            "tokenRecall": 0.9946666666666667,
+            "tokenF1": 0.9946666666666667,
+            "sequenceSimilarity": 0.9946666666666667,
+            "expectedTokens": 6000,
+            "extractedTokens": 6000
+          }
+        },
+        {
+          "engineId": "pymupdf-default",
+          "engineName": "PyMuPDF default text",
+          "version": "1.28.2",
+          "status": "success",
+          "elapsedMs": 52.51,
+          "pageCount": 33,
+          "printableCharacterCount": 52315,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.9946666666666667,
+            "tokenRecall": 0.9946666666666667,
+            "tokenF1": 0.9946666666666667,
+            "sequenceSimilarity": 0.9946666666666667,
+            "expectedTokens": 6000,
+            "extractedTokens": 6000
+          }
+        },
+        {
+          "engineId": "pdfplumber-default",
+          "engineName": "pdfplumber default text",
+          "version": "0.11.10",
+          "status": "success",
+          "elapsedMs": 633.03,
+          "pageCount": 33,
+          "printableCharacterCount": 52315,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.9946666666666667,
+            "tokenRecall": 0.9946666666666667,
+            "tokenF1": 0.9946666666666667,
+            "sequenceSimilarity": 0.9946666666666667,
+            "expectedTokens": 6000,
+            "extractedTokens": 6000
+          }
+        }
+      ]
+    },
+    {
+      "pdfFile": "BOLIVARMININGCORP_05_23_2003-EX-2.1-VISP WEB SITE BUILDING AND HOSTING AGREEMENT.PDF",
+      "contractType": "VISP WEB SITE BUILDING AND HOSTING AGREEMENT",
+      "positiveCategories": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Renewal Term",
+        "Notice Period To Terminate Renewal"
+      ],
+      "sizeBytes": 48233,
+      "engines": [
+        {
+          "engineId": "pdfjs-content-order",
+          "engineName": "Strategy A - content-stream order",
+          "version": "6.3.289",
+          "status": "success",
+          "elapsedMs": 17.64,
+          "pageCount": 3,
+          "printableCharacterCount": 9486,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 1,
+            "tokenRecall": 1,
+            "tokenF1": 1,
+            "sequenceSimilarity": 1,
+            "expectedTokens": 1735,
+            "extractedTokens": 1735
+          }
+        },
+        {
+          "engineId": "pdfjs-coordinate-order",
+          "engineName": "Strategy B - coordinate reconstruction",
+          "version": "6.3.289",
+          "status": "success",
+          "elapsedMs": 17.64,
+          "pageCount": 3,
+          "printableCharacterCount": 9486,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 1,
+            "tokenRecall": 1,
+            "tokenF1": 1,
+            "sequenceSimilarity": 1,
+            "expectedTokens": 1735,
+            "extractedTokens": 1735
+          }
+        },
+        {
+          "engineId": "pymupdf-default",
+          "engineName": "PyMuPDF default text",
+          "version": "1.28.2",
+          "status": "success",
+          "elapsedMs": 10.24,
+          "pageCount": 3,
+          "printableCharacterCount": 9486,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 1,
+            "tokenRecall": 1,
+            "tokenF1": 1,
+            "sequenceSimilarity": 1,
+            "expectedTokens": 1735,
+            "extractedTokens": 1735
+          }
+        },
+        {
+          "engineId": "pdfplumber-default",
+          "engineName": "pdfplumber default text",
+          "version": "0.11.10",
+          "status": "success",
+          "elapsedMs": 112.16,
+          "pageCount": 3,
+          "printableCharacterCount": 9486,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 1,
+            "tokenRecall": 1,
+            "tokenF1": 1,
+            "sequenceSimilarity": 1,
+            "expectedTokens": 1735,
+            "extractedTokens": 1735
+          }
+        }
+      ]
+    },
+    {
+      "pdfFile": "Columbia Laboratories, (Bermuda) Ltd. - AMEND NO. 2 TO MANUFACTURING AND SUPPLY AGREEMENT.PDF",
+      "contractType": "AMEND NO. 2 TO MANUFACTURING AND SUPPLY AGREEMENT",
+      "positiveCategories": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Audit Rights",
+        "Insurance",
+        "Change Of Control"
+      ],
+      "sizeBytes": 161443,
+      "engines": [
+        {
+          "engineId": "pdfjs-content-order",
+          "engineName": "Strategy A - content-stream order",
+          "version": "6.3.289",
+          "status": "success",
+          "elapsedMs": 54.34,
+          "pageCount": 16,
+          "printableCharacterCount": 38510,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.9846666666666667,
+            "tokenRecall": 0.9846666666666667,
+            "tokenF1": 0.9846666666666667,
+            "sequenceSimilarity": 0.9841666666666666,
+            "expectedTokens": 6000,
+            "extractedTokens": 6000
+          }
+        },
+        {
+          "engineId": "pdfjs-coordinate-order",
+          "engineName": "Strategy B - coordinate reconstruction",
+          "version": "6.3.289",
+          "status": "success",
+          "elapsedMs": 54.34,
+          "pageCount": 16,
+          "printableCharacterCount": 38510,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.9846666666666667,
+            "tokenRecall": 0.9846666666666667,
+            "tokenF1": 0.9846666666666667,
+            "sequenceSimilarity": 0.9841666666666666,
+            "expectedTokens": 6000,
+            "extractedTokens": 6000
+          }
+        },
+        {
+          "engineId": "pymupdf-default",
+          "engineName": "PyMuPDF default text",
+          "version": "1.28.2",
+          "status": "success",
+          "elapsedMs": 36.63,
+          "pageCount": 16,
+          "printableCharacterCount": 38510,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.9885,
+            "tokenRecall": 0.9885,
+            "tokenF1": 0.9885,
+            "sequenceSimilarity": 0.9885,
+            "expectedTokens": 6000,
+            "extractedTokens": 6000
+          }
+        },
+        {
+          "engineId": "pdfplumber-default",
+          "engineName": "pdfplumber default text",
+          "version": "0.11.10",
+          "status": "success",
+          "elapsedMs": 486.04,
+          "pageCount": 16,
+          "printableCharacterCount": 38510,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.9881666666666666,
+            "tokenRecall": 0.9881666666666666,
+            "tokenF1": 0.9881666666666666,
+            "sequenceSimilarity": 0.9881666666666666,
+            "expectedTokens": 6000,
+            "extractedTokens": 6000
+          }
+        }
+      ]
+    },
+    {
+      "pdfFile": "EdietsComInc_20001030_10QSB_EX-10.4_2606646_EX-10.4_Co-Branding Agreement.pdf",
+      "contractType": "Branding Agreement",
+      "positiveCategories": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Cap On Liability",
+        "Exclusivity",
+        "Renewal Term",
+        "Change Of Control",
+        "Uncapped Liability",
+        "Notice Period To Terminate Renewal"
+      ],
+      "sizeBytes": 141144,
+      "engines": [
+        {
+          "engineId": "pdfjs-content-order",
+          "engineName": "Strategy A - content-stream order",
+          "version": "6.3.289",
+          "status": "success",
+          "elapsedMs": 86.62,
+          "pageCount": 13,
+          "printableCharacterCount": 51107,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.9981666666666666,
+            "tokenRecall": 0.9981666666666666,
+            "tokenF1": 0.9981666666666666,
+            "sequenceSimilarity": 0.998,
+            "expectedTokens": 6000,
+            "extractedTokens": 6000
+          }
+        },
+        {
+          "engineId": "pdfjs-coordinate-order",
+          "engineName": "Strategy B - coordinate reconstruction",
+          "version": "6.3.289",
+          "status": "success",
+          "elapsedMs": 86.62,
+          "pageCount": 13,
+          "printableCharacterCount": 51107,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 1,
+            "tokenRecall": 1,
+            "tokenF1": 1,
+            "sequenceSimilarity": 1,
+            "expectedTokens": 6000,
+            "extractedTokens": 6000
+          }
+        },
+        {
+          "engineId": "pymupdf-default",
+          "engineName": "PyMuPDF default text",
+          "version": "1.28.2",
+          "status": "success",
+          "elapsedMs": 48.93,
+          "pageCount": 13,
+          "printableCharacterCount": 51107,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 1,
+            "tokenRecall": 1,
+            "tokenF1": 1,
+            "sequenceSimilarity": 1,
+            "expectedTokens": 6000,
+            "extractedTokens": 6000
+          }
+        },
+        {
+          "engineId": "pdfplumber-default",
+          "engineName": "pdfplumber default text",
+          "version": "0.11.10",
+          "status": "success",
+          "elapsedMs": 619.3,
+          "pageCount": 13,
+          "printableCharacterCount": 51107,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 1,
+            "tokenRecall": 1,
+            "tokenF1": 1,
+            "sequenceSimilarity": 1,
+            "expectedTokens": 6000,
+            "extractedTokens": 6000
+          }
+        }
+      ]
+    },
+    {
+      "pdfFile": "HERTZGLOBALHOLDINGS,INC_07_07_2016-EX-10.4-INTELLECTUAL PROPERTY AGREEMENT.PDF",
+      "contractType": "INTELLECTUAL PROPERTY AGREEMENT",
+      "positiveCategories": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Insurance"
+      ],
+      "sizeBytes": 128029,
+      "engines": [
+        {
+          "engineId": "pdfjs-content-order",
+          "engineName": "Strategy A - content-stream order",
+          "version": "6.3.289",
+          "status": "success",
+          "elapsedMs": 41.81,
+          "pageCount": 12,
+          "printableCharacterCount": 25752,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.995949777237748,
+            "tokenRecall": 0.9979707792207793,
+            "tokenF1": 0.9969592540036488,
+            "sequenceSimilarity": 0.9979707792207793,
+            "expectedTokens": 4928,
+            "extractedTokens": 4938
+          }
+        },
+        {
+          "engineId": "pdfjs-coordinate-order",
+          "engineName": "Strategy B - coordinate reconstruction",
+          "version": "6.3.289",
+          "status": "success",
+          "elapsedMs": 41.81,
+          "pageCount": 12,
+          "printableCharacterCount": 25752,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.9959489568563905,
+            "tokenRecall": 0.9977678571428571,
+            "tokenF1": 0.9968575772934617,
+            "sequenceSimilarity": 0.9977678571428571,
+            "expectedTokens": 4928,
+            "extractedTokens": 4937
+          }
+        },
+        {
+          "engineId": "pymupdf-default",
+          "engineName": "PyMuPDF default text",
+          "version": "1.28.2",
+          "status": "success",
+          "elapsedMs": 25.97,
+          "pageCount": 12,
+          "printableCharacterCount": 25752,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.9963540611707514,
+            "tokenRecall": 0.9981737012987013,
+            "tokenF1": 0.9972630511910796,
+            "sequenceSimilarity": 0.9981737012987013,
+            "expectedTokens": 4928,
+            "extractedTokens": 4937
+          }
+        },
+        {
+          "engineId": "pdfplumber-default",
+          "engineName": "pdfplumber default text",
+          "version": "0.11.10",
+          "status": "success",
+          "elapsedMs": 324.97,
+          "pageCount": 12,
+          "printableCharacterCount": 25752,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.9961507293354943,
+            "tokenRecall": 0.9977678571428571,
+            "tokenF1": 0.9969586374695862,
+            "sequenceSimilarity": 0.9977678571428571,
+            "expectedTokens": 4928,
+            "extractedTokens": 4936
+          }
+        }
+      ]
+    },
+    {
+      "pdfFile": "RgcResourcesInc_20151216_8-K_EX-10.3_9372751_EX-10.3_Franchise Agreement.pdf",
+      "contractType": "10.3 Franchise Agreement",
+      "positiveCategories": [],
+      "sizeBytes": 103990,
+      "engines": [
+        {
+          "engineId": "pdfjs-content-order",
+          "engineName": "Strategy A - content-stream order",
+          "version": "6.3.289",
+          "status": "success",
+          "elapsedMs": 14.18,
+          "pageCount": 3,
+          "printableCharacterCount": 4305,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.9743276283618582,
+            "tokenRecall": 0.9815270935960592,
+            "tokenF1": 0.9779141104294479,
+            "sequenceSimilarity": 0.9815270935960592,
+            "expectedTokens": 812,
+            "extractedTokens": 818
+          }
+        },
+        {
+          "engineId": "pdfjs-coordinate-order",
+          "engineName": "Strategy B - coordinate reconstruction",
+          "version": "6.3.289",
+          "status": "success",
+          "elapsedMs": 14.18,
+          "pageCount": 3,
+          "printableCharacterCount": 4305,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.9780755176613886,
+            "tokenRecall": 0.9889162561576355,
+            "tokenF1": 0.9834660134721371,
+            "sequenceSimilarity": 0.9495073891625616,
+            "expectedTokens": 812,
+            "extractedTokens": 821
+          }
+        },
+        {
+          "engineId": "pymupdf-default",
+          "engineName": "PyMuPDF default text",
+          "version": "1.28.2",
+          "status": "success",
+          "elapsedMs": 7.52,
+          "pageCount": 3,
+          "printableCharacterCount": 4305,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.9780755176613886,
+            "tokenRecall": 0.9889162561576355,
+            "tokenF1": 0.9834660134721371,
+            "sequenceSimilarity": 0.9889162561576355,
+            "expectedTokens": 812,
+            "extractedTokens": 821
+          }
+        },
+        {
+          "engineId": "pdfplumber-default",
+          "engineName": "pdfplumber default text",
+          "version": "0.11.10",
+          "status": "success",
+          "elapsedMs": 72.97,
+          "pageCount": 3,
+          "printableCharacterCount": 4305,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.9780755176613886,
+            "tokenRecall": 0.9889162561576355,
+            "tokenF1": 0.9834660134721371,
+            "sequenceSimilarity": 0.9889162561576355,
+            "expectedTokens": 812,
+            "extractedTokens": 821
+          }
+        }
+      ]
+    },
+    {
+      "pdfFile": "ElPolloLocoHoldingsInc_20200306_10-K_EX-10.16_12041700_EX-10.16_Development Agreement.pdf",
+      "contractType": "10.16 Development Agreement",
+      "positiveCategories": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Termination For Convenience",
+        "Exclusivity",
+        "Insurance",
+        "Change Of Control"
+      ],
+      "sizeBytes": 241631,
+      "engines": [
+        {
+          "engineId": "pdfjs-content-order",
+          "engineName": "Strategy A - content-stream order",
+          "version": "6.3.289",
+          "status": "success",
+          "elapsedMs": 87.45,
+          "pageCount": 14,
+          "printableCharacterCount": 51089,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.988,
+            "tokenRecall": 0.988,
+            "tokenF1": 0.988,
+            "sequenceSimilarity": 0.9871666666666666,
+            "expectedTokens": 6000,
+            "extractedTokens": 6000
+          }
+        },
+        {
+          "engineId": "pdfjs-coordinate-order",
+          "engineName": "Strategy B - coordinate reconstruction",
+          "version": "6.3.289",
+          "status": "success",
+          "elapsedMs": 87.45,
+          "pageCount": 14,
+          "printableCharacterCount": 51089,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.9888333333333333,
+            "tokenRecall": 0.9888333333333333,
+            "tokenF1": 0.9888333333333333,
+            "sequenceSimilarity": 0.9883333333333333,
+            "expectedTokens": 6000,
+            "extractedTokens": 6000
+          }
+        },
+        {
+          "engineId": "pymupdf-default",
+          "engineName": "PyMuPDF default text",
+          "version": "1.28.2",
+          "status": "success",
+          "elapsedMs": 49.75,
+          "pageCount": 14,
+          "printableCharacterCount": 51089,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.99,
+            "tokenRecall": 0.99,
+            "tokenF1": 0.99,
+            "sequenceSimilarity": 0.9896666666666667,
+            "expectedTokens": 6000,
+            "extractedTokens": 6000
+          }
+        },
+        {
+          "engineId": "pdfplumber-default",
+          "engineName": "pdfplumber default text",
+          "version": "0.11.10",
+          "status": "success",
+          "elapsedMs": 654.88,
+          "pageCount": 14,
+          "printableCharacterCount": 51089,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.99,
+            "tokenRecall": 0.99,
+            "tokenF1": 0.99,
+            "sequenceSimilarity": 0.9896666666666667,
+            "expectedTokens": 6000,
+            "extractedTokens": 6000
+          }
+        }
+      ]
+    },
+    {
+      "pdfFile": "GULFSOUTHMEDICALSUPPLYINC_12_24_1997-EX-4-AFFILIATE AGREEMENT.PDF",
+      "contractType": "AFFILIATE AGREEMENT",
+      "positiveCategories": [
+        "Governing Law"
+      ],
+      "sizeBytes": 61212,
+      "engines": [
+        {
+          "engineId": "pdfjs-content-order",
+          "engineName": "Strategy A - content-stream order",
+          "version": "6.3.289",
+          "status": "success",
+          "elapsedMs": 34.27,
+          "pageCount": 8,
+          "printableCharacterCount": 16016,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 1,
+            "tokenRecall": 1,
+            "tokenF1": 1,
+            "sequenceSimilarity": 1,
+            "expectedTokens": 2661,
+            "extractedTokens": 2661
+          }
+        },
+        {
+          "engineId": "pdfjs-coordinate-order",
+          "engineName": "Strategy B - coordinate reconstruction",
+          "version": "6.3.289",
+          "status": "success",
+          "elapsedMs": 34.27,
+          "pageCount": 8,
+          "printableCharacterCount": 16016,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 1,
+            "tokenRecall": 1,
+            "tokenF1": 1,
+            "sequenceSimilarity": 0.9969936114242766,
+            "expectedTokens": 2661,
+            "extractedTokens": 2661
+          }
+        },
+        {
+          "engineId": "pymupdf-default",
+          "engineName": "PyMuPDF default text",
+          "version": "1.28.2",
+          "status": "success",
+          "elapsedMs": 21.45,
+          "pageCount": 8,
+          "printableCharacterCount": 16016,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 1,
+            "tokenRecall": 1,
+            "tokenF1": 1,
+            "sequenceSimilarity": 1,
+            "expectedTokens": 2661,
+            "extractedTokens": 2661
+          }
+        },
+        {
+          "engineId": "pdfplumber-default",
+          "engineName": "pdfplumber default text",
+          "version": "0.11.10",
+          "status": "success",
+          "elapsedMs": 243.36,
+          "pageCount": 8,
+          "printableCharacterCount": 16016,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 1,
+            "tokenRecall": 1,
+            "tokenF1": 1,
+            "sequenceSimilarity": 1,
+            "expectedTokens": 2661,
+            "extractedTokens": 2661
+          }
+        }
+      ]
+    },
+    {
+      "pdfFile": "GpaqAcquisitionHoldingsInc_20200123_S-4A_EX-10.8_11951679_EX-10.8_Service Agreement.pdf",
+      "contractType": "10.8 Service Agreement",
+      "positiveCategories": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Audit Rights",
+        "Exclusivity",
+        "Insurance"
+      ],
+      "sizeBytes": 271405,
+      "engines": [
+        {
+          "engineId": "pdfjs-content-order",
+          "engineName": "Strategy A - content-stream order",
+          "version": "6.3.289",
+          "status": "success",
+          "elapsedMs": 79.01,
+          "pageCount": 25,
+          "printableCharacterCount": 46252,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.9873333333333333,
+            "tokenRecall": 0.9873333333333333,
+            "tokenF1": 0.9873333333333333,
+            "sequenceSimilarity": 0.9871666666666666,
+            "expectedTokens": 6000,
+            "extractedTokens": 6000
+          }
+        },
+        {
+          "engineId": "pdfjs-coordinate-order",
+          "engineName": "Strategy B - coordinate reconstruction",
+          "version": "6.3.289",
+          "status": "success",
+          "elapsedMs": 79.01,
+          "pageCount": 25,
+          "printableCharacterCount": 46252,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.9893333333333333,
+            "tokenRecall": 0.9893333333333333,
+            "tokenF1": 0.9893333333333333,
+            "sequenceSimilarity": 0.989,
+            "expectedTokens": 6000,
+            "extractedTokens": 6000
+          }
+        },
+        {
+          "engineId": "pymupdf-default",
+          "engineName": "PyMuPDF default text",
+          "version": "1.28.2",
+          "status": "success",
+          "elapsedMs": 44.93,
+          "pageCount": 25,
+          "printableCharacterCount": 46252,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.9891666666666666,
+            "tokenRecall": 0.9891666666666666,
+            "tokenF1": 0.9891666666666666,
+            "sequenceSimilarity": 0.9888333333333333,
+            "expectedTokens": 6000,
+            "extractedTokens": 6000
+          }
+        },
+        {
+          "engineId": "pdfplumber-default",
+          "engineName": "pdfplumber default text",
+          "version": "0.11.10",
+          "status": "success",
+          "elapsedMs": 603.07,
+          "pageCount": 25,
+          "printableCharacterCount": 46252,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.9891666666666666,
+            "tokenRecall": 0.9891666666666666,
+            "tokenF1": 0.9891666666666666,
+            "sequenceSimilarity": 0.9888333333333333,
+            "expectedTokens": 6000,
+            "extractedTokens": 6000
+          }
+        }
+      ]
+    },
+    {
+      "pdfFile": "WEBHELPCOMINC_03_22_2000-EX-10.8-HOSTING AGREEMENT.PDF",
+      "contractType": "HOSTING AGREEMENT",
+      "positiveCategories": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Cap On Liability",
+        "Renewal Term",
+        "Uncapped Liability",
+        "Notice Period To Terminate Renewal"
+      ],
+      "sizeBytes": 54877,
+      "engines": [
+        {
+          "engineId": "pdfjs-content-order",
+          "engineName": "Strategy A - content-stream order",
+          "version": "6.3.289",
+          "status": "success",
+          "elapsedMs": 27.16,
+          "pageCount": 4,
+          "printableCharacterCount": 16055,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 1,
+            "tokenRecall": 1,
+            "tokenF1": 1,
+            "sequenceSimilarity": 1,
+            "expectedTokens": 2959,
+            "extractedTokens": 2959
+          }
+        },
+        {
+          "engineId": "pdfjs-coordinate-order",
+          "engineName": "Strategy B - coordinate reconstruction",
+          "version": "6.3.289",
+          "status": "success",
+          "elapsedMs": 27.16,
+          "pageCount": 4,
+          "printableCharacterCount": 16055,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 1,
+            "tokenRecall": 1,
+            "tokenF1": 1,
+            "sequenceSimilarity": 1,
+            "expectedTokens": 2959,
+            "extractedTokens": 2959
+          }
+        },
+        {
+          "engineId": "pymupdf-default",
+          "engineName": "PyMuPDF default text",
+          "version": "1.28.2",
+          "status": "success",
+          "elapsedMs": 16.26,
+          "pageCount": 4,
+          "printableCharacterCount": 16055,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 1,
+            "tokenRecall": 1,
+            "tokenF1": 1,
+            "sequenceSimilarity": 1,
+            "expectedTokens": 2959,
+            "extractedTokens": 2959
+          }
+        },
+        {
+          "engineId": "pdfplumber-default",
+          "engineName": "pdfplumber default text",
+          "version": "0.11.10",
+          "status": "success",
+          "elapsedMs": 166.63,
+          "pageCount": 4,
+          "printableCharacterCount": 16055,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 1,
+            "tokenRecall": 1,
+            "tokenF1": 1,
+            "sequenceSimilarity": 1,
+            "expectedTokens": 2959,
+            "extractedTokens": 2959
+          }
+        }
+      ]
+    },
+    {
+      "pdfFile": "MOSSIMOINC_04_14_2000-EX-10.14-ENDORSEMENT AGREEMENT.PDF",
+      "contractType": "ENDORSEMENT AGREEMENT",
+      "positiveCategories": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Cap On Liability",
+        "Exclusivity",
+        "Insurance",
+        "Change Of Control"
+      ],
+      "sizeBytes": 59693,
+      "engines": [
+        {
+          "engineId": "pdfjs-content-order",
+          "engineName": "Strategy A - content-stream order",
+          "version": "6.3.289",
+          "status": "success",
+          "elapsedMs": 32.26,
+          "pageCount": 5,
+          "printableCharacterCount": 18494,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 1,
+            "tokenRecall": 1,
+            "tokenF1": 1,
+            "sequenceSimilarity": 1,
+            "expectedTokens": 3487,
+            "extractedTokens": 3487
+          }
+        },
+        {
+          "engineId": "pdfjs-coordinate-order",
+          "engineName": "Strategy B - coordinate reconstruction",
+          "version": "6.3.289",
+          "status": "success",
+          "elapsedMs": 32.26,
+          "pageCount": 5,
+          "printableCharacterCount": 18494,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 1,
+            "tokenRecall": 1,
+            "tokenF1": 1,
+            "sequenceSimilarity": 1,
+            "expectedTokens": 3487,
+            "extractedTokens": 3487
+          }
+        },
+        {
+          "engineId": "pymupdf-default",
+          "engineName": "PyMuPDF default text",
+          "version": "1.28.2",
+          "status": "success",
+          "elapsedMs": 18.96,
+          "pageCount": 5,
+          "printableCharacterCount": 18494,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 1,
+            "tokenRecall": 1,
+            "tokenF1": 1,
+            "sequenceSimilarity": 1,
+            "expectedTokens": 3487,
+            "extractedTokens": 3487
+          }
+        },
+        {
+          "engineId": "pdfplumber-default",
+          "engineName": "pdfplumber default text",
+          "version": "0.11.10",
+          "status": "success",
+          "elapsedMs": 242.43,
+          "pageCount": 5,
+          "printableCharacterCount": 18494,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 1,
+            "tokenRecall": 1,
+            "tokenF1": 1,
+            "sequenceSimilarity": 1,
+            "expectedTokens": 3487,
+            "extractedTokens": 3487
+          }
+        }
+      ]
+    },
+    {
+      "pdfFile": "MetLife, Inc. - Remarketing Agreement.PDF",
+      "contractType": "Remarketing Agreement",
+      "positiveCategories": [
+        "Governing Law",
+        "Cap On Liability",
+        "Insurance"
+      ],
+      "sizeBytes": 256193,
+      "engines": [
+        {
+          "engineId": "pdfjs-content-order",
+          "engineName": "Strategy A - content-stream order",
+          "version": "6.3.289",
+          "status": "success",
+          "elapsedMs": 122.92,
+          "pageCount": 48,
+          "printableCharacterCount": 93157,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.9985,
+            "tokenRecall": 0.9985,
+            "tokenF1": 0.9985,
+            "sequenceSimilarity": 0.9983333333333333,
+            "expectedTokens": 6000,
+            "extractedTokens": 6000
+          }
+        },
+        {
+          "engineId": "pdfjs-coordinate-order",
+          "engineName": "Strategy B - coordinate reconstruction",
+          "version": "6.3.289",
+          "status": "success",
+          "elapsedMs": 122.92,
+          "pageCount": 48,
+          "printableCharacterCount": 93157,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.9985,
+            "tokenRecall": 0.9985,
+            "tokenF1": 0.9985,
+            "sequenceSimilarity": 0.9983333333333333,
+            "expectedTokens": 6000,
+            "extractedTokens": 6000
+          }
+        },
+        {
+          "engineId": "pymupdf-default",
+          "engineName": "PyMuPDF default text",
+          "version": "1.28.2",
+          "status": "success",
+          "elapsedMs": 86.3,
+          "pageCount": 48,
+          "printableCharacterCount": 93157,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.9983333333333333,
+            "tokenRecall": 0.9983333333333333,
+            "tokenF1": 0.9983333333333333,
+            "sequenceSimilarity": 0.9981666666666666,
+            "expectedTokens": 6000,
+            "extractedTokens": 6000
+          }
+        },
+        {
+          "engineId": "pdfplumber-default",
+          "engineName": "pdfplumber default text",
+          "version": "0.11.10",
+          "status": "success",
+          "elapsedMs": 1110.13,
+          "pageCount": 48,
+          "printableCharacterCount": 93157,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.9983333333333333,
+            "tokenRecall": 0.9983333333333333,
+            "tokenF1": 0.9983333333333333,
+            "sequenceSimilarity": 0.9981666666666666,
+            "expectedTokens": 6000,
+            "extractedTokens": 6000
+          }
+        }
+      ]
+    },
+    {
+      "pdfFile": "LohaCompanyltd_20191209_F-1_EX-10.16_11917878_EX-10.16_Supply Agreement.pdf",
+      "contractType": "10.16 Supply Agreement",
+      "positiveCategories": [
+        "Governing Law",
+        "Insurance",
+        "Warranty Duration"
+      ],
+      "sizeBytes": 114413,
+      "engines": [
+        {
+          "engineId": "pdfjs-content-order",
+          "engineName": "Strategy A - content-stream order",
+          "version": "6.3.289",
+          "status": "success",
+          "elapsedMs": 21.02,
+          "pageCount": 6,
+          "printableCharacterCount": 9560,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.9905013192612138,
+            "tokenRecall": 0.9905013192612138,
+            "tokenF1": 0.9905013192612138,
+            "sequenceSimilarity": 0.9905013192612138,
+            "expectedTokens": 1895,
+            "extractedTokens": 1895
+          }
+        },
+        {
+          "engineId": "pdfjs-coordinate-order",
+          "engineName": "Strategy B - coordinate reconstruction",
+          "version": "6.3.289",
+          "status": "success",
+          "elapsedMs": 21.02,
+          "pageCount": 6,
+          "printableCharacterCount": 9560,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.9936875328774329,
+            "tokenRecall": 0.9968337730870712,
+            "tokenF1": 0.9952581664910432,
+            "sequenceSimilarity": 0.9968337730870712,
+            "expectedTokens": 1895,
+            "extractedTokens": 1901
+          }
+        },
+        {
+          "engineId": "pymupdf-default",
+          "engineName": "PyMuPDF default text",
+          "version": "1.28.2",
+          "status": "success",
+          "elapsedMs": 12.55,
+          "pageCount": 6,
+          "printableCharacterCount": 9560,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.9936875328774329,
+            "tokenRecall": 0.9968337730870712,
+            "tokenF1": 0.9952581664910432,
+            "sequenceSimilarity": 0.9968337730870712,
+            "expectedTokens": 1895,
+            "extractedTokens": 1901
+          }
+        },
+        {
+          "engineId": "pdfplumber-default",
+          "engineName": "pdfplumber default text",
+          "version": "0.11.10",
+          "status": "success",
+          "elapsedMs": 104.76,
+          "pageCount": 6,
+          "printableCharacterCount": 9560,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.9936875328774329,
+            "tokenRecall": 0.9968337730870712,
+            "tokenF1": 0.9952581664910432,
+            "sequenceSimilarity": 0.9968337730870712,
+            "expectedTokens": 1895,
+            "extractedTokens": 1901
+          }
+        }
+      ]
+    },
+    {
+      "pdfFile": "ArtaraTherapeuticsInc_20200110_8-K_EX-10.5_11943350_EX-10.5_License Agreement.pdf",
+      "contractType": "10.5 License Agreement",
+      "positiveCategories": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Cap On Liability",
+        "Audit Rights",
+        "Termination For Convenience",
+        "Exclusivity",
+        "Insurance"
+      ],
+      "sizeBytes": 227144,
+      "engines": [
+        {
+          "engineId": "pdfjs-content-order",
+          "engineName": "Strategy A - content-stream order",
+          "version": "6.3.289",
+          "status": "success",
+          "elapsedMs": 56.62,
+          "pageCount": 15,
+          "printableCharacterCount": 32400,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.9902564102564102,
+            "tokenRecall": 0.9912731006160165,
+            "tokenF1": 0.990764494612622,
+            "sequenceSimilarity": 0.9912731006160165,
+            "expectedTokens": 5844,
+            "extractedTokens": 5850
+          }
+        },
+        {
+          "engineId": "pdfjs-coordinate-order",
+          "engineName": "Strategy B - coordinate reconstruction",
+          "version": "6.3.289",
+          "status": "success",
+          "elapsedMs": 56.62,
+          "pageCount": 15,
+          "printableCharacterCount": 32400,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.992838874680307,
+            "tokenRecall": 0.9964065708418891,
+            "tokenF1": 0.994619523443505,
+            "sequenceSimilarity": 0.9958932238193019,
+            "expectedTokens": 5844,
+            "extractedTokens": 5865
+          }
+        },
+        {
+          "engineId": "pymupdf-default",
+          "engineName": "PyMuPDF default text",
+          "version": "1.28.2",
+          "status": "success",
+          "elapsedMs": 33.85,
+          "pageCount": 15,
+          "printableCharacterCount": 32400,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.9924953095684803,
+            "tokenRecall": 0.9957221081451061,
+            "tokenF1": 0.9941060903732809,
+            "sequenceSimilarity": 0.9957221081451061,
+            "expectedTokens": 5844,
+            "extractedTokens": 5863
+          }
+        },
+        {
+          "engineId": "pdfplumber-default",
+          "engineName": "pdfplumber default text",
+          "version": "0.11.10",
+          "status": "success",
+          "elapsedMs": 400.28,
+          "pageCount": 15,
+          "printableCharacterCount": 32400,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.9924953095684803,
+            "tokenRecall": 0.9957221081451061,
+            "tokenF1": 0.9941060903732809,
+            "sequenceSimilarity": 0.9952087611225188,
+            "expectedTokens": 5844,
+            "extractedTokens": 5863
+          }
+        }
+      ]
+    },
+    {
+      "pdfFile": "ATHENSBANCSHARESCORP_11_02_2009-EX-1.2-AGENCY AGREEMENT , 2009.PDF",
+      "contractType": "AGENCY AGREEMENT , 2009",
+      "positiveCategories": [
+        "Governing Law",
+        "Cap On Liability",
+        "Exclusivity"
+      ],
+      "sizeBytes": 179058,
+      "engines": [
+        {
+          "engineId": "pdfjs-content-order",
+          "engineName": "Strategy A - content-stream order",
+          "version": "6.3.289",
+          "status": "success",
+          "elapsedMs": 263.87,
+          "pageCount": 33,
+          "printableCharacterCount": 120466,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.9973333333333333,
+            "tokenRecall": 0.9973333333333333,
+            "tokenF1": 0.9973333333333333,
+            "sequenceSimilarity": 0.9973333333333333,
+            "expectedTokens": 6000,
+            "extractedTokens": 6000
+          }
+        },
+        {
+          "engineId": "pdfjs-coordinate-order",
+          "engineName": "Strategy B - coordinate reconstruction",
+          "version": "6.3.289",
+          "status": "success",
+          "elapsedMs": 263.87,
+          "pageCount": 33,
+          "printableCharacterCount": 120466,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.9973333333333333,
+            "tokenRecall": 0.9973333333333333,
+            "tokenF1": 0.9973333333333333,
+            "sequenceSimilarity": 0.9973333333333333,
+            "expectedTokens": 6000,
+            "extractedTokens": 6000
+          }
+        },
+        {
+          "engineId": "pymupdf-default",
+          "engineName": "PyMuPDF default text",
+          "version": "1.28.2",
+          "status": "success",
+          "elapsedMs": 116.88,
+          "pageCount": 33,
+          "printableCharacterCount": 120466,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.9973333333333333,
+            "tokenRecall": 0.9973333333333333,
+            "tokenF1": 0.9973333333333333,
+            "sequenceSimilarity": 0.9973333333333333,
+            "expectedTokens": 6000,
+            "extractedTokens": 6000
+          }
+        },
+        {
+          "engineId": "pdfplumber-default",
+          "engineName": "pdfplumber default text",
+          "version": "0.11.10",
+          "status": "success",
+          "elapsedMs": 2291.07,
+          "pageCount": 33,
+          "printableCharacterCount": 120466,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.9973333333333333,
+            "tokenRecall": 0.9973333333333333,
+            "tokenF1": 0.9973333333333333,
+            "sequenceSimilarity": 0.9973333333333333,
+            "expectedTokens": 6000,
+            "extractedTokens": 6000
+          }
+        }
+      ]
+    },
+    {
+      "pdfFile": "VEONEER,INC_02_21_2020-EX-10.11-JOINT VENTURE AGREEMENT.PDF",
+      "contractType": "JOINT VENTURE AGREEMENT",
+      "positiveCategories": [
+        "Governing Law"
+      ],
+      "sizeBytes": 119848,
+      "engines": [
+        {
+          "engineId": "pdfjs-content-order",
+          "engineName": "Strategy A - content-stream order",
+          "version": "6.3.289",
+          "status": "success",
+          "elapsedMs": 16.57,
+          "pageCount": 4,
+          "printableCharacterCount": 6872,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.9955190440627334,
+            "tokenRecall": 0.9977544910179641,
+            "tokenF1": 0.9966355140186917,
+            "sequenceSimilarity": 0.9977544910179641,
+            "expectedTokens": 1336,
+            "extractedTokens": 1339
+          }
+        },
+        {
+          "engineId": "pdfjs-coordinate-order",
+          "engineName": "Strategy B - coordinate reconstruction",
+          "version": "6.3.289",
+          "status": "success",
+          "elapsedMs": 16.57,
+          "pageCount": 4,
+          "printableCharacterCount": 6872,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.9955190440627334,
+            "tokenRecall": 0.9977544910179641,
+            "tokenF1": 0.9966355140186917,
+            "sequenceSimilarity": 0.9977544910179641,
+            "expectedTokens": 1336,
+            "extractedTokens": 1339
+          }
+        },
+        {
+          "engineId": "pymupdf-default",
+          "engineName": "PyMuPDF default text",
+          "version": "1.28.2",
+          "status": "success",
+          "elapsedMs": 9.37,
+          "pageCount": 4,
+          "printableCharacterCount": 6872,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.9955190440627334,
+            "tokenRecall": 0.9977544910179641,
+            "tokenF1": 0.9966355140186917,
+            "sequenceSimilarity": 0.9977544910179641,
+            "expectedTokens": 1336,
+            "extractedTokens": 1339
+          }
+        },
+        {
+          "engineId": "pdfplumber-default",
+          "engineName": "pdfplumber default text",
+          "version": "0.11.10",
+          "status": "success",
+          "elapsedMs": 78,
+          "pageCount": 4,
+          "printableCharacterCount": 6872,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.9955190440627334,
+            "tokenRecall": 0.9977544910179641,
+            "tokenF1": 0.9966355140186917,
+            "sequenceSimilarity": 0.9977544910179641,
+            "expectedTokens": 1336,
+            "extractedTokens": 1339
+          }
+        }
+      ]
+    },
+    {
+      "pdfFile": "FEDERATEDGOVERNMENTINCOMESECURITIESINC_04_28_2020-EX-99.SERV AGREE-SERVICES AGREEMENT_POWEROF.pdf",
+      "contractType": "SERVICES AGREEMENT POWEROF",
+      "positiveCategories": [
+        "Governing Law",
+        "Anti-Assignment"
+      ],
+      "sizeBytes": 104431,
+      "engines": [
+        {
+          "engineId": "pdfjs-content-order",
+          "engineName": "Strategy A - content-stream order",
+          "version": "6.3.289",
+          "status": "success",
+          "elapsedMs": 20.1,
+          "pageCount": 5,
+          "printableCharacterCount": 12139,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.9981916817359855,
+            "tokenRecall": 0.9990950226244344,
+            "tokenF1": 0.9986431478968791,
+            "sequenceSimilarity": 0.9990950226244344,
+            "expectedTokens": 2210,
+            "extractedTokens": 2212
+          }
+        },
+        {
+          "engineId": "pdfjs-coordinate-order",
+          "engineName": "Strategy B - coordinate reconstruction",
+          "version": "6.3.289",
+          "status": "success",
+          "elapsedMs": 20.1,
+          "pageCount": 5,
+          "printableCharacterCount": 12139,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.9981916817359855,
+            "tokenRecall": 0.9990950226244344,
+            "tokenF1": 0.9986431478968791,
+            "sequenceSimilarity": 0.9990950226244344,
+            "expectedTokens": 2210,
+            "extractedTokens": 2212
+          }
+        },
+        {
+          "engineId": "pymupdf-default",
+          "engineName": "PyMuPDF default text",
+          "version": "1.28.2",
+          "status": "success",
+          "elapsedMs": 14.11,
+          "pageCount": 5,
+          "printableCharacterCount": 12139,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.9981916817359855,
+            "tokenRecall": 0.9990950226244344,
+            "tokenF1": 0.9986431478968791,
+            "sequenceSimilarity": 0.9990950226244344,
+            "expectedTokens": 2210,
+            "extractedTokens": 2212
+          }
+        },
+        {
+          "engineId": "pdfplumber-default",
+          "engineName": "pdfplumber default text",
+          "version": "0.11.10",
+          "status": "success",
+          "elapsedMs": 126.12,
+          "pageCount": 5,
+          "printableCharacterCount": 12139,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.9981916817359855,
+            "tokenRecall": 0.9990950226244344,
+            "tokenF1": 0.9986431478968791,
+            "sequenceSimilarity": 0.9990950226244344,
+            "expectedTokens": 2210,
+            "extractedTokens": 2212
+          }
+        }
+      ]
+    },
+    {
+      "pdfFile": "JOINTCORP_09_19_2014-EX-10.15-FRANCHISE AGREEMENT.PDF",
+      "contractType": "FRANCHISE AGREEMENT",
+      "positiveCategories": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Cap On Liability",
+        "Audit Rights",
+        "Termination For Convenience",
+        "Exclusivity",
+        "Renewal Term",
+        "Insurance",
+        "Change Of Control",
+        "Uncapped Liability"
+      ],
+      "sizeBytes": 395438,
+      "engines": [
+        {
+          "engineId": "pdfjs-content-order",
+          "engineName": "Strategy A - content-stream order",
+          "version": "6.3.289",
+          "status": "success",
+          "elapsedMs": 214.86,
+          "pageCount": 64,
+          "printableCharacterCount": 138688,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.986,
+            "tokenRecall": 0.986,
+            "tokenF1": 0.986,
+            "sequenceSimilarity": 0.986,
+            "expectedTokens": 6000,
+            "extractedTokens": 6000
+          }
+        },
+        {
+          "engineId": "pdfjs-coordinate-order",
+          "engineName": "Strategy B - coordinate reconstruction",
+          "version": "6.3.289",
+          "status": "success",
+          "elapsedMs": 214.86,
+          "pageCount": 64,
+          "printableCharacterCount": 138688,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.986,
+            "tokenRecall": 0.986,
+            "tokenF1": 0.986,
+            "sequenceSimilarity": 0.9735,
+            "expectedTokens": 6000,
+            "extractedTokens": 6000
+          }
+        },
+        {
+          "engineId": "pymupdf-default",
+          "engineName": "PyMuPDF default text",
+          "version": "1.28.2",
+          "status": "success",
+          "elapsedMs": 128.4,
+          "pageCount": 64,
+          "printableCharacterCount": 138675,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.9956666666666667,
+            "tokenRecall": 0.9956666666666667,
+            "tokenF1": 0.9956666666666667,
+            "sequenceSimilarity": 0.9956666666666667,
+            "expectedTokens": 6000,
+            "extractedTokens": 6000
+          }
+        },
+        {
+          "engineId": "pdfplumber-default",
+          "engineName": "pdfplumber default text",
+          "version": "0.11.10",
+          "status": "success",
+          "elapsedMs": 1777.59,
+          "pageCount": 64,
+          "printableCharacterCount": 138688,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.995,
+            "tokenRecall": 0.995,
+            "tokenF1": 0.995,
+            "sequenceSimilarity": 0.995,
+            "expectedTokens": 6000,
+            "extractedTokens": 6000
+          }
+        }
+      ]
+    },
+    {
+      "pdfFile": "RareElementResourcesLtd_20171019_SC 13D_EX-99.4_10897534_EX-99.4_Intellectual Property Agreement.pdf",
+      "contractType": "99.4 Intellectual Property Agreement",
+      "positiveCategories": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Exclusivity"
+      ],
+      "sizeBytes": 180502,
+      "engines": [
+        {
+          "engineId": "pdfjs-content-order",
+          "engineName": "Strategy A - content-stream order",
+          "version": "6.3.289",
+          "status": "success",
+          "elapsedMs": 59.06,
+          "pageCount": 16,
+          "printableCharacterCount": 28666,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.9956140350877193,
+            "tokenRecall": 0.9934354485776805,
+            "tokenF1": 0.9945235487404163,
+            "sequenceSimilarity": 0.9934354485776805,
+            "expectedTokens": 5484,
+            "extractedTokens": 5472
+          }
+        },
+        {
+          "engineId": "pdfjs-coordinate-order",
+          "engineName": "Strategy B - coordinate reconstruction",
+          "version": "6.3.289",
+          "status": "success",
+          "elapsedMs": 59.06,
+          "pageCount": 16,
+          "printableCharacterCount": 28666,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.9985422740524781,
+            "tokenRecall": 0.9992706053975201,
+            "tokenF1": 0.998906306963179,
+            "sequenceSimilarity": 0.9936177972283005,
+            "expectedTokens": 5484,
+            "extractedTokens": 5488
+          }
+        },
+        {
+          "engineId": "pymupdf-default",
+          "engineName": "PyMuPDF default text",
+          "version": "1.28.2",
+          "status": "success",
+          "elapsedMs": 29.37,
+          "pageCount": 16,
+          "printableCharacterCount": 28666,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.9985422740524781,
+            "tokenRecall": 0.9992706053975201,
+            "tokenF1": 0.998906306963179,
+            "sequenceSimilarity": 0.9992706053975201,
+            "expectedTokens": 5484,
+            "extractedTokens": 5488
+          }
+        },
+        {
+          "engineId": "pdfplumber-default",
+          "engineName": "pdfplumber default text",
+          "version": "0.11.10",
+          "status": "success",
+          "elapsedMs": 403.36,
+          "pageCount": 16,
+          "printableCharacterCount": 28666,
+          "emptyPages": [],
+          "warnings": [],
+          "error": null,
+          "metrics": {
+            "tokenPrecision": 0.9985422740524781,
+            "tokenRecall": 0.9992706053975201,
+            "tokenF1": 0.998906306963179,
+            "sequenceSimilarity": 0.9950765864332604,
+            "expectedTokens": 5484,
+            "extractedTokens": 5488
+          }
+        }
+      ]
+    }
+  ]
+}
