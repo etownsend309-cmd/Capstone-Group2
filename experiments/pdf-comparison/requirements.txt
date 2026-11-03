@@ -1,0 +1,4 @@
+# Isolated evaluation dependencies. These are not ClausePilot runtime
+# dependencies and are installed only into experiments/pdf-comparison/.venv.
+PyMuPDF==1.28.2
+pdfplumber==0.11.10

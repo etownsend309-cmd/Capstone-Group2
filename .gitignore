@@ -18,7 +18,11 @@ pdf-extraction-report-*.md
 node_modules/
 dist/
 .vite/
+.npm-cache/
 *.tsbuildinfo
+.env
+.env.*
+!.env.example
 
 # Emitted if tsc is ever pointed at the Vite config directly.
 vite.config.js
@@ -30,6 +34,14 @@ playwright-report/
 test-results/
 blob-report/
 .playwright/
+
+# Isolated PDF-engine comparison. The scripts and manifests are tracked; parser
+# environments, downloaded contracts, and text-bearing intermediate output are not.
+experiments/pdf-comparison/.venv/
+experiments/pdf-comparison/.local/
+.cuad-source/
+__pycache__/
+*.py[cod]
 
 # Editors / OS
 .DS_Store

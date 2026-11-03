@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "selectionSeed": "synthetic-smoke-only",
+  "source": "ClausePilot generated fixtures",
+  "datasetRootHint": "fixtures/generated",
+  "categories": [],
+  "contracts": [
+    {
+      "pdfFile": "clean-agreement.pdf",
+      "txtFile": "clean-agreement.expected.txt",
+      "contractType": "synthetic clean",
+      "lengthChars": 3866,
+      "positiveCategories": []
+    },
+    {
+      "pdfFile": "multicolumn-agreement.pdf",
+      "txtFile": "multicolumn-agreement.expected.txt",
+      "contractType": "synthetic multicolumn",
+      "lengthChars": 1588,
+      "positiveCategories": []
+    },
+    {
+      "pdfFile": "scanned-agreement.pdf",
+      "txtFile": "scanned-agreement.expected.txt",
+      "contractType": "synthetic scanned",
+      "lengthChars": 537,
+      "positiveCategories": []
+    }
+  ]
+}
