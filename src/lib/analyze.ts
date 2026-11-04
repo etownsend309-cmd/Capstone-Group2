@@ -133,16 +133,15 @@ export function analyzeAgreement(
     for (const pattern of category.patterns) {
       const match = pattern.exec(text);
       if (match?.index !== undefined) {
-       const standardMatches = category.standardPatterns?.some((standard) => {
+        const standardMatches = category.standardPatterns?.some((standard) => {
           const flags = standard.flags.replace("g", "");
           return new RegExp(standard.source, flags).test(text);
         });
         const classification = category.standardPatterns
-          ? standardMatches ? "present" : "deviation"
+          ? (standardMatches ? "present" : "deviation")
           : "present";
 
-       
-          return [
+        return [
           {
             id: crypto.randomUUID(),
             category: category.name,
