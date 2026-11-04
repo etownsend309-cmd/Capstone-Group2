@@ -795,9 +795,11 @@ function ReviewQueue({
                       </span>
                       <h3>{activeFinding.category}</h3>
                     </div>
-                    {activeFinding.method === "Manual" ? (
+                    {activeFinding.findingType ? (
                       <span className="flag-classification">
                         {activeFinding.findingType} · {activeFinding.severity}
+                        {activeFinding.classification === "deviation" ? " · Deviation" : ""}
+                        {activeFinding.classification === "uncertain" ? " · Uncertain" : ""}
                       </span>
                     ) : (
                       <span className="confidence">
@@ -810,6 +812,8 @@ function ReviewQueue({
                     <div className="source-card gap-source">
                       <span>Contract evidence</span>
                       <p>No contract text cited for this gap.</p>
+                      <strong>Search performed</strong>
+                      <p>The complete stored agreement text was searched; no matching provision was identified.</p>
                       <strong>Playbook expectation</strong>
                       <blockquote>
                         {activeFinding.playbookExpectation}
