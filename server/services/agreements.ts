@@ -21,6 +21,7 @@ import {
   type DocumentRecord,
   type FindingDecisionCode,
   type FindingDecisionInput,
+  type FindingClassificationCode,
   type FindingHistoryEntry,
   type FindingRecord,
   type FindingSeverityCode,
@@ -73,6 +74,7 @@ interface FindingRow {
   method: "local_rule" | "manual";
   decided_at: Date | null;
   finding_type: FindingTypeCode | null;
+  classification: FindingClassificationCode | null;
   severity: FindingSeverityCode | null;
   reason: string;
   playbook_expectation: string;
@@ -92,7 +94,7 @@ interface HistoryRow {
 // requesters only their own account, so for them other people's names are null.
 const FINDING_COLUMNS = `
   f.id, f.agreement_id, f.category, f.confidence, f.source_text, f.decision, f.note, f.method,
-  f.decided_at, f.finding_type, f.severity, f.reason, f.playbook_expectation,
+  f.decided_at, f.finding_type, f.classification, f.severity, f.reason, f.playbook_expectation,
   c.email AS creator_email, c.display_name AS creator_name`;
 const FINDING_FROM = "findings f LEFT JOIN app_users c ON c.id = f.created_by";
 
@@ -155,6 +157,7 @@ function toFinding(row: FindingRow, history: FindingHistoryEntry[] = []): Findin
     method: row.method,
     decidedAt: iso(row.decided_at),
     findingType: row.finding_type,
+    classification: row.classification,
     severity: row.severity,
     reason: row.reason,
     playbookExpectation: row.playbook_expectation,
@@ -170,6 +173,7 @@ function snapshot(row: FindingRow): FindingSnapshot {
   return {
     category: row.category,
     findingType: row.finding_type,
+    classification: row.classification,
     severity: row.severity,
     reason: row.reason,
     note: row.note,
@@ -369,9 +373,21 @@ export async function submitAgreement(db: Queryable, userId: string, input: NewA
 
   for (const finding of analyzeAgreement(input.rawText)) {
     await db.query(
-      `INSERT INTO findings (agreement_id, category, confidence, source_text, method)
-       VALUES ($1, $2, $3, $4, 'local_rule')`,
-      [id, finding.category, finding.confidence, finding.sourceText],
+      `INSERT INTO findings (
+         agreement_id, category, confidence, source_text, method,
+         finding_type, classification, severity, reason, playbook_expectation)
+       VALUES ($1, $2, $3, $4, 'local_rule', $5, $6, $7, $8, $9)`,
+      [
+        id,
+        finding.category,
+        finding.confidence,
+        finding.sourceText,
+        finding.findingType?.toLowerCase(),
+        finding.classification,
+        finding.severity?.toLowerCase(),
+        finding.reason,
+        finding.playbookExpectation,
+      ],
     );
   }
 

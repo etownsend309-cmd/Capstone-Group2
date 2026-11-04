@@ -86,6 +86,7 @@ function findingWith(findingId: string): { detail: AgreementDetail; finding: Fin
 const snapshot = (f: FindingRecord): FindingSnapshot => ({
   category: f.category,
   findingType: f.findingType,
+  classification: f.classification,
   severity: f.severity,
   reason: f.reason,
   note: f.note,
@@ -116,6 +117,7 @@ export function makeRuleFinding(overrides: Partial<FindingRecord> = {}): Finding
     method: "local_rule",
     decidedAt: null,
     findingType: null,
+    classification: null,
     severity: null,
     reason: "",
     playbookExpectation: "",
@@ -148,9 +150,22 @@ export function makeAgreement(overrides: Partial<AgreementDetail> = {}): Agreeme
     extractionWarnings: [],
     approvedBy: null,
     documents: [],
-    findings: analyzeAgreement(rawText).map((finding) =>
-      makeRuleFinding({ category: finding.category, confidence: finding.confidence, sourceText: finding.sourceText }),
-    ),
+    // Keep this focused unit fixture to clauses the text actually matches.
+    // Full 12-category output is covered by analyzer, API integration and browser tests.
+    findings: analyzeAgreement(rawText)
+      .filter((finding) => finding.classification === "present" || finding.classification === "deviation")
+      .map((finding) =>
+        makeRuleFinding({
+          category: finding.category,
+          confidence: finding.confidence,
+          sourceText: finding.sourceText,
+          findingType: finding.findingType?.toLowerCase() as FindingRecord["findingType"],
+          classification: finding.classification ?? null,
+          severity: finding.severity?.toLowerCase() as FindingRecord["severity"],
+          reason: finding.reason ?? "",
+          playbookExpectation: finding.playbookExpectation ?? "",
+        }),
+      ),
     ...overrides,
   };
 }

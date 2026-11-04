@@ -692,8 +692,8 @@ function ReviewQueue({
                     <>
                       <div className="finding-title">
                         <div><span className="eyebrow">{METHOD_LABELS[activeFinding.method]} origin</span><h3>{activeFinding.category}</h3></div>
-                        {activeFinding.method === "manual" && activeFinding.findingType && activeFinding.severity ? (
-                          <span className="flag-classification">{FINDING_TYPE_LABELS[activeFinding.findingType]} · {SEVERITY_LABELS[activeFinding.severity]}</span>
+                        {activeFinding.findingType && activeFinding.severity ? (
+                          <span className="flag-classification">{findingSummary(activeFinding)}</span>
                         ) : (
                           <span className="confidence">{Math.round(activeFinding.confidence * 100)}% <small>confidence</small></span>
                         )}
@@ -702,6 +702,8 @@ function ReviewQueue({
                         <div className="source-card gap-source">
                           <span>Contract evidence</span>
                           <p>No contract text cited for this gap.</p>
+                          <strong>Search performed</strong>
+                          <p>The complete stored agreement text was searched; no matching provision was identified.</p>
                           <strong>Playbook expectation</strong>
                           <blockquote>{activeFinding.playbookExpectation}</blockquote>
                         </div>
@@ -752,10 +754,16 @@ function ReviewQueue({
   );
 }
 
-/** The second line under a finding in the list: confidence for rule findings, type and severity for manual flags. */
+/** The second line under a finding in the list: its review semantics when available, or the legacy rule score. */
 function findingSummary(finding: FindingRecord): string {
-  if (finding.method === "manual" && finding.findingType && finding.severity) {
-    return `${FINDING_TYPE_LABELS[finding.findingType]} · ${SEVERITY_LABELS[finding.severity]}`;
+  if (finding.findingType && finding.severity) {
+    const qualifier =
+      finding.classification === "deviation"
+        ? " · Deviation"
+        : finding.classification === "uncertain"
+          ? " · Uncertain"
+          : "";
+    return `${FINDING_TYPE_LABELS[finding.findingType]} · ${SEVERITY_LABELS[finding.severity]}${qualifier}`;
   }
   return `${Math.round(finding.confidence * 100)}% confidence`;
 }

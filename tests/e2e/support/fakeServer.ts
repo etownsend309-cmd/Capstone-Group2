@@ -91,6 +91,7 @@ export async function installFakeServer(page: Page, session: SessionUser): Promi
     method: "local_rule",
     decidedAt: null,
     findingType: null,
+    classification: null,
     severity: null,
     reason: "",
     playbookExpectation: "",
@@ -101,6 +102,7 @@ export async function installFakeServer(page: Page, session: SessionUser): Promi
   const snapshot = (f: FindingRecord): FindingSnapshot => ({
     category: f.category,
     findingType: f.findingType,
+    classification: f.classification,
     severity: f.severity,
     reason: f.reason,
     note: f.note,
@@ -127,7 +129,16 @@ export async function installFakeServer(page: Page, session: SessionUser): Promi
     approvedBy: null,
     documents: [],
     findings: analyzeAgreement(fields.rawText).map((finding) =>
-      ruleFinding({ category: finding.category, confidence: finding.confidence, sourceText: finding.sourceText }),
+      ruleFinding({
+        category: finding.category,
+        confidence: finding.confidence,
+        sourceText: finding.sourceText,
+        findingType: finding.findingType?.toLowerCase() as FindingRecord["findingType"],
+        classification: finding.classification ?? null,
+        severity: finding.severity?.toLowerCase() as FindingRecord["severity"],
+        reason: finding.reason ?? "",
+        playbookExpectation: finding.playbookExpectation ?? "",
+      }),
     ),
     ...fields,
   });

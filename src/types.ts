@@ -3,6 +3,9 @@ export type View = "overview" | "tracker" | "intake" | "review" | "reports" | "u
 export type Role = "Requester" | "Reviewer" | "Approver" | "Administrator";
 
 export type FindingDecision = "pending" | "accepted" | "dismissed" | "escalated";
+export type FindingType = "Provision" | "Gap";
+export type FindingSeverity = "Low" | "Medium" | "High" | "Critical";
+export type FindingClassification = "present" | "deviation" | "uncertain" | "gap";
 
 export type AgreementStatus =
   | "Needs review"
@@ -19,4 +22,9 @@ export interface Finding {
   decision: FindingDecision;
   note: string;
   method: "Local rule" | "Manual";
+  findingType?: FindingType;
+  classification?: FindingClassification;
+  severity?: FindingSeverity;
+  reason?: string;
+  playbookExpectation?: string;
 }

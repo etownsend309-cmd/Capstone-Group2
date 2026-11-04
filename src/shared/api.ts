@@ -29,6 +29,9 @@ export type FindingTypeCode = (typeof FINDING_TYPES)[number];
 export const FINDING_SEVERITIES = ["low", "medium", "high", "critical"] as const;
 export type FindingSeverityCode = (typeof FINDING_SEVERITIES)[number];
 
+export const FINDING_CLASSIFICATIONS = ["present", "deviation", "uncertain", "gap"] as const;
+export type FindingClassificationCode = (typeof FINDING_CLASSIFICATIONS)[number];
+
 export interface SessionUser {
   id: string;
   email: string;
@@ -58,6 +61,8 @@ export interface AgreementSummary {
 export interface FindingSnapshot {
   category: string;
   findingType: FindingTypeCode | null;
+  /** Rule-analysis result; manual flags have no automated classification. */
+  classification: FindingClassificationCode | null;
   severity: FindingSeverityCode | null;
   reason: string;
   note: string;
@@ -84,8 +89,10 @@ export interface FindingRecord {
   note: string;
   method: FindingMethodCode;
   decidedAt: string | null;
-  /** Manual flags only; null for rule findings. */
+  /** Provision or gap semantics for both rule findings and manual flags. */
   findingType: FindingTypeCode | null;
+  /** Automated rule result; null for manual flags. */
+  classification: FindingClassificationCode | null;
   severity: FindingSeverityCode | null;
   /** Why a manual flag was raised; empty for rule findings. */
   reason: string;

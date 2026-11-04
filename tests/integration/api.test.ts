@@ -196,7 +196,19 @@ describe("submitting and reviewing", () => {
     expect(body.status).toBe("needs_review");
     expect(body.submittedBy.email).toBe("requester@example.test");
     expect(body.neededBy).toBe("2026-12-01");
-    expect(body.findings.map((f) => f.category).sort()).toEqual(["Governing Law", "Termination For Convenience"]);
+    expect(body.findings).toHaveLength(12);
+    expect(body.findings.find((f) => f.category === "Governing Law")).toMatchObject({
+      findingType: "provision",
+      classification: "present",
+      severity: "medium",
+    });
+    expect(body.findings.find((f) => f.category === "Audit Rights")).toMatchObject({
+      findingType: "gap",
+      classification: "gap",
+      severity: "medium",
+      sourceText: "",
+      playbookExpectation: "The agreement addresses audit or inspection rights.",
+    });
     expect(body.findings.every((f) => f.decision === "pending" && f.method === "local_rule")).toBe(true);
   });
 
