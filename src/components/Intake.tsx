@@ -6,6 +6,7 @@ import {
   ClassifierRequestError,
   toPendingAiFindings,
 } from "../lib/classifyAgreement";
+import { analyzeAgreement, supplementWithLocalAnalysis } from "../lib/analyze";
 import { extractText } from "../lib/extractText";
 import type { Agreement, Finding } from "../types";
 
@@ -90,7 +91,10 @@ export function Intake({ onAdd, submittedBy }: { onAdd: (agreement: Agreement) =
           runId: classified.run.id,
           rejections: classified.rejections,
         }];
-        findings = toPendingAiFindings(classified);
+        findings = supplementWithLocalAnalysis(
+          document.text,
+          toPendingAiFindings(classified),
+        );
       } catch (classificationError) {
         if (
           classificationError instanceof ClassifierRequestError &&
@@ -98,6 +102,7 @@ export function Intake({ onAdd, submittedBy }: { onAdd: (agreement: Agreement) =
         ) {
           classificationRuns = [classificationError.run];
         }
+        findings = analyzeAgreement(document.text);
       }
       onAdd({
         id: agreementId, name: title.trim() || file!.name,

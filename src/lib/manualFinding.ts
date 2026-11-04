@@ -65,6 +65,7 @@ export function findingSnapshot(finding: Finding): FindingAuditSnapshot {
     return {
         category: finding.category,
         findingType: finding.findingType,
+        classification: finding.classification,
         severity: finding.severity,
         reason: finding.reason,
         note: finding.note,

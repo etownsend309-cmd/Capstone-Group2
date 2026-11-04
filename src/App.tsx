@@ -3,7 +3,7 @@ import type { User } from "@netlify/identity";
 import { Icon } from "./components/Icon";
 import { Intake } from "./components/Intake";
 import { ManualFindingForm } from "./components/ManualFindingForm";
-import { playbook } from "./lib/analyze";
+import { playbook, supplementWithLocalAnalysis } from "./lib/analyze";
 import {
   classifyAgreement,
   ClassifierRequestError,
@@ -699,16 +699,22 @@ function ReviewQueue({
       }, { signal: controller.signal });
       let firstAdditionId: string | undefined;
       onUpdateLatest(agreementId, (current) => {
+        const incoming = toPendingAiFindings(result);
+        const incomingCategories = new Set(incoming.map((finding) => finding.category));
+        const preserved = current.findings.filter((finding) => {
+          if (finding.method !== "Local rule" || !incomingCategories.has(finding.category)) return true;
+          return finding.decision !== "pending" || Boolean(finding.note.trim()) || Boolean(finding.history?.length);
+        });
         const representedCategories = new Set(
-          current.findings.map((finding) => finding.category),
+          preserved.map((finding) => finding.category),
         );
-        const additions = toPendingAiFindings(result).filter(
+        const additions = incoming.filter(
           (finding) => !representedCategories.has(finding.category),
         );
         firstAdditionId = additions[0]?.id;
         return {
           ...current,
-          findings: [...current.findings, ...additions],
+          findings: supplementWithLocalAnalysis(current.rawText, [...preserved, ...additions]),
           classificationStatus: result.status,
           classificationRuns: [...(current.classificationRuns ?? []), result.run],
           classificationRejections: result.rejections,
@@ -975,9 +981,11 @@ function ReviewQueue({
                       </span>
                       <h3>{activeFinding.category}</h3>
                     </div>
-                    {activeFinding.method === "Manual" ? (
+                    {activeFinding.findingType ? (
                       <span className="flag-classification">
                         {activeFinding.findingType} · {activeFinding.severity}
+                        {activeFinding.classification === "deviation" ? " · Deviation" : ""}
+                        {activeFinding.classification === "uncertain" ? " · Uncertain" : ""}
                       </span>
                     ) : (
                       <span className="confidence">
@@ -989,6 +997,8 @@ function ReviewQueue({
                     <div className="source-card gap-source">
                       <span>Contract evidence</span>
                       <p>No contract text cited for this gap.</p>
+                      <strong>Search performed</strong>
+                      <p>The complete stored agreement text was searched; no matching provision was identified.</p>
                       <strong>Playbook expectation</strong>
                       <blockquote>
                         {activeFinding.playbookExpectation}

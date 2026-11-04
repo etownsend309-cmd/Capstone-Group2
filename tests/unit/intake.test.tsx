@@ -15,6 +15,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import App from "../../src/App";
 import { extractText } from "../../src/lib/extractText";
+import type { Finding } from "../../src/types";
 vi.mock("../../src/lib/extractText", () => ({ extractText: vi.fn() }));
 const STORAGE_KEY = "clausepilot-agreements-v1";
 /** Stands in for the signed-in Netlify user; App reads only the identity. */
@@ -169,10 +170,9 @@ describe("agreement intake", () => {
     expect(screen.getByRole("status").textContent).toContain(
       "saved, but AI classification failed or is unavailable",
     );
-    expect(records()[0]).toMatchObject({
-      classificationStatus: "manual_required",
-      findings: [],
-    });
+    expect(records()[0].classificationStatus).toBe("manual_required");
+    expect(records()[0].findings).toHaveLength(12);
+    expect(records()[0].findings.every((finding: Finding) => finding.method === "Local rule")).toBe(true);
     expect(records()[0].classificationRuns[0].errorCode).toBe("AI_UNAVAILABLE");
   });
 
@@ -200,7 +200,9 @@ describe("agreement intake", () => {
         rejections: [{ category: "Audit Rights", reason: "unmatched_quote" }],
       }],
     });
-    expect(records()[0].findings).toHaveLength(1);
+    expect(records()[0].findings).toHaveLength(12);
+    expect(records()[0].findings.filter((finding: Finding) => finding.method === "AI")).toHaveLength(1);
+    expect(records()[0].findings.filter((finding: Finding) => finding.method === "Local rule")).toHaveLength(11);
   });
 });
 
@@ -389,8 +391,8 @@ describe("concurrent submission and review", () => {
 
     await waitFor(() => expect(records()[0].classificationStatus).toBe("complete"));
     const saved = records()[0];
-    expect(saved.findings).toHaveLength(1);
-    expect(saved.findings[0]).toMatchObject({
+    expect(saved.findings).toHaveLength(12);
+    expect(saved.findings.find((finding: Finding) => finding.id === "existing-finding")).toMatchObject({
       id: "existing-finding",
       decision: "accepted",
       note: "Already reviewed.",
