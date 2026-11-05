@@ -279,7 +279,9 @@ export async function getAgreement(db: Queryable, id: string): Promise<Agreement
     `SELECT ${FINDING_COLUMNS} FROM ${FINDING_FROM} WHERE f.agreement_id = $1 ORDER BY f.created_at, f.category`,
     [id],
   );
-  const history = await findingHistory(db, id);
+  const access = await db.query<{ allowed: boolean }>("SELECT app.can_review() AS allowed");
+  const mayReadNotes = access.rows[0]?.allowed === true;
+  const history = mayReadNotes ? await findingHistory(db, id) : new Map<string, FindingHistoryEntry[]>();
   const documents = await db.query<DocumentRow>(
     `SELECT id, file_name, content_type, byte_size, uploaded_at
        FROM agreement_documents WHERE agreement_id = $1 ORDER BY uploaded_at`,
@@ -296,7 +298,7 @@ export async function getAgreement(db: Queryable, id: string): Promise<Agreement
     extractionStrategy: ingestion?.strategy ?? row.extraction_strategy,
     extractionWarnings: ingestion?.warnings ?? row.extraction_warnings,
     approvedBy: row.approved_by,
-    findings: findings.rows.map((finding) => toFinding(finding, history.get(finding.id))),
+    findings: findings.rows.map((finding) => toFinding(mayReadNotes ? finding : { ...finding, note: "" }, history.get(finding.id))),
     documents: documents.rows.map((doc) => ({
       id: doc.id,
       fileName: doc.file_name,
