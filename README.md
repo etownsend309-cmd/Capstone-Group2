@@ -91,11 +91,13 @@ npx playwright install chromium
 
 ## Running the app
 
-For the complete AI-assisted flow, configure `OPENAI_API_KEY` and
+For the complete AI-assisted flow, configure the server-only API key and
 `OPENAI_MODEL` as scoped Netlify environment variables (see `.env.example`),
-then run through Netlify Dev or a Netlify deploy. The repository's default
-model name came from the approved implementation plan, not from a successful
-live request; verify access and explicitly approve the model before staging.
+then run through Netlify Dev or a Netlify deploy. The Function accepts
+`OPENAI_API_KEY`, or the existing Netlify secret `Group2_API_Key` when the
+conventional name is absent. The repository's default model name came from the
+approved implementation plan, not from a successful live request; verify access
+and explicitly approve the model before staging.
 
 ```bash
 npx netlify dev
@@ -275,8 +277,9 @@ This is an evaluation integration, not approved production architecture.
   require approval before real confidential use.
 - Provider calls have a 25-second overall deadline and at most one SDK retry,
   leaving headroom inside Netlify's synchronous Function execution limit.
-- `OPENAI_API_KEY` is a server-only Netlify secret. Never prefix it with
-  `VITE_`, commit it, return it to the browser, or include it in logs.
+- The API key is a server-only Netlify secret, stored as `OPENAI_API_KEY` or
+  the existing `Group2_API_Key` variable. Never prefix either name with
+  `VITE_`, commit its value, return it to the browser, or include it in logs.
 - No uploaded PDF is stored. Resetting or reloading discards it.
 - ClausePilot keeps agreement records, including extracted text, in this
   browser's `localStorage`. Clear site data to remove them.
@@ -290,9 +293,10 @@ This is an evaluation integration, not approved production architecture.
 The 30-agreement CUAD manifest is the development/evaluation set for
 per-category precision, recall, and F1. Run its deterministic local-rule
 baseline with `npm run evaluate:ai:baseline`. OpenAI evaluation additionally
-requires the server-only `OPENAI_API_KEY`; it uses the same prompt, strict
-schema, exact-quote validator, `store: false` setting, and configurable
-`OPENAI_MODEL` as the Netlify Function.
+requires the same server-only API key as the Function (`OPENAI_API_KEY` or
+`Group2_API_Key`); it uses the same prompt, strict schema, exact-quote
+validator, `store: false` setting, and configurable `OPENAI_MODEL` as the
+Netlify Function.
 
 Reports written to `artifacts/` contain document IDs, category outcomes,
 aggregate metrics, configuration versions, latency, and token totals. They

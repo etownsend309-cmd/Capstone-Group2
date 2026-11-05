@@ -11,6 +11,7 @@ import {
   type ClassifierErrorCode,
   type ClassifyAgreementResult,
 } from "../../src/shared/classifier.js";
+import { configuredOpenAiApiKey } from "../../src/shared/openaiCredentials.js";
 import { classifierInstructions } from "./_shared/classifierPrompt.js";
 import {
   classifyAgreementRequestSchema,
@@ -132,7 +133,7 @@ export default async function handler(request: Request): Promise<Response> {
   const requestedModel = configuredModel || "unconfigured";
   const startedAt = new Date().toISOString();
   const started = performance.now();
-  const apiKey = process.env.OPENAI_API_KEY?.trim();
+  const apiKey = configuredOpenAiApiKey();
   if (!apiKey || !configuredModel) {
     const code = "AI_UNAVAILABLE";
     return errorResponse(

@@ -6,6 +6,7 @@ import { zodTextFormat } from "openai/helpers/zod";
 import { z } from "zod";
 
 import { analyzeAgreement } from "../../src/lib/analyze.js";
+import { configuredOpenAiApiKey } from "../../src/shared/openaiCredentials.js";
 import {
   APPROVED_CATEGORIES,
   MODEL_CONFIG_VERSION,
@@ -225,10 +226,10 @@ async function main() {
   }
   const textDirectory = await resolveTextDirectory(args.datasetRoot);
   const model = process.env.OPENAI_MODEL?.trim();
-  const apiKey = process.env.OPENAI_API_KEY?.trim();
+  const apiKey = configuredOpenAiApiKey();
   if (args.engine === "openai" && (!apiKey || !model)) {
     throw new Error(
-      "OPENAI_API_KEY and an explicitly approved OPENAI_MODEL are required for OpenAI evaluation.",
+      "Set OPENAI_API_KEY or the Netlify variable Group2_API_Key, plus an explicitly approved OPENAI_MODEL, before OpenAI evaluation.",
     );
   }
   const client = args.engine === "openai" ? new OpenAI({ apiKey }) : undefined;

@@ -60,11 +60,13 @@ beforeEach(() => {
   mocks.constructorOptions.mockReset();
   mocks.getUser.mockResolvedValue({ id: "user-1", email: "requester@example.test" });
   process.env.OPENAI_API_KEY = "test-key";
+  delete process.env.Group2_API_Key;
   process.env.OPENAI_MODEL = "gpt-5.6-terra";
 });
 
 afterEach(() => {
   delete process.env.OPENAI_API_KEY;
+  delete process.env.Group2_API_Key;
   delete process.env.OPENAI_MODEL;
   vi.restoreAllMocks();
 });
@@ -170,8 +172,57 @@ describe("classify-agreement Netlify Function", () => {
     ]);
   });
 
+  it("uses the existing Netlify secret without returning it to the browser", async () => {
+    const netlifySecret = "group2-netlify-secret-value";
+    delete process.env.OPENAI_API_KEY;
+    process.env.Group2_API_Key = `  ${netlifySecret}  `;
+    mocks.parse.mockResolvedValueOnce({
+      id: "resp_group2",
+      model: "gpt-5.6-terra",
+      usage: { input_tokens: 10, output_tokens: 4 },
+      output_parsed: {
+        findings: [{
+          category: "Governing Law",
+          quote: "governed by the laws of Georgia",
+          leftContext: null,
+          rightContext: ".",
+          confidenceIndicator: "high",
+        }],
+      },
+    });
+
+    const response = await handler(validRequest());
+    const rawBody = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(rawBody).not.toContain(netlifySecret);
+    expect(JSON.stringify([...response.headers.entries()])).not.toContain(netlifySecret);
+    expect(mocks.constructorOptions).toHaveBeenCalledWith({
+      apiKey: netlifySecret,
+      maxRetries: 1,
+      timeout: 20_000,
+    });
+  });
+
+  it("prefers OPENAI_API_KEY when both credential variables are present", async () => {
+    process.env.Group2_API_Key = "group2-netlify-secret-value";
+    mocks.parse.mockResolvedValueOnce({
+      id: "resp_preferred",
+      model: "gpt-5.6-terra",
+      usage: {},
+      output_parsed: { findings: [] },
+    });
+
+    await handler(validRequest());
+
+    expect(mocks.constructorOptions).toHaveBeenCalledWith(
+      expect.objectContaining({ apiKey: "test-key" }),
+    );
+  });
+
   it("fails safely when the secret or model output is unavailable", async () => {
     delete process.env.OPENAI_API_KEY;
+    delete process.env.Group2_API_Key;
     let response = await handler(validRequest());
     expect(response.status).toBe(503);
     expect(await response.json()).toMatchObject({
