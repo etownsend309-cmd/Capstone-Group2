@@ -7,6 +7,8 @@
  * the label maps at the bottom.
  */
 
+import type { IngestionSummary } from "./ingestion";
+
 import type { AgreementStatus, Role } from "../types";
 
 export const APP_ROLES = ["requester", "reviewer", "administrator"] as const;
@@ -41,6 +43,7 @@ export interface SessionUser {
 }
 
 export interface AgreementSummary {
+  ingestion?: IngestionSummary;
   id: string;
   name: string;
   vendor: string;
@@ -123,6 +126,7 @@ export interface AgreementDetail extends AgreementSummary {
 }
 
 export interface NewAgreementInput {
+  deferIngestion?: boolean;
   name: string;
   vendor: string;
   agreementType: string;

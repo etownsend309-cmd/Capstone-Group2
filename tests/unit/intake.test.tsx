@@ -10,7 +10,7 @@
  * PDF viewer.
  */
 
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -92,7 +92,7 @@ describe("agreement intake", () => {
     expect(title.value).toBe("vendor-sow.txt");
   });
 
-  it("sends the details and extracted text to the API, then stores the original file", async () => {
+  it("saves the details and original file before preparing text", async () => {
     const dropZone = await openIntake();
     const file = txtFile();
 
@@ -110,10 +110,8 @@ describe("agreement intake", () => {
       agreementType: "Master services agreement",
       businessUnit: "Shared services",
       neededBy: "2026-12-01",
-      rawText: "GOVERNING LAW. Governed by the laws of Georgia.",
-      pageCount: undefined,
-      extractionStrategy: undefined,
-      extractionWarnings: [],
+      rawText: "",
+      deferIngestion: true,
     });
     // Findings are the server's job, so the browser does not send any.
     expect(input).not.toHaveProperty("findings");
@@ -187,18 +185,19 @@ describe("KAN-40 validation and safe submission", () => {
     expect(fakeApi.submitAgreement).not.toHaveBeenCalled();
   });
 
-  it("keeps metadata after extraction failure and allows a retry", async () => {
+  it("preserves the saved submission when extraction fails and recovers with supplied text", async () => {
     const zone = await openIntake();
     fireEvent.drop(zone, { dataTransfer: { files: [txtFile()] } });
     await fillMetadata();
-    vi.mocked(extractText).mockRejectedValueOnce(new Error("No readable text. Supply a readable copy."));
+    vi.mocked(extractText).mockRejectedValueOnce(new Error("No readable text."));
     await userEvent.click(submitButton());
-    expect((await screen.findByRole("alert")).textContent).toContain("No readable text");
-    expect(fakeApi.submitAgreement).not.toHaveBeenCalled();
-    expect((screen.getByLabelText(/Vendor/) as HTMLInputElement).value).toBe("Northstar Data");
-    await userEvent.click(submitButton());
-    expect(await screen.findByRole("heading", { name: "My submissions" })).toBeTruthy();
+    expect(await screen.findByText("Text preparation failed")).toBeTruthy();
     expect(stored()).toHaveLength(1);
+    expect(stored()[0]?.vendor).toBe("Northstar Data");
+    await userEvent.type(screen.getByLabelText("Supplied agreement text"), "Governing law applies.");
+    await userEvent.click(screen.getByRole("button", { name: "Use supplied text" }));
+    expect(await screen.findByText("Text ready")).toBeTruthy();
+    expect(stored()[0]?.rawText).toBe("Governing law applies.");
   });
 
   it("does not report success or create a ghost record when the server refuses it", async () => {
@@ -221,18 +220,22 @@ describe("KAN-40 validation and safe submission", () => {
     expect(stored()).toHaveLength(1);
   });
 
-  it("prevents duplicate submissions while extraction is pending", async () => {
+  it("prevents duplicate submissions while the initial save is pending", async () => {
     const zone = await openIntake();
     fireEvent.drop(zone, { dataTransfer: { files: [txtFile()] } });
     await fillMetadata();
-    let resolve!: (value: { text: string; warnings: string[] }) => void;
-    vi.mocked(extractText).mockImplementationOnce(() => new Promise((done) => { resolve = done; }));
+    let resolve!: (value: Awaited<ReturnType<typeof fakeApi.submitAgreement>>) => void;
+    const save = fakeApi.submitAgreement.getMockImplementation()!;
+    fakeApi.submitAgreement.mockImplementationOnce(async (input) => {
+      const saved = await save(input);
+      return new Promise((done) => { resolve = () => done(saved); });
+    });
     fireEvent.submit(submitButton().closest("form")!);
     fireEvent.submit(screen.getByRole("button", { name: /submitting/i }).closest("form")!);
-    expect(extractText).toHaveBeenCalledTimes(1);
-    resolve({ text: "Governing law", warnings: [] });
+    await waitFor(() => expect(fakeApi.submitAgreement).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(resolve).toBeTypeOf("function"));
+    resolve(makeAgreement());
     expect(await screen.findByRole("heading", { name: "My submissions" })).toBeTruthy();
-    expect(fakeApi.submitAgreement).toHaveBeenCalledTimes(1);
     expect(stored()).toHaveLength(1);
   });
 
@@ -260,62 +263,41 @@ describe("KAN-40 validation and safe submission", () => {
   });
 });
 
-describe("concurrent submission and review", () => {
-  /**
-   * Extraction is asynchronous, but the sidebar stays live while it runs: the
-   * disabled fieldset covers the form, not the navigation. A reviewer can
-   * therefore record a decision on another agreement mid-parse, and the new
-   * submission must join the list without losing what was shown for it.
-   */
-  it("keeps a decision recorded while extraction is still in flight", async () => {
+describe("background preparation", () => {
+  it("does not navigate away from a review or erase a decision when extraction finishes", async () => {
     const existing = makeAgreement();
-    existing.findings[0]!.note = "Reviewed against the playbook.";
+    existing.findings[0]!.note = "Reviewed against the source.";
     seed(existing);
     const zone = await openIntake();
     fireEvent.drop(zone, { dataTransfer: { files: [txtFile("new-contract.txt")] } });
     await fillMetadata();
-
     let resolve!: (value: { text: string; warnings: string[] }) => void;
     vi.mocked(extractText).mockImplementationOnce(() => new Promise((done) => { resolve = done; }));
-    fireEvent.submit(submitButton().closest("form")!);
-
+    await userEvent.click(submitButton());
+    expect(await screen.findByText("Text preparation pending")).toBeTruthy();
     const nav = screen.getByRole("navigation", { name: /primary navigation/i });
     await userEvent.click(within(nav).getByRole("button", { name: /review queue/i }));
+    await userEvent.click(screen.getByRole("button", { name: /Pre-existing MSA.pdf/ }));
     await userEvent.click(await screen.findByRole("button", { name: "Accept" }));
-    expect(fakeApi.decideFinding).toHaveBeenCalledWith(existing.findings[0]!.id, { decision: "accepted", note: "Reviewed against the playbook." });
-
-    resolve({ text: "GOVERNING LAW. Governed by the laws of Georgia.", warnings: [] });
-    expect(await screen.findByRole("heading", { name: "My submissions" })).toBeTruthy();
-
-    const saved = stored();
-    expect(saved).toHaveLength(2);
-    const reviewed = saved.find((item) => item.id === existing.id)!;
-    expect(reviewed.findings[0]!.decision).toBe("accepted");
-    expect(reviewed.status).toBe("in_review");
-    // My submissions lists only the new one: the reviewed agreement was someone else's.
-    expect(screen.getByRole("heading", { name: "new-contract.txt" })).toBeTruthy();
-    expect(screen.queryByRole("heading", { name: existing.name })).toBeNull();
+    resolve({ text: "Governing law applies.", warnings: [] });
+    await waitFor(() => expect(stored().find((a) => a.name === "new-contract.txt")?.ingestion?.state).toBe("ready"));
+    expect(stored().find((a) => a.id === existing.id)?.findings[0]?.decision).toBe("accepted");
+    expect(screen.getByRole("heading", { name: "Review queue" })).toBeTruthy();
   });
 
-  /**
-   * Sign out is in the sidebar, so it is reachable mid-extraction too, and it
-   * unmounts App while the submission is still awaiting its text. The
-   * abandoned submission must not be sent once the person has signed out.
-   */
-  it("discards a submission abandoned by signing out mid-extraction", async () => {
+  it("preserves the pending record and stops later writes after sign-out", async () => {
     const zone = await openIntake();
     fireEvent.drop(zone, { dataTransfer: { files: [txtFile("abandoned.txt")] } });
     await fillMetadata();
-
     let resolve!: (value: { text: string; warnings: string[] }) => void;
     vi.mocked(extractText).mockImplementationOnce(() => new Promise((done) => { resolve = done; }));
-    fireEvent.submit(submitButton().closest("form")!);
-
+    await userEvent.click(submitButton());
+    expect(await screen.findByText("Text preparation pending")).toBeTruthy();
     cleanup();
-    resolve({ text: "GOVERNING LAW. Governed by the laws of Georgia.", warnings: [] });
+    resolve({ text: "Governing law applies.", warnings: [] });
     await new Promise((done) => setTimeout(done, 0));
-
-    expect(fakeApi.submitAgreement).not.toHaveBeenCalled();
-    expect(stored()).toEqual([]);
+    expect(fakeApi.submitAgreement).toHaveBeenCalledTimes(1);
+    expect(fakeApi.processIngestion).not.toHaveBeenCalled();
+    expect(stored()[0]?.ingestion?.state).toBe("pending");
   });
 });

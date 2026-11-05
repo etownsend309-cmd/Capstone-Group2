@@ -629,3 +629,107 @@ describe("account administration", () => {
     expect(body.error).toMatch(/deactivated/);
   });
 });
+
+describe("KAN-53 persistent ingestion", () => {
+  async function pendingAgreement() {
+    const result = await callJson<AgreementDetail>("/api/agreements", {
+      as: "requester", method: "POST", body: { ...newAgreement, rawText: "", deferIngestion: true },
+    });
+    expect(result.status).toBe(201);
+    expect(result.body.ingestion).toMatchObject({ version: 1, state: "pending", segmentCount: 0 });
+    expect(result.body.findings).toEqual([]);
+    return result.body.id;
+  }
+  const prepare = (id: string, body: unknown, as: Person = "requester") => callJson<import("../../src/shared/ingestion.ts").IngestionRecord>(
+    `/api/agreements/${id}/ingestion`, { as, method: "POST", body },
+  );
+  const source = { version: 1, text: "1. Governing Law\nGeorgia law applies.\n\n2. Audit Rights\nCustomer may audit records.", source: "supplied" };
+
+  it("saves first, prepares exact ordered segments separately and persists across requests", async () => {
+    const id = await pendingAgreement();
+    const ready = await prepare(id, source);
+    expect(ready.status).toBe(200);
+    expect(ready.body.state).toBe("ready");
+    expect(ready.body.segments.length).toBeGreaterThan(1);
+    for (const s of ready.body.segments) expect(source.text.slice(s.startOffset, s.endOffset)).toBe(s.text);
+    const fetched = await callJson<AgreementDetail>(`/api/agreements/${id}`, { as: "reviewer" });
+    expect(fetched.body.rawText).toBe(source.text);
+    expect(fetched.body.ingestion?.state).toBe("ready");
+    const list = await callJson<AgreementSummary[]>("/api/agreements", { as: "requester" });
+    expect(list.body.find((a) => a.id === id)?.ingestion?.segmentCount).toBe(ready.body.segments.length);
+    expect((await callJson(`/api/agreements/${id}/ingestion`, { as: "requester" })).body).toEqual(ready.body);
+  });
+
+  it("reruns without duplicate segments or audit events, including concurrent requests", async () => {
+    const id = await pendingAgreement();
+    const [first, second] = await Promise.all([prepare(id, source), prepare(id, source)]);
+    expect(first.status).toBe(200); expect(second.body).toEqual(first.body);
+    const count = await pool.query("SELECT count(*)::int AS count FROM audit_events WHERE agreement_id = $1 AND action = 'ingestion.ready'", [id]);
+    expect(count.rows[0].count).toBe(1);
+  });
+
+  it("retains the agreement on extraction failure and recovers with supplied text", async () => {
+    const id = await pendingAgreement();
+    const failed = await prepare(id, { version: 1, failed: true });
+    expect(failed.body).toMatchObject({ state: "failed", segments: [], text: "" });
+    expect(failed.body.error).toMatch(/retry|supply/i);
+    expect((await callJson<AgreementDetail>(`/api/agreements/${id}`, { as: "requester" })).status).toBe(200);
+    expect((await prepare(id, source)).body.state).toBe("ready");
+  });
+
+  it("makes invalid page alignment a recoverable failure rather than a false ready state", async () => {
+    const id = await pendingAgreement();
+    const failed = await prepare(id, { version: 1, source: "extracted", text: "ABCDE", pageCount: 1, pages: [{ pageNumber: 1, startOffset: 1, endOffset: 5 }] });
+    expect(failed.body.state).toBe("failed");
+    expect((await prepare(id, source)).body.state).toBe("ready");
+  });
+
+  it("retains PDF page locations and rejects fabricated pages for supplied text", async () => {
+    const id = await pendingAgreement();
+    const text = "Page one\n\nPage two";
+    const pages = [{ pageNumber: 1, startOffset: 0, endOffset: 8 }, { pageNumber: 2, startOffset: 10, endOffset: 18 }];
+    expect((await prepare(id, { version: 1, source: "supplied", text, pages, pageCount: 2 })).status).toBe(400);
+    const ready = await prepare(id, { version: 1, source: "extracted", text, pages, pageCount: 2 });
+    expect(ready.body.segments.map((s) => s.pageStart)).toEqual([1, 2]);
+  });
+
+  it("prevents cross-user reading and writes and requires authentication", async () => {
+    const id = await pendingAgreement();
+    expect((await callJson(`/api/agreements/${id}/ingestion`, { as: "stranger" })).status).toBe(404);
+    expect((await prepare(id, source, "stranger")).status).toBe(404);
+    expect((await callJson(`/api/agreements/${id}/ingestion`)).status).toBe(401);
+    expect((await prepare(id, source, "reviewer")).body.state).toBe("ready");
+  });
+
+  it("refuses to replace ready source, rejects stale versions, and preserves reviewed evidence", async () => {
+    const id = await pendingAgreement();
+    await prepare(id, source);
+    expect((await prepare(id, { ...source, version: 2 })).status).not.toBe(200);
+    expect((await prepare(id, { ...source, text: "Different evidence" })).status).toBe(409);
+    const flag = await callJson<AgreementDetail>(`/api/agreements/${id}/findings`, { as: "reviewer", method: "POST", body: {
+      category: "Governing Law", findingType: "provision", severity: "low", reason: "Confirmed text", sourceText: "Georgia law applies.", playbookExpectation: "",
+    } });
+    expect(flag.status).toBe(201);
+    expect((await prepare(id, source, "reviewer")).status).toBe(200);
+    const preserved = await callJson<AgreementDetail>(`/api/agreements/${id}`, { as: "reviewer" });
+    expect(preserved.body.findings[0]?.sourceText).toBe("Georgia law applies.");
+    expect(preserved.body.rawText).toBe(source.text);
+  });
+
+  it("blocks completion while preparation is pending or failed", async () => {
+    const id = await pendingAgreement();
+    expect((await callJson(`/api/agreements/${id}/complete`, { as: "approver", method: "POST" })).status).toBe(409);
+    expect((await callJson(`/api/agreements/${id}/findings`, { as: "reviewer", method: "POST", body: {
+      category: "Governing Law", findingType: "gap", severity: "low", reason: "Not checked yet", sourceText: "", playbookExpectation: "Law clause expected",
+    } })).status).toBe(409);
+    await prepare(id, { version: 1, failed: true });
+    expect((await callJson(`/api/agreements/${id}/complete`, { as: "approver", method: "POST" })).status).toBe(409);
+  });
+
+  it("enforces ready-source immutability in the database", async () => {
+    const id = await pendingAgreement(); await prepare(id, source);
+    await expect(createDatabase(pool as unknown as ConnectionPool).withUser(SEEDED.requesterUser, (db) => db.query(
+      "UPDATE agreement_ingestions SET source_text = 'replacement' WHERE agreement_id = $1", [id],
+    ))).rejects.toMatchObject({ code: "42501" });
+  });
+});
