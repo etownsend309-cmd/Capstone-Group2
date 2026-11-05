@@ -115,6 +115,7 @@ export function makeRuleFinding(overrides: Partial<FindingRecord> = {}): Finding
     decision: "pending",
     note: "",
     method: "local_rule",
+    confidenceIndicator: null,
     decidedAt: null,
     findingType: null,
     classification: null,
@@ -149,6 +150,8 @@ export function makeAgreement(overrides: Partial<AgreementDetail> = {}): Agreeme
     extractionStrategy: null,
     extractionWarnings: [],
     approvedBy: null,
+    classificationStatus: null,
+    classificationRejections: [],
     documents: [],
     // Keep this focused unit fixture to clauses the text actually matches.
     // Full 12-category output is covered by analyzer, API integration and browser tests.
@@ -220,6 +223,7 @@ export const fakeApi = {
     store.set(detail.id, detail);
     return copy(detail);
   }),
+  retryClassification: vi.fn(async (id: string): Promise<AgreementDetail> => copy(find(id))),
   completeReview: vi.fn(async (id: string): Promise<AgreementDetail> => {
     const detail = find(id);
     assertOpen(detail);

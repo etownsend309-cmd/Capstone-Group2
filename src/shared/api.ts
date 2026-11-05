@@ -7,6 +7,7 @@
  * the label maps at the bottom.
  */
 
+import type { ClassificationStatus, ConfidenceIndicator, FindingRejection } from "./classifier";
 import type { AgreementStatus, Role } from "../types";
 
 export const APP_ROLES = ["requester", "reviewer", "administrator"] as const;
@@ -21,7 +22,7 @@ export type AgreementStatusCode = (typeof AGREEMENT_STATUSES)[number];
 export const FINDING_DECISIONS = ["pending", "accepted", "dismissed", "escalated"] as const;
 export type FindingDecisionCode = (typeof FINDING_DECISIONS)[number];
 
-export type FindingMethodCode = "local_rule" | "manual";
+export type FindingMethodCode = "local_rule" | "manual" | "ai";
 
 export const FINDING_TYPES = ["provision", "gap"] as const;
 export type FindingTypeCode = (typeof FINDING_TYPES)[number];
@@ -88,6 +89,8 @@ export interface FindingRecord {
   decision: FindingDecisionCode;
   note: string;
   method: FindingMethodCode;
+  /** Present for AI findings. Low, medium, and high are the model's own assessment, not a calibrated probability. */
+  confidenceIndicator: ConfidenceIndicator | null;
   decidedAt: string | null;
   /** Provision or gap semantics for both rule findings and manual flags. */
   findingType: FindingTypeCode | null;
@@ -120,6 +123,10 @@ export interface AgreementDetail extends AgreementSummary {
   approvedBy: string | null;
   findings: FindingRecord[];
   documents: DocumentRecord[];
+  /** Null on agreements saved before classification was stored. */
+  classificationStatus: Exclude<ClassificationStatus, "not_started" | "classifying"> | null;
+  /** Rejections from the latest classification run. Empty when the run accepted every quote. */
+  classificationRejections: FindingRejection[];
 }
 
 export interface NewAgreementInput {

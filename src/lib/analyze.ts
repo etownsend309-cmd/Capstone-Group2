@@ -1,7 +1,8 @@
+import type { ApprovedCategory } from "../shared/classifier";
 import type { Finding, FindingSeverity } from "../types";
 
 export interface PlaybookCategory {
-  name: string;
+  name: ApprovedCategory;
   patterns: RegExp[];
   confidence: number;
 
@@ -150,6 +151,7 @@ export function analyzeAgreement(
             decision: "pending" as const,
             note: "",
             method: "Local rule" as const,
+            confidenceBasis: "prototype-rule" as const,
             findingType: "Provision" as const,
             classification,
             severity: category.severity,
@@ -173,6 +175,7 @@ export function analyzeAgreement(
           decision: "pending" as const,
           note: "",
           method: "Local rule" as const,
+          confidenceBasis: "prototype-rule" as const,
           findingType: "Provision" as const,
           classification: "uncertain" as const,
           severity: category.severity,
@@ -190,6 +193,7 @@ export function analyzeAgreement(
       decision: "pending" as const,
       note: "",
       method: "Local rule" as const,
+      confidenceBasis: "prototype-rule" as const,
       findingType: "Gap" as const,
       classification: "gap" as const,
       severity: category.severity,
@@ -197,4 +201,13 @@ export function analyzeAgreement(
       playbookExpectation: category.expectation,
     }];
   });
+}
+
+/** Keep validated AI/manual findings and fill only uncovered categories with transparent local-rule results. */
+export function supplementWithLocalAnalysis(text: string, findings: Finding[]): Finding[] {
+  const represented = new Set(findings.map((finding) => finding.category));
+  return [
+    ...findings,
+    ...analyzeAgreement(text).filter((finding) => !represented.has(finding.category)),
+  ];
 }
