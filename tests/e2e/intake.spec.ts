@@ -38,6 +38,7 @@ test("valid PDF submission is saved through the API and survives reload", async 
   await expect(page.getByRole("heading", { name: "clean-agreement.pdf" })).toBeVisible();
   for (const [, value] of fields) await expect(page.locator(".tracker-record")).toContainText(value);
   await expect(page.locator(".tracker-record")).toContainText("Needs review");
+  await expect(page.getByText("Text ready", { exact: true })).toBeVisible();
   const [saved] = server.agreements();
   expect(saved).toMatchObject({ name: "clean-agreement.pdf", vendor: "Northstar Data", neededBy: "2026-12-01", status: "needs_review" });
   expect(saved!.rawText.length).toBeGreaterThan(0);
@@ -97,16 +98,17 @@ test("upload and submission work using the keyboard", async ({ page }) => {
   await expect(page.getByRole("status")).toContainText("submitted successfully");
 });
 
-test("unreadable PDF gives a failure result without a record", async ({ page, server }) => {
+test("unreadable PDF retains a recoverable submission", async ({ page, server }) => {
   await openIntake(page);
   await page.getByLabel("Agreement document", { exact: true }).setInputFiles(fixture("scanned-agreement.pdf"));
   await fillMetadata(page);
   await page.getByRole("button", { name: /Create review/ }).click();
-  await expect(page.getByRole("alert")).toContainText(/scanned|image-only/i);
-  await expect(page.getByLabel("Vendor")).toHaveValue("Northstar Data");
-  // The status region stays mounted so it can be announced; it must be empty.
-  await expect(page.getByRole("status")).toHaveText("");
-  expect(server.agreements()).toEqual([]);
+  await expect(page.getByText("Text preparation failed", { exact: true })).toBeVisible();
+  expect(server.agreements()).toHaveLength(1);
+  await page.getByLabel("Supplied agreement text").fill("Governing law applies.");
+  await page.getByRole("button", { name: "Use supplied text" }).click();
+  await expect(page.getByText("Text ready", { exact: true })).toBeVisible();
+  expect(server.agreements()[0]?.rawText).toBe("Governing law applies.");
 });
 
 test("a server failure never reports success", async ({ page, server }) => {
