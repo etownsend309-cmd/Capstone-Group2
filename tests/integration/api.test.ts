@@ -472,12 +472,12 @@ describe("manual flags", () => {
     expect(edit.status).toBe(403);
   });
 
-  it("shows the requester the history but not reviewers' names", async () => {
+  it("withholds internal history and notes from the requester", async () => {
     await addFlag(provisionFlag);
     const { body } = await callJson<AgreementDetail>(`/api/agreements/${SEEDED.newAgreement}`, { as: "requester" });
     const flag = manual(body)[0]!;
-    expect(flag.history).toHaveLength(1);
-    expect(flag.history[0]!.actor).toBeNull();
+    expect(flag.history).toHaveLength(0);
+    expect(flag.note).toBe("");
     expect(flag.createdBy).toBeNull();
   });
 
@@ -732,4 +732,19 @@ describe("KAN-53 persistent ingestion", () => {
       "UPDATE agreement_ingestions SET source_text = 'replacement' WHERE agreement_id = $1", [id],
     ))).rejects.toMatchObject({ code: "42501" });
   });
+});
+
+it("protects current reviewer notes and audit snapshots in direct requester responses", async () => {
+  const initial = await callJson<AgreementDetail>(`/api/agreements/${SEEDED.newAgreement}`, { as: "reviewer" });
+  const finding = initial.body.findings[0]!;
+  const secret = "Internal assessment: procurement escalation only.";
+  const saved = await callJson<AgreementDetail>(`/api/findings/${finding.id}`, { as: "reviewer", method: "PATCH", body: { decision: "accepted", note: secret } });
+  expect(saved.status).toBe(200);
+  expect(saved.body.findings.find((item) => item.id === finding.id)?.note).toBe(secret);
+  const requester = await callJson<AgreementDetail>(`/api/agreements/${SEEDED.newAgreement}`, { as: "requester" });
+  expect(requester.status).toBe(200);
+  expect(requester.body.findings.every((item) => item.note === "" && item.history.length === 0)).toBe(true);
+  expect(JSON.stringify(requester.body)).not.toContain(secret);
+  const reviewer = await callJson<AgreementDetail>(`/api/agreements/${SEEDED.newAgreement}`, { as: "reviewer" });
+  expect(reviewer.body.findings.find((item) => item.id === finding.id)?.history.at(-1)?.after.note).toBe(secret);
 });

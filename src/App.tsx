@@ -1,3 +1,4 @@
+import { SourceWorkspace } from "./components/SourceWorkspace";
 import { IngestionPanel } from "./components/IngestionPanel";
 import { ingestDocument } from "./lib/ingestDocument";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -644,17 +645,7 @@ function ReviewQueue({
                   <strong>Extraction notes:</strong> {shown.extractionWarnings.join(" ")}
                 </div>
               )}
-              {!!shown.documents.length && (
-                <p className="document-links">
-                  Original file:{" "}
-                  {shown.documents.map((document, index) => (
-                    <span key={document.id}>
-                      {index > 0 && ", "}
-                      <a href={api.documentUrl(document.id)} download={document.fileName}>{document.fileName}</a>
-                    </span>
-                  ))}
-                </p>
-              )}
+              <SourceWorkspace key={shown.id} agreement={shown} finding={form.kind === "closed" ? activeFinding : undefined} />
               {role !== "Requester" && ownAgreement && !locked && (
                 <div className="permission-banner">
                   You cannot review your own agreement. Switch to a different reviewer or ask another reviewer to decide this flag.
@@ -729,8 +720,8 @@ function ReviewQueue({
                           Edit manual flag
                         </button>
                       )}
-                      <label className="notes-field"><span>Reviewer note</span><textarea value={noteFor(activeFinding)} disabled={!canReview} onChange={(event) => { setDecisionError(""); setDrafts((current) => ({ ...current, [activeFinding.id]: event.target.value })); }} onBlur={() => void saveNote()} placeholder="Record why you accepted, dismissed, or escalated this finding…" /></label>
-                      {!!activeFinding.history.length && <FindingHistory history={activeFinding.history} />}
+                      {role !== "Requester" && <label className="notes-field"><span>Reviewer note</span><textarea value={noteFor(activeFinding)} disabled={!canReview} onChange={(event) => { setDecisionError(""); setDrafts((current) => ({ ...current, [activeFinding.id]: event.target.value })); }} onBlur={() => void saveNote()} placeholder="Record why you accepted, dismissed, or escalated this finding…" /></label>}
+                      {role !== "Requester" && !!activeFinding.history.length && <FindingHistory history={activeFinding.history} />}
                       {canReview && (
                         <>
                           <div className="decision-actions">

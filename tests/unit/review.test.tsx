@@ -148,12 +148,15 @@ describe("review queue", () => {
   });
 
   it("gives the Requester view no review controls", async () => {
-    seed(makeAgreement());
+    const agreement = makeAgreement();
+    for (const finding of agreement.findings) finding.note = "Private reviewer assessment";
+    seed(agreement);
     await openQueue(["Requester"]);
 
     expect(await screen.findByText(/Supporting source text/)).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Accept" })).toBeNull();
-    expect((screen.getByLabelText("Reviewer note") as HTMLTextAreaElement).disabled).toBe(true);
+    expect(screen.queryByLabelText("Reviewer note")).toBeNull();
+    expect(screen.queryByText("Private reviewer assessment")).toBeNull();
   });
 
   it("links to the stored original file", async () => {
