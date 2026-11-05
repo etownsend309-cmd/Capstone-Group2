@@ -1,127 +1,61 @@
-import { playbook } from "./analyze";
-import type {
-    Finding,
-    FindingAuditSnapshot,
-    FindingType,
-    FindingSeverity,
-} from "../types";
+/**
+ * Rules for manual flags, shared by the review screen (for early feedback)
+ * and the API (which enforces them). Creating a flag, editing it and keeping
+ * its history now happen on the server; see server/services/agreements.ts.
+ */
 
-export interface ManualFindingInput {
-    category: string;
-    findingType: FindingType;
-    severity: FindingSeverity;
-    reason: string;
-    sourceText: string;
-    playbookExpectation: string;
-    creator: string;
-}
+import { FINDING_SEVERITIES, FINDING_TYPES, type ManualFindingInput } from "../shared/api";
+import { playbook } from "./analyze";
 
 export type ManualFindingField = keyof ManualFindingInput;
+export type ManualFindingErrors = Partial<Record<ManualFindingField, string>>;
 
-export function validateManualFinding(
-    input: ManualFindingInput,
-    agreementText: string,
-): Partial<Record<ManualFindingField, string>> {
-    const errors: Partial<Record<ManualFindingField, string>> = {};
-    if (!playbook.some((category) => category.name === input.category)) {
-        errors.category = "Choose a playbook category.";
-    }
-    if (!(["Provision", "Gap"] as string[]).includes(input.findingType)) {
-        errors.findingType = "Choose a finding type.";
-    }
+/** Checks a manual flag against the agreement it belongs to. An empty result means it is valid. */
+export function validateManualFinding(input: ManualFindingInput, agreementText: string): ManualFindingErrors {
+  const errors: ManualFindingErrors = {};
+  if (!playbook.some((category) => category.name === input.category)) {
+    errors.category = "Choose a playbook category.";
+  }
+  if (!FINDING_TYPES.includes(input.findingType)) {
+    errors.findingType = "Choose a finding type.";
+  }
+  if (!FINDING_SEVERITIES.includes(input.severity)) {
+    errors.severity = "Choose a severity.";
+  }
+  if (typeof input.reason !== "string" || !input.reason.trim()) {
+    errors.reason = "Enter a reason.";
+  }
 
-    if (!(["Low", "Medium", "High", "Critical"] as string[]).includes(input.severity)) {
-        errors.severity = "Choose a severity.";
+  const sourceText = typeof input.sourceText === "string" ? input.sourceText : "";
+  const expectation = typeof input.playbookExpectation === "string" ? input.playbookExpectation : "";
+  if (input.findingType === "provision") {
+    if (!sourceText.trim()) {
+      errors.sourceText = "Enter exact supporting text from the agreement.";
+    } else if (!agreementText.includes(sourceText)) {
+      errors.sourceText = "Supporting text must match text in the agreement exactly.";
     }
-    if (!input.reason.trim()) {
-        errors.reason = "Enter a reason.";
+    if (expectation.trim()) {
+      errors.playbookExpectation = "Provision findings do not use a gap expectation.";
     }
-
-    if (!input.creator.trim()) {
-        errors.creator = "A creator is required.";
+  } else if (input.findingType === "gap") {
+    if (!expectation.trim()) {
+      errors.playbookExpectation = "Reference the applicable playbook expectation.";
     }
-
-if (input.findingType === "Provision") {
-    if (!input.sourceText.trim()) {
-        errors.sourceText = "Enter exact supporting text from the agreement.";
-    } else if (!agreementText.includes(input.sourceText)) {
-        errors.sourceText = "Supporting text must match text in the agreement exactly.";
+    if (sourceText.trim()) {
+      errors.sourceText = "Gap findings cannot include invented contract text.";
     }
-    if (input.playbookExpectation.trim()) {
-        errors.playbookExpectation = "Provision findings do not use a gap expectation.";
-    }
-} else if (input.findingType === "Gap") {
-    if (!input.playbookExpectation.trim()) {
-        errors.playbookExpectation = "Reference the applicable playbook expectation.";
-    }
-    if (input.sourceText.trim()) {
-        errors.sourceText = "Gap findings cannot include invented contract text.";
-    }
-}
-    return errors;
+  }
+  return errors;
 }
 
-export function findingSnapshot(finding: Finding): FindingAuditSnapshot {
-    return {
-        category: finding.category,
-        findingType: finding.findingType,
-        classification: finding.classification,
-        severity: finding.severity,
-        reason: finding.reason,
-        note: finding.note,
-        sourceText: finding.sourceText,
-        playbookExpectation: finding.playbookExpectation,
-        decision: finding.decision,
-    };
-}
-
-export function createManualFinding(input: ManualFindingInput): Finding {
-    const finding: Finding = {
-        id: crypto.randomUUID(),
-        category: input.category,
-        confidenceBasis: "manual",
-        sourceText: input.findingType === "Provision" ? input.sourceText : "",
-        decision: "pending",
-        note: input.reason,
-        method: "Manual",
-        findingType: input.findingType,
-        severity: input.severity,
-        reason: input.reason,
-        creator: input.creator,
-        playbookExpectation: input.findingType === "Gap" ? input.playbookExpectation : "",
-    };
-    finding.history = [{
-        action: "created",
-        actor: input.creator,
-        at: new Date().toISOString(),
-        after: findingSnapshot(finding),
-    }];
-    return finding;
-}
-
-export function auditFindingUpdate(
-    current: Finding,
-    patch: Partial<Finding>,
-    actor: string,
-): Finding {
-    const updated = { ...current, ...patch };
-    const before = findingSnapshot(current);
-    const after = findingSnapshot(updated);
-    if (JSON.stringify(before) === JSON.stringify(after)) {
-        return current;
-    }
-
-    return {
-        ...updated,
-        history: [
-            ...(current.history ?? []),
-            {
-                action: patch.decision && patch.decision !== current.decision ? "decision" : "edited",
-                actor,
-                at: new Date().toISOString(),
-                before,
-                after,
-            },
-        ],
-    };
+/** The input with only the fields its type uses, and the reason trimmed. */
+export function normalizeManualFinding(input: ManualFindingInput): ManualFindingInput {
+  return {
+    category: input.category,
+    findingType: input.findingType,
+    severity: input.severity,
+    reason: input.reason.trim(),
+    sourceText: input.findingType === "provision" ? input.sourceText : "",
+    playbookExpectation: input.findingType === "gap" ? input.playbookExpectation.trim() : "",
+  };
 }

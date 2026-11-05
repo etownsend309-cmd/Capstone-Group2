@@ -14,6 +14,7 @@ export default defineConfig(
     "blob-report/**",
     "fixtures/**",
     "artifacts/**",
+    ".netlify/**",
   ]),
   {
     files: ["**/*.{js,mjs,ts,tsx}"],

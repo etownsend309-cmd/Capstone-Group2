@@ -94,6 +94,10 @@ export function validateSourceQuotes(
     }
 
     const sourceStart = candidates[0];
+    if (sourceStart === undefined) {
+      rejections.push({ category, reason: "unmatched_quote" });
+      continue;
+    }
     const sourceEnd = sourceStart + finding.quote.length;
     if (documentText.slice(sourceStart, sourceEnd) !== finding.quote) {
       rejections.push({ category, reason: "unmatched_quote" });

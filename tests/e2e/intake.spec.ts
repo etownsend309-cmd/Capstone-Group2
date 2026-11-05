@@ -11,6 +11,9 @@ const fields = [
   ["Business unit", "Shared services", "Enter a business unit."],
   ["Needed-by date", "2026-12-01", "Enter a needed-by date."],
 ] as const;
+/** Text that triggers several playbook rules, for agreements seeded as someone else's. */
+const demoText =
+  "GOVERNING LAW. This Agreement is governed by the laws of the State of Georgia. Vendor may not assign this Agreement without prior written consent. Customer may terminate this Agreement for any reason upon thirty days' written notice.";
 const fixture = (name: string) => path.resolve("fixtures/generated", name);
 async function openIntake(page: Page) {
   await page.goto("/");
@@ -25,7 +28,7 @@ async function fillMetadata(page: Page, except?: string) {
   for (const [label, value] of fields) if (label !== except) await page.getByLabel(label).fill(value);
 }
 
-test("valid PDF submission appears in the requester tracker and survives reload", async ({ page }) => {
+test("valid PDF submission is saved through the API and survives reload", async ({ page, server }) => {
   await openIntake(page);
   await page.getByLabel("Agreement document", { exact: true }).setInputFiles(fixture("clean-agreement.pdf"));
   await fillMetadata(page);
@@ -35,6 +38,10 @@ test("valid PDF submission appears in the requester tracker and survives reload"
   await expect(page.getByRole("heading", { name: "clean-agreement.pdf" })).toBeVisible();
   for (const [, value] of fields) await expect(page.locator(".tracker-record")).toContainText(value);
   await expect(page.locator(".tracker-record")).toContainText("Needs review");
+  const [saved] = server.agreements();
+  expect(saved).toMatchObject({ name: "clean-agreement.pdf", vendor: "Northstar Data", neededBy: "2026-12-01", status: "needs_review" });
+  expect(saved!.rawText.length).toBeGreaterThan(0);
+  expect(saved!.documents.map((d) => d.fileName)).toEqual(["clean-agreement.pdf"]);
   await page.reload();
   await page.getByRole("button", { name: "My submissions" }).click();
   await expect(page.getByRole("heading", { name: "clean-agreement.pdf" })).toBeVisible();
@@ -85,7 +92,7 @@ test("validated AI findings flow from intake into human review", async ({ page }
 });
 
 for (const [label, , message] of fields) {
-  test(`required ${label} has accessible validation`, async ({ page }) => {
+  test(`required ${label} has accessible validation`, async ({ page, server }) => {
     await openIntake(page);
     await page.getByLabel("Agreement document", { exact: true }).setInputFiles(fixture("clean-agreement.pdf"));
     await fillMetadata(page, label);
@@ -94,7 +101,7 @@ for (const [label, , message] of fields) {
     await expect(page.getByLabel(label)).toHaveAccessibleDescription(message);
     await expect(page.getByLabel(label)).toBeFocused();
     await expect(page.getByRole("alert")).toContainText("Submission not completed");
-    expect(await page.evaluate(() => JSON.parse(localStorage.getItem("clausepilot-agreements-v1") ?? "[]"))).toEqual([]);
+    expect(server.agreements()).toEqual([]);
   });
 }
 
@@ -134,7 +141,7 @@ test("upload and submission work using the keyboard", async ({ page }) => {
   await expect(page.getByRole("status")).toContainText("submitted successfully");
 });
 
-test("unreadable PDF gives a failure result without a record", async ({ page }) => {
+test("unreadable PDF gives a failure result without a record", async ({ page, server }) => {
   await openIntake(page);
   await page.getByLabel("Agreement document", { exact: true }).setInputFiles(fixture("scanned-agreement.pdf"));
   await fillMetadata(page);
@@ -143,17 +150,59 @@ test("unreadable PDF gives a failure result without a record", async ({ page }) 
   await expect(page.getByLabel("Vendor")).toHaveValue("Northstar Data");
   // The status region stays mounted so it can be announced; it must be empty.
   await expect(page.getByRole("status")).toHaveText("");
-  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("clausepilot-agreements-v1") ?? "[]"))).toEqual([]);
+  expect(server.agreements()).toEqual([]);
 });
 
-test("browser storage failure never reports success", async ({ page }) => {
+test("a server failure never reports success", async ({ page, server }) => {
   await openIntake(page);
   await page.getByLabel("Agreement document", { exact: true }).setInputFiles(fixture("clean-agreement.pdf"));
   await fillMetadata(page);
-  await page.evaluate(() => { Storage.prototype.setItem = () => { throw new DOMException("Quota exceeded", "QuotaExceededError"); }; });
+  server.failNext("POST /api/agreements", 500, "Something went wrong on our side. Try again in a moment.");
   await page.getByRole("button", { name: /Create review/ }).click();
+  await expect(page.getByRole("alert")).toContainText("Something went wrong on our side");
   await expect(page.getByRole("alert")).toContainText("Your submission was not saved");
   await expect(page.getByRole("status")).toHaveText("");
   await page.getByRole("button", { name: "My submissions" }).click();
   await expect(page.getByRole("heading", { name: "No submissions yet" })).toBeVisible();
+});
+
+test("a reviewer can't review their own submission, but can review a colleague's", async ({ page, server }) => {
+  const colleagues = server.addAgreement({ name: "Harbor Logistics MSA", vendor: "Harbor Logistics", rawText: demoText });
+  await openIntake(page);
+  await page.getByRole("button", { name: "Load demo agreement" }).click();
+  await page.getByRole("button", { name: /Create review/ }).click();
+  await expect(page.getByRole("status")).toContainText("submitted successfully");
+
+  await page.getByLabel("Viewing as").selectOption("Reviewer");
+  await page.getByRole("button", { name: /Review queue/ }).click();
+  const detail = page.locator(".review-detail");
+  // Their own submission is newest, so it opens first, read-only.
+  await expect(detail.getByRole("link", { name: "Northstar MSA.txt" })).toBeVisible();
+  await expect(page.getByText("You cannot review your own agreement.", { exact: false })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Accept" })).toHaveCount(0);
+
+  await page.locator(".queue-list").getByRole("button", { name: /Harbor Logistics MSA/ }).click();
+  await expect(detail.getByRole("heading", { name: "Harbor Logistics MSA" })).toBeVisible();
+  const findings = colleagues.findings;
+  expect(findings.length).toBeGreaterThan(1);
+
+  await expect(page.getByRole("button", { name: "Escalate" })).toBeDisabled();
+  await page.getByLabel("Reviewer note").fill("Escalating for legal.");
+  await page.getByRole("button", { name: "Escalate" }).click();
+  for (let index = 1; index < findings.length; index++) {
+    await detail.locator(".finding-nav > button").nth(index).click();
+    await page.getByLabel("Reviewer note").fill("Standard wording.");
+    await page.getByRole("button", { name: "Accept" }).click();
+  }
+  await expect(page.getByText("0 findings still need a decision")).toBeVisible();
+  await page.getByRole("button", { name: "Complete review" }).click();
+
+  await expect(detail.locator(".document-heading .status")).toHaveText("Escalated");
+  const saved = server.agreements().find((a) => a.id === colleagues.id)!;
+  expect(saved.status).toBe("escalated");
+  expect(saved.findings[0]).toMatchObject({ decision: "escalated", note: "Escalating for legal." });
+  expect(saved.findings.slice(1).every((f) => f.decision === "accepted")).toBe(true);
+
+  await page.getByRole("button", { name: "Reports" }).click();
+  await expect(page.getByText("2 agreements visible to you")).toBeVisible();
 });

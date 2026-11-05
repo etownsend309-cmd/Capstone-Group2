@@ -33,12 +33,26 @@ async function loadView(): Promise<ComponentType> {
 
   await import("./styles.css");
   const { AuthGate } = await import("./components/AuthGate");
+  const { SessionGate } = await import("./components/SessionGate");
+  const { availableViews } = await import("./shared/api");
   const App = (await import("./App")).default;
 
+  // Netlify Identity signs the person in; the API then supplies their roles.
   return function GatedApp() {
     return (
       <AuthGate>
-        {(user, signOut) => <App user={user} onSignOut={signOut} />}
+        {(_user, signOut) => (
+          <SessionGate onSignOut={signOut}>
+            {(session) => (
+              <App
+                user={{ id: session.id, email: session.email }}
+                displayName={session.displayName}
+                views={availableViews(session)}
+                onSignOut={signOut}
+              />
+            )}
+          </SessionGate>
+        )}
       </AuthGate>
     );
   };

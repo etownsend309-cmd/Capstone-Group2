@@ -1,19 +1,18 @@
 import { useRef, useState } from "react";
 import { Icon } from "./Icon";
 import { demoAgreementText } from "../data";
-import {
-  classifyAgreement,
-  ClassifierRequestError,
-  toPendingAiFindings,
-} from "../lib/classifyAgreement";
-import { analyzeAgreement, supplementWithLocalAnalysis } from "../lib/analyze";
 import { extractText } from "../lib/extractText";
-import type { Agreement, Finding } from "../types";
+import { LIMITS, type NewAgreementInput } from "../shared/api";
 
 type RequiredField = "document" | "vendor" | "agreementType" | "businessUnit" | "neededBy";
 type Errors = Partial<Record<RequiredField, string>>;
 
-export function Intake({ onAdd, submittedBy }: { onAdd: (agreement: Agreement) => void; submittedBy: string }) {
+/**
+ * The submission form. Text is extracted here, in the browser; `onSubmit`
+ * sends the details and the original file to the server and rejects with a
+ * message for the person if the agreement was not saved.
+ */
+export function Intake({ onSubmit }: { onSubmit: (input: NewAgreementInput, file: File) => Promise<void> }) {
   const fileInput = useRef<HTMLInputElement>(null);
   const form = useRef<HTMLFormElement>(null);
   const inFlight = useRef(false);
@@ -50,6 +49,7 @@ export function Intake({ onAdd, submittedBy }: { onAdd: (agreement: Agreement) =
     if (inFlight.current) return;
     const next: Errors = {};
     if (!file) next.document = "Choose a PDF or text document.";
+    else if (file.size > LIMITS.documentBytes) next.document = "Choose a file of 25 MB or less.";
     if (!vendor.trim()) next.vendor = "Enter a vendor.";
     if (!agreementType.trim()) next.agreementType = "Enter an agreement type.";
     if (!businessUnit.trim()) next.businessUnit = "Enter a business unit.";
@@ -69,50 +69,12 @@ export function Intake({ onAdd, submittedBy }: { onAdd: (agreement: Agreement) =
     setIsLoading(true);
     try {
       const document = await extractText(file!);
-      const agreementId = crypto.randomUUID();
-      let classificationStatus: Agreement["classificationStatus"] = "manual_required";
-      let classificationRuns: Agreement["classificationRuns"] = [];
-      let classificationRejections: Agreement["classificationRejections"] = [];
-      let classificationRejectionHistory: Agreement["classificationRejectionHistory"] = [];
-      let findings: Finding[] = [];
-      try {
-        const classified = await classifyAgreement({
-          agreementId,
-          documentText: document.text,
-          extraction: {
-            strategy: document.strategy,
-            pageCount: document.pageCount,
-          },
-        });
-        classificationStatus = classified.status;
-        classificationRuns = [classified.run];
-        classificationRejections = classified.rejections;
-        classificationRejectionHistory = [{
-          runId: classified.run.id,
-          rejections: classified.rejections,
-        }];
-        findings = supplementWithLocalAnalysis(
-          document.text,
-          toPendingAiFindings(classified),
-        );
-      } catch (classificationError) {
-        if (
-          classificationError instanceof ClassifierRequestError &&
-          classificationError.run
-        ) {
-          classificationRuns = [classificationError.run];
-        }
-        findings = analyzeAgreement(document.text);
-      }
-      onAdd({
-        id: agreementId, name: title.trim() || file!.name,
+      await onSubmit({
+        name: title.trim() || file!.name,
         vendor: vendor.trim(), agreementType: agreementType.trim(), businessUnit: businessUnit.trim(), neededBy,
-        submittedAt: new Date().toISOString(), submittedBy, status: "Needs review",
         rawText: document.text, pageCount: document.pageCount,
         extractionStrategy: document.strategy, extractionWarnings: document.warnings,
-        findings, classificationStatus, classificationRuns, classificationRejections,
-        classificationRejectionHistory,
-      });
+      }, file!);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Submission failed. Your agreement was not saved. Try again.");
     } finally {
@@ -154,7 +116,7 @@ export function Intake({ onAdd, submittedBy }: { onAdd: (agreement: Agreement) =
           <div className="form-actions"><button type="button" className="secondary-button" onClick={loadDemo}>Load demo agreement</button><button type="submit" className="primary-button">{isLoading ? "Submitting…" : "Create review →"}</button></div>
         </fieldset>
       </form>
-      <aside className="intake-aside"><div className="aside-block"><div><strong>AI-assisted prototype</strong><p>Extracted text is sent through an authenticated Netlify Function to OpenAI for first-pass classification. Review records are saved in this browser.</p></div></div><div className="aside-block"><div><strong>Manual fallback</strong><p>If AI classification is unavailable or a source quote cannot be verified, the agreement is still created for manual review.</p></div></div></aside>
+      <aside className="intake-aside"><div className="aside-block"><div><strong>Saved to ClausePilot</strong><p>Text is extracted in your browser. The details, extracted text, and original file are stored in ClausePilot. The server classifies that text with OpenAI when it is configured, and keeps local-rule findings for anything the model does not return. Don't submit real confidential agreements.</p></div></div><div className="aside-block"><div><strong>Manual fallback</strong><p>If AI classification is unavailable or a source quote cannot be verified, the agreement is still saved for manual review.</p></div></div></aside>
     </div>
   </section>;
 }
