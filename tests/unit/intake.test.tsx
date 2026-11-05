@@ -174,7 +174,13 @@ describe("KAN-40 validation and safe submission", () => {
     await fillMetadata();
     await userEvent.click(submitButton());
     expect(screen.getByText("Choose a file of 25 MB or less.")).toBeTruthy();
+    const upload = screen.getByRole("button", { name: /Replace agreement document/ });
+    expect(upload.getAttribute("aria-invalid")).toBe("true");
+    expect(document.getElementById(upload.getAttribute("aria-describedby")!)?.textContent).toBe("Choose a file of 25 MB or less.");
+    expect(document.activeElement).toBe(upload);
     expect(extractText).not.toHaveBeenCalled();
+    expect(fakeApi.submitAgreement).not.toHaveBeenCalled();
+    expect(fakeApi.uploadDocument).not.toHaveBeenCalled();
   });
 
   it("rejects whitespace vendor values rather than saving a default", async () => {
@@ -194,6 +200,10 @@ describe("KAN-40 validation and safe submission", () => {
     vi.mocked(extractText).mockRejectedValueOnce(new Error("No readable text. Supply a readable copy."));
     await userEvent.click(submitButton());
     expect((await screen.findByRole("alert")).textContent).toContain("No readable text");
+    const upload = screen.getByRole("button", { name: /Replace agreement document/ });
+    expect(upload.getAttribute("aria-invalid")).toBe("true");
+    expect(document.getElementById(upload.getAttribute("aria-describedby")!)?.textContent).toBe("No readable text. Supply a readable copy.");
+    expect(document.activeElement).toBe(upload);
     expect(fakeApi.submitAgreement).not.toHaveBeenCalled();
     expect((screen.getByLabelText(/Vendor/) as HTMLInputElement).value).toBe("Northstar Data");
     await userEvent.click(submitButton());
@@ -208,6 +218,8 @@ describe("KAN-40 validation and safe submission", () => {
     fakeApi.submitAgreement.mockRejectedValueOnce(new ApiRequestError(500, "Something went wrong on our side. Try again in a moment."));
     await userEvent.click(submitButton());
     const alert = (await screen.findByRole("alert")).textContent;
+    // A backend save error must not label the document itself invalid.
+    expect(screen.getByRole("button", { name: /Replace agreement document/ }).getAttribute("aria-invalid")).toBe("false");
     expect(alert).toContain("Something went wrong on our side");
     expect(alert).toContain("Your submission was not saved");
     // The status region stays mounted so it can be announced; it must be empty.
