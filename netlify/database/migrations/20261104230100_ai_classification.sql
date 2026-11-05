@@ -1,8 +1,51 @@
 -- Store OpenAI classification beside the local-rule findings.
 --
+-- If an earlier attempt added the enum label and this migration is retried
+-- on its own, convert that column to text before "ai" is referenced.
+--
 -- A requester still cannot submit findings of their own. The server classifies
 -- the extracted text, keeps exact quotes, and fills categories the model did
 -- not return with the local rules. Human decisions are never replaced.
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+      FROM pg_type t
+      JOIN pg_namespace n ON n.oid = t.typnamespace
+     WHERE t.typname = 'finding_method' AND n.nspname = 'public'
+  ) THEN
+    DROP POLICY IF EXISTS findings_insert ON findings;
+    ALTER TABLE findings DROP CONSTRAINT IF EXISTS findings_method_fields;
+    ALTER TABLE findings DROP CONSTRAINT IF EXISTS findings_evidence;
+    ALTER TABLE findings ALTER COLUMN method TYPE text;
+    DROP TYPE finding_method;
+    ALTER TABLE findings
+      ADD CONSTRAINT findings_evidence CHECK (
+        CASE finding_type
+          WHEN 'gap' THEN source_text = '' AND btrim(playbook_expectation) <> ''
+          WHEN 'provision' THEN
+            btrim(source_text) <> ''
+            AND (method = 'local_rule' OR playbook_expectation = '')
+          ELSE FALSE
+        END
+      );
+    CREATE POLICY findings_insert ON findings FOR INSERT
+      WITH CHECK (
+        app.can_review()
+        OR (
+          app.is_own_new_agreement(agreement_id)
+          AND method = 'local_rule'
+          AND decision = 'pending'
+        )
+      );
+  END IF;
+END $$;
+
+ALTER TABLE findings DROP CONSTRAINT IF EXISTS findings_method_code;
+ALTER TABLE findings
+  ADD CONSTRAINT findings_method_code
+  CHECK (method IN ('local_rule', 'manual', 'ai'));
 
 CREATE TABLE classification_runs (
   id                    uuid PRIMARY KEY,
@@ -37,7 +80,7 @@ ALTER TABLE findings
   ADD COLUMN evidence_validation    text,
   ADD COLUMN classification_run_id  uuid REFERENCES classification_runs (id);
 
-ALTER TABLE findings DROP CONSTRAINT findings_method_fields;
+ALTER TABLE findings DROP CONSTRAINT IF EXISTS findings_method_fields;
 ALTER TABLE findings ADD CONSTRAINT findings_method_fields CHECK (
   CASE method
     WHEN 'local_rule' THEN

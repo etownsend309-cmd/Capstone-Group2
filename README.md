@@ -161,7 +161,7 @@ automatically on each deploy (production and deploy previews):
    provisions, with their note as the reason.
 6. `…_rule_finding_classification.sql`: present, deviation, uncertain, and gap
    results on rule findings.
-7. `…_ai_finding_method.sql`: adds the `ai` finding method.
+7. `…_ai_finding_method.sql`: stores finding method as text so `ai` can be added in the same deploy.
 8. `…_ai_classification.sql`: classification runs, quote offsets, and the
    model confidence indicator.
 
