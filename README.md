@@ -2,17 +2,21 @@
 
 Source code for MIST capstone project.
 
-The repository holds two things:
+The repository holds three things:
 
-1. **ClausePilot**, a local agreement review prototype. This is the default view.
+1. **ClausePilot**, an AI-assisted agreement review prototype. This is the default view.
 2. The **PDF text extraction harness** from Jira ticket KAN-402, kept as a
    separate view so its measurements stay reproducible.
+3. An authenticated Netlify Function that uses the OpenAI Responses API for
+   first-pass clause classification.
 
 The review screens and the extraction harness run in the browser. Behind them,
 a Netlify Function serves an API backed by Netlify Database (Postgres) and a
-private Netlify Blobs store, with Netlify Identity for sign-in. See
-[Backend: accounts, roles and data](#backend-accounts-roles-and-data). There is
-no Python.
+private Netlify Blobs store, with Netlify Identity for sign-in. On submission
+the server classifies the extracted text with the OpenAI Responses API when
+`OPENAI_MODEL` and a server-only key are configured. See
+[Backend: accounts, roles and data](#backend-accounts-roles-and-data). The
+Python PDF-engine comparison is isolated from the application runtime.
 
 ## ClausePilot: the agreement review prototype
 
@@ -20,8 +24,15 @@ A local, testable first-pass workflow for vendor agreements. It can:
 
 - accept text-based PDF and TXT agreements;
 - extract PDF text in the browser;
-- identify the team's **12 approved CUAD playbook categories** with local
-  deterministic rules;
+- identify the team's **12 approved CUAD playbook categories** through the
+  OpenAI Responses API, then fill any category the model did not return with
+  the local deterministic rules;
+- reject AI findings unless their supporting quote matches extracted text
+  exactly;
+- attach a non-calibrated model confidence indicator and supporting source
+  text to every AI finding;
+- identify the same categories with local deterministic rules when AI
+  classification is unavailable;
 - attach a confidence indicator and supporting source text to every finding;
 - let a reviewer accept, dismiss, or escalate each finding, with a reason;
 - let a reviewer add and edit manual flags: a **Provision** that cites exact
@@ -35,8 +46,10 @@ A local, testable first-pass workflow for vendor agreements. It can:
 - save every agreement, finding and decision through the API, so reviewers on
   any machine see the same records.
 
-No AI service is required. **This is a prototype: do not submit real
-confidential agreements.**
+If AI classification is unavailable, the agreement is still saved and covered
+by the local rules. **This prototype sends extracted agreement text to OpenAI
+and stores the agreement on the server, so do not submit real confidential
+agreements without organizational approval.**
 
 ### Where agreements are stored
 
@@ -49,8 +62,10 @@ about an agreement is kept in browser storage.
 | The original PDF or TXT file | The private Netlify Blobs store `agreement-documents` (`agreement-documents-<context>` outside production), with a row in `agreement_documents` |
 | Who did what | `audit_events` |
 
-Findings are produced on the server, by the same playbook rules the browser
-uses, so a submission cannot arrive with ready-made findings. The original file
+Findings are produced on the server. A submission cannot arrive with
+ready-made findings. When OpenAI is configured, accepted quotes are stored as
+AI findings and the local rules cover only the remaining categories. Otherwise
+every category comes from the local rules. The original file
 is uploaded straight after the record is created. If that upload fails, the
 agreement and its text are still saved and the confirmation says the file
 wasn't stored.
@@ -127,8 +142,10 @@ history.
   exactly in the agreement. Every change to a finding is written to
   `audit_events` with a before-and-after snapshot, which is where its history
   comes from.
-- **Server-side findings.** Submitting an agreement re-runs the playbook rules
-  on the server. Findings sent by the browser are ignored.
+- **Server-side findings.** Submitting an agreement classifies the extracted
+  text on the server. Findings sent by the browser are ignored. AI quotes must
+  match the stored text exactly. Categories the model does not return stay on
+  the local rules.
 
 ### Migrations and seed data
 
@@ -142,6 +159,11 @@ automatically on each deploy (production and deploy previews):
 5. `…_manual_flag_fields.sql`: finding type, severity, reason and playbook
    expectation for manual flags. Existing manual findings become Medium
    provisions, with their note as the reason.
+6. `…_rule_finding_classification.sql`: present, deviation, uncertain, and gap
+   results on rule findings.
+7. `…_ai_finding_method.sql`: stores finding method as text so `ai` can be added in the same deploy.
+8. `…_ai_classification.sql`: classification runs, quote offsets, and the
+   model confidence indicator.
 
 The seeded accounts are `requester@`, `reviewer@`, `approver@` and
 `admin@example.test`. Each one is claimed by whoever first signs in with that
@@ -159,6 +181,7 @@ Never edit a migration that has been deployed. Add a new one instead.
 | `POST /api/agreements` | Requesters, Administrators |
 | `POST /api/agreements/:id/documents`, `GET /api/documents/:id` | Upload: the submitter while new, or reviewers. Download: anyone who can see the agreement |
 | `PATCH /api/findings/:id` (decision and note), `POST /api/agreements/:id/findings` (add a manual flag), `PUT /api/findings/:id` (edit a manual flag) | Reviewers, never on an agreement they submitted |
+| `POST /api/agreements/:id/classify` | Reviewers; runs AI classification again and keeps human decisions |
 | `POST /api/agreements/:id/complete` | Reviewers; approving needs the Approver permission |
 | `GET /api/reports/categories` | Anyone signed in; counts only the agreements the person may see |
 | `GET /api/users`, `PUT /api/users/:id/access` | Administrators |
@@ -215,7 +238,8 @@ columns of a two-column agreement.
 
 ## Requirements
 
-- Node.js 20.19 or newer (developed on Node 22)
+- Node.js 22.12 or newer. `.nvmrc`, `package.json`, and the Netlify build
+  configuration pin 22.12 because `@netlify/identity` requires it.
 - npm
 
 ## Installation
@@ -233,6 +257,29 @@ npx playwright install chromium
 ```
 
 ## Running the app
+
+For the complete AI-assisted flow, configure the server-only API key and
+`OPENAI_MODEL` as scoped Netlify environment variables (see `.env.example`),
+then run through Netlify Dev or a Netlify deploy. The Function accepts
+`OPENAI_API_KEY`, or the existing Netlify secret `Group2_API_Key` when the
+conventional name is absent. The repository's default model name came from the
+approved implementation plan, not from a successful live request; verify access
+and explicitly approve the model before staging.
+
+```bash
+npx netlify dev
+```
+
+Never put the key in a `VITE_` variable. `npm run dev` still starts the
+frontend alone; because no Function is available there, submission deliberately
+falls back to manual classification.
+
+Netlify normally uses the build Node version for Functions, so `netlify.toml`
+pins Node 22.12. If a site overrides the Function runtime with
+`AWS_LAMBDA_JS_RUNTIME`, set that variable in Netlify (not `netlify.toml`) to a
+compatible Node 22 runtime before deploying.
+
+For frontend-only development:
 
 ```bash
 npm run dev
@@ -268,6 +315,9 @@ npm run preview
 | `npm test`             | Vitest: unit, component, and API-plus-database integration tests |
 | `npm run test:e2e`     | Playwright browser tests                                         |
 | `npm run test:e2e:landing` | Chromium smoke test of the default landing page and browser errors |
+| `npm run evaluate:ai:baseline` | Evaluate the local-rule baseline against the 30-agreement CUAD manifest |
+| `npm run evaluate:ai:cuad` | Evaluate the configured OpenAI model against the CUAD development set |
+| `npm run evaluate:ai:holdout -- --manifest … --dataset-root …` | Run the sealed 10-agreement holdout after configuration is frozen |
 | `npm run fixtures`     | Regenerate the test PDFs in `fixtures/generated/`                |
 | `npm run benchmark`    | Measure every fixture and rewrite `artifacts/pdf-benchmark-results.{json,md}` |
 
@@ -342,6 +392,9 @@ comprehension review in the KAN-72 provenance log.
 | UI                  | React 19 + TypeScript 5.9                 |
 | Build / dev server  | Vite 7                                    |
 | PDF parsing         | `pdfjs-dist` 6.3.289 (PDF.js, legacy build) |
+| Serverless API      | Netlify Functions, Node.js and TypeScript |
+| AI classification  | OpenAI Responses API with strict Zod structured output |
+| Authentication     | Netlify Identity                         |
 | Unit and component tests | Vitest 5 (Node, plus jsdom for components) |
 | Browser tests       | Playwright                                |
 | API                 | Netlify Functions (`netlify/functions/api.mts`) |
@@ -360,6 +413,8 @@ src/App.tsx       ClausePilot: shell, intake, review queue, decisions, reports
 src/lib/          Playbook analyzer and the extraction adapter
 src/pdf/          PDF.js driver, the two reconstruction strategies, measurement, report
 src/poc/          The KAN-402 extraction harness and its components
+src/shared/       Browser/server classifier contracts and approved categories
+netlify/functions/  Authenticated AI classification endpoint and validators
 scripts/          Fixture generator and benchmark runner (TypeScript, run with tsx)
 src/shared/       Types shared by the browser and the API
 server/           API routing, request-scoped database access, services
@@ -393,13 +448,22 @@ only `fixtures/generated/`.
 
 ## Privacy
 
-This is for local evaluation only.
+This is an evaluation integration, not approved production architecture.
 
 - Text is extracted from PDFs in the browser. On submission, ClausePilot sends
   the details and extracted text to the database and the original file to a
   private Netlify Blobs store (see
   [Where agreements are stored](#where-agreements-are-stored)). Anyone allowed
-  to see the agreement can read them.
+  to see the agreement can read them. The server then sends that extracted text
+  to OpenAI when classification is configured.
+- The classifier requests `store: false` and does not log agreement text, model
+  output, or supporting quotes. Organizational OpenAI retention terms still
+  require approval before real confidential use.
+- Provider calls have a 25-second overall deadline and at most one SDK retry.
+- The API key is a server-only Netlify secret, stored as `OPENAI_API_KEY` or
+  the existing `Group2_API_Key` variable. `OPENAI_MODEL` selects the model.
+  Never prefix either name with `VITE_`, commit a key, return it to the
+  browser, or include it in logs.
 - Extracted text is never logged. Developer diagnostics go to `console.debug`
   and carry no document content.
 - The extraction harness stores nothing. Resetting or reloading discards its
@@ -409,23 +473,49 @@ This is for local evaluation only.
 - Do not commit real agreements. `fixtures/private/`, `artifacts/local/`, and
   exported `pdf-extraction-report-*` files are git-ignored.
 
+## AI evaluation
+
+The 30-agreement CUAD manifest is the development/evaluation set for
+per-category precision, recall, and F1. Run its deterministic local-rule
+baseline with `npm run evaluate:ai:baseline`. OpenAI evaluation additionally
+requires the same server-only API key as the Function (`OPENAI_API_KEY` or
+`Group2_API_Key`); it uses the same prompt, strict schema, exact-quote
+validator, `store: false` setting, and configurable `OPENAI_MODEL` as the
+Netlify Function.
+
+Reports written to `artifacts/` contain document IDs, category outcomes,
+aggregate metrics, configuration versions, latency, and token totals. They
+exclude agreement text and source quotes. Failed requests count as empty
+predictions instead of silently disappearing from the denominator.
+
+The 10 modified agreements are a separate sealed holdout. They must not be
+used for prompt, model, or threshold selection. The holdout command refuses to
+run unless its manifest has exactly 10 records and `--frozen-config` is set by
+the package script. The holdout files and locked answer key are not included in
+this repository; provide their paths with `--manifest` and `--dataset-root`
+only after configuration is frozen.
+
 ## Known limitations
 
 ### The review workflow
 
-- **Rule confidence values are prototype indicators,** not evaluated model
-  scores. They are fixed constants per category.
-- **One finding per category.** The analyzer stops at the first pattern that
-  matches, so a second occurrence elsewhere in the document is not flagged.
+- **Model confidence is not evaluated reliability.** Low, medium, and high are
+  model self-assessments. They are not probabilities and do not automate review
+  decisions. Local-rule scores are fixed constants per category.
+- **One finding per category from each method.** The model returns at most one
+  quote per category. The local rules stop at the first pattern that matches.
+  A reviewer can still add a manual flag.
 - **Roles limit the switcher, and the API enforces them.** The view switcher
   only hides controls; every action is checked again by the API and the
-  database, and a refusal is shown on screen.
+  database, and a refusal is shown on screen. A reviewer cannot classify or
+  decide an agreement they submitted.
 - **Large files may not upload.** The API accepts files up to 25 MB, but
   Netlify Functions limit the size of a request body. A file over that limit
   is submitted without its original; the confirmation says so.
 - **The lists refresh when you change views,** not live. Someone else's
   decision appears the next time you open the queue or the agreement.
-- **Not wired yet:** an AI classifier.
+- **Not wired yet:** calibrated confidence thresholds and production rate or
+  cost controls.
 
 ### Extraction
 
@@ -445,5 +535,5 @@ This is for local evaluation only.
   orders.
 - **No password-protected PDF support.** Encrypted files are reported as a
   failure with the fallback offered.
-- **Not production architecture.** No authentication, no persistence beyond the
-  browser, no deployment.
+- **Not production architecture.** Authentication exists, but agreement
+  persistence and authorization remain browser-only prototypes.

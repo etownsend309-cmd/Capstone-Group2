@@ -62,6 +62,8 @@ export const api = {
   listAgreements: () => request<AgreementSummary[]>("/api/agreements"),
   getAgreement: (id: string) => request<AgreementDetail>(`/api/agreements/${encodeURIComponent(id)}`),
   submitAgreement: (input: NewAgreementInput) => request<AgreementDetail>("/api/agreements", sendJson("POST", input)),
+  retryClassification: (id: string) =>
+    request<AgreementDetail>(`/api/agreements/${encodeURIComponent(id)}/classify`, { method: "POST" }),
   completeReview: (id: string) =>
     request<AgreementDetail>(`/api/agreements/${encodeURIComponent(id)}/complete`, { method: "POST" }),
 

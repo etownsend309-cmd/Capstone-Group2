@@ -47,3 +47,6 @@ __pycache__/
 .DS_Store
 .idea/
 *.swp
+
+# Local Netlify folder
+.netlify

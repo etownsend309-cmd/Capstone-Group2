@@ -116,7 +116,7 @@ export function Intake({ onSubmit }: { onSubmit: (input: NewAgreementInput, file
           <div className="form-actions"><button type="button" className="secondary-button" onClick={loadDemo}>Load demo agreement</button><button type="submit" className="primary-button">{isLoading ? "Submitting…" : "Create review →"}</button></div>
         </fieldset>
       </form>
-      <aside className="intake-aside"><div className="aside-block"><div><strong>Saved to ClausePilot</strong><p>Text is extracted in your browser. The details, extracted text and original file are then stored in ClausePilot, where reviewers can see them. Don't submit real confidential agreements to this prototype.</p></div></div><div className="aside-block"><div><strong>Track your submission</strong><p>After submission, My submissions shows your reference number, details, and review status.</p></div></div></aside>
+      <aside className="intake-aside"><div className="aside-block"><div><strong>Saved to ClausePilot</strong><p>Text is extracted in your browser. The details, extracted text, and original file are stored in ClausePilot. The server classifies that text with OpenAI when it is configured, and keeps local-rule findings for anything the model does not return. Don't submit real confidential agreements.</p></div></div><div className="aside-block"><div><strong>Manual fallback</strong><p>If AI classification is unavailable or a source quote cannot be verified, the agreement is still saved for manual review.</p></div></div></aside>
     </div>
   </section>;
 }
