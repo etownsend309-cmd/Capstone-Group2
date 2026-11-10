@@ -711,7 +711,10 @@ function ReviewQueue({
                       }}
                     >
                       <span className={`decision-dot dot-${finding.decision}`} />
-                      <span><strong>{finding.category}</strong><small>{findingSummary(finding)}</small></span>
+                      <span className="finding-copy"><strong>{finding.category}</strong><small>{findingSummary(finding)}</small></span>
+                      {ruleConfidencePercent(finding) && (
+                        <span className="finding-percent">{ruleConfidencePercent(finding)}</span>
+                      )}
                     </button>
                   ))}
                   {canReview && (
@@ -736,13 +739,18 @@ function ReviewQueue({
                     <>
                       <div className="finding-title">
                         <div><span className="eyebrow">{METHOD_LABELS[activeFinding.method]} origin</span><h3>{activeFinding.category}</h3></div>
-                        {activeFinding.method === "ai" && activeFinding.confidenceIndicator ? (
-                          <span className="confidence">{activeFinding.confidenceIndicator} model confidence <small>not calibrated</small></span>
-                        ) : activeFinding.findingType && activeFinding.severity ? (
-                          <span className="flag-classification">{findingSummary(activeFinding)}</span>
-                        ) : (
-                          <span className="confidence">{Math.round(activeFinding.confidence * 100)}% <small>confidence</small></span>
-                        )}
+                        <div className="finding-score">
+                          {activeFinding.method === "local_rule" && activeFinding.findingType && activeFinding.severity && (
+                            <span className="flag-classification">{findingSummary(activeFinding)}</span>
+                          )}
+                          {ruleConfidencePercent(activeFinding) ? (
+                            <span className="confidence">{ruleConfidencePercent(activeFinding)} <small>confidence</small></span>
+                          ) : activeFinding.method === "ai" && activeFinding.confidenceIndicator ? (
+                            <span className="confidence">{activeFinding.confidenceIndicator} model confidence <small>not calibrated</small></span>
+                          ) : activeFinding.findingType && activeFinding.severity ? (
+                            <span className="flag-classification">{findingSummary(activeFinding)}</span>
+                          ) : null}
+                        </div>
                       </div>
                       {activeFinding.findingType === "gap" ? (
                         <div className="source-card gap-source">
@@ -800,7 +808,17 @@ function ReviewQueue({
   );
 }
 
-/** The second line under a finding in the list: its review semantics when available, or the legacy rule score. */
+/**
+ * Local-rule findings carry a numeric score. AI findings store 0 because the
+ * model returns low, medium, or high, not a probability. Manual flags store 1
+ * as a placeholder, so that number is not a confidence percentage either.
+ */
+function ruleConfidencePercent(finding: FindingRecord): string | null {
+  if (finding.method !== "local_rule") return null;
+  return `${Math.round(finding.confidence * 100)}%`;
+}
+
+/** The second line under a finding in the list: its review semantics when available. */
 function findingSummary(finding: FindingRecord): string {
   if (finding.method === "ai" && finding.confidenceIndicator) {
     return `${finding.confidenceIndicator} model confidence · not calibrated`;
@@ -814,7 +832,8 @@ function findingSummary(finding: FindingRecord): string {
           : "";
     return `${FINDING_TYPE_LABELS[finding.findingType]} · ${SEVERITY_LABELS[finding.severity]}${qualifier}`;
   }
-  return `${Math.round(finding.confidence * 100)}% confidence`;
+  const percent = ruleConfidencePercent(finding);
+  return percent ? `${percent} confidence` : "";
 }
 
 const HISTORY_LABELS: Record<FindingHistoryEntry["action"], string> = { created: "created", edited: "edited", decision: "decision" };

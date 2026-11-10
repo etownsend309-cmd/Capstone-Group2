@@ -40,6 +40,16 @@ const noted = (overrides: Partial<AgreementDetail> = {}) => {
 };
 
 describe("review queue", () => {
+  it("shows the local-rule confidence percentage on each finding line", async () => {
+    seed(makeAgreement({ rawText: TWO_FINDINGS }));
+    await openQueue();
+
+    const nav = document.querySelector(".finding-nav") as HTMLElement;
+    expect(within(nav).getByRole("button", { name: /Governing Law/ }).textContent).toContain("98%");
+    expect(within(nav).getByRole("button", { name: /Anti-Assignment/ }).textContent).toContain("93%");
+    expect(within(detailPanel()).getByText("98%", { selector: ".confidence" })).toBeTruthy();
+  });
+
   it("records a decision on the server and moves the agreement into review", async () => {
     const agreement = noted({ rawText: TWO_FINDINGS });
     seed(agreement);

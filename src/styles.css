@@ -147,9 +147,10 @@ main { grid-column: 2; min-width: 0; }
 .finding-nav { border-right: 1px solid var(--line); background: #fbfcfb; }
 .finding-nav-title { display: flex; justify-content: space-between; padding: 16px; border-bottom: 1px solid var(--line); font-size: 11px; }
 .finding-nav-title span { color: var(--muted); }
-.finding-nav > button { width: 100%; display: grid; grid-template-columns: 9px minmax(0,1fr); gap: 9px; padding: 13px 14px; border: 0; border-bottom: 1px solid #ebeeed; background: transparent; text-align: left; }
+.finding-nav > button { width: 100%; display: grid; grid-template-columns: 9px minmax(0,1fr) auto; gap: 9px; padding: 13px 14px; border: 0; border-bottom: 1px solid #ebeeed; background: transparent; text-align: left; }
 .finding-nav > button:hover, .finding-nav > button.selected { background: white; }.finding-nav > button.selected { box-shadow: inset 3px 0 var(--green); }
-.finding-nav button span:last-child { display: grid; gap: 3px; }.finding-nav button strong { font-size: 11px; }.finding-nav button small { color: var(--muted); font-size: 9px; }
+.finding-nav button .finding-copy { display: grid; gap: 3px; min-width: 0; }.finding-nav button strong { font-size: 11px; }.finding-nav button small { color: var(--muted); font-size: 9px; }
+.finding-percent { align-self: center; color: var(--green); font-size: 11px; font-weight: 800; }
 .decision-dot { width: 7px; height: 7px; margin-top: 4px; border-radius: 50%; background: #b7bec1; }.dot-accepted { background: var(--green); }.dot-dismissed { background: #7b858b; }.dot-escalated { background: var(--red); }
 .manual-add { padding: 14px; border-top: 1px solid var(--line); }
 .manual-add button { width: 100%; margin-top: 8px; padding: 7px; border: 0; color: var(--green); background: transparent; font-size: 10px; font-weight: 700; }
@@ -180,6 +181,7 @@ main { grid-column: 2; min-width: 0; }
 .audit-history li span, .audit-history li small { color: var(--muted); font-size: 10px; }
 
 .finding-title { display: flex; align-items: start; justify-content: space-between; gap: 18px; }
+.finding-score { display: grid; justify-items: end; gap: 4px; }
 .finding-title h3 { margin: 5px 0 0; color: var(--navy); font: 700 21px "Avenir Next", "Segoe UI", sans-serif; }
 .confidence { color: var(--green); font: 800 22px "Avenir Next", "Segoe UI", sans-serif; text-align: right; }.confidence small { display: block; color: var(--muted); font: 500 9px "Avenir Next", "Segoe UI", sans-serif; text-transform: uppercase; letter-spacing: .08em; }
 .source-card { margin: 24px 0 20px; padding: 19px; border-left: 3px solid var(--green); border-radius: 0 8px 8px 0; background: #f3f7f5; }

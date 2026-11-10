@@ -10,6 +10,8 @@ import {
   updateUser,
 } from "@netlify/identity";
 
+import { localTestUser } from "../devSession";
+
 type User = Awaited<ReturnType<typeof getUser>>;
 type SignedInUser = NonNullable<User>;
 
@@ -54,16 +56,20 @@ function checkNewPassword(password: string, confirm: string) {
  * renders the review app with the signed-in user. Also handles the
  * forgot-password, reset-password and accept-invite flows.
  */
+const localBypass = import.meta.env.DEV && import.meta.env.VITE_LOCAL_BYPASS === "1";
+
 export function AuthGate({ children }: { children: (user: SignedInUser, signOut: () => void) => ReactNode }) {
   const [user, setUser] = useState<User>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!localBypass);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [mode, setMode] = useState<Mode>("signin");
   const [inviteToken, setInviteToken] = useState("");
+  const [skippedSignIn, setSkippedSignIn] = useState(localBypass);
 
   useEffect(() => {
+    if (localBypass) return;
     let active = true;
     (async () => {
       try {
@@ -188,6 +194,11 @@ export function AuthGate({ children }: { children: (user: SignedInUser, signOut:
       setSubmitting(false);
       switchMode("forgot");
     }
+  }
+
+  if (skippedSignIn) {
+    const localUser = { id: localTestUser.id, email: localTestUser.email } as SignedInUser;
+    return <>{children(localUser, async () => setSkippedSignIn(false))}</>;
   }
 
   if (loading) {
@@ -315,6 +326,13 @@ export function AuthGate({ children }: { children: (user: SignedInUser, signOut:
           <p className="auth-switch">
             <button type="button" className="text-button" onClick={() => switchMode("forgot")}>Forgot password?</button>
           </p>
+          {import.meta.env.DEV && (
+            <p className="auth-switch">
+              <button type="button" className="text-button" onClick={() => setSkippedSignIn(true)}>
+                Continue without signing in
+              </button>
+            </p>
+          )}
         </fieldset>
       </form>
     );

@@ -53,6 +53,14 @@ describe("identity gate", () => {
     expect(screen.queryByText(/^Workspace for/)).toBeNull();
   });
 
+  it("lets local development skip sign-in", async () => {
+    renderGate();
+
+    await userEvent.click(await screen.findByRole("button", { name: "Continue without signing in" }));
+
+    expect(screen.getByText("Workspace for local-reviewer@example.test")).toBeTruthy();
+  });
+
   it("shows the app when a session exists and no link was followed", async () => {
     vi.mocked(getUser).mockResolvedValue(existingUser);
 

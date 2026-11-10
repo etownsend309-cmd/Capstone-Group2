@@ -13,6 +13,8 @@ test("creates and edits an audited manual provision flag with required fields", 
   await page.goto("/");
   await expect(page.getByText(requester.email)).toBeVisible();
   await page.getByRole("navigation").getByRole("button", { name: /Review queue/ }).click();
+  await expect(page.locator(".finding-nav").getByRole("button", { name: /Governing Law/ })).toContainText("98%");
+  await expect(page.locator(".confidence")).toContainText("98%");
   await page.getByRole("button", { name: /Add manual flag/ }).click();
 
   await page.getByRole("button", { name: "Create flag" }).click();

@@ -24,8 +24,14 @@ export class ClassificationError extends Error {
   readonly status: number;
   readonly run: ClassificationRun;
 
-  constructor(code: ClassifierErrorCode, message: string, status: number, run: ClassificationRun) {
-    super(message);
+  constructor(
+    code: ClassifierErrorCode,
+    message: string,
+    status: number,
+    run: ClassificationRun,
+    options?: { cause?: unknown },
+  ) {
+    super(message, options);
     this.name = "ClassificationError";
     this.code = code;
     this.status = status;
@@ -185,6 +191,7 @@ export async function runClassification(documentText: string): Promise<ClassifyA
       mapped.message,
       mapped.status,
       failedRun(startedAt, started, requestedModel, mapped.code),
+      { cause: error },
     );
   } finally {
     clearTimeout(deadline);
