@@ -91,6 +91,9 @@ interface FindingRow {
   playbook_expectation: string;
   creator_email: string | null;
   creator_name: string | null;
+  requested_model: string | null;
+  prompt_version: string | null;
+  schema_version: string | null;
 }
 
 interface HistoryRow {
@@ -107,8 +110,11 @@ const FINDING_COLUMNS = `
   f.id, f.agreement_id, f.category, f.confidence, f.source_text, f.decision, f.note, f.method,
   f.confidence_indicator, f.source_start, f.source_end, f.evidence_validation, f.classification_run_id,
   f.decided_at, f.finding_type, f.classification, f.severity, f.reason, f.playbook_expectation,
-  c.email AS creator_email, c.display_name AS creator_name`;
-const FINDING_FROM = "findings f LEFT JOIN app_users c ON c.id = f.created_by";
+  c.email AS creator_email, c.display_name AS creator_name,
+  r.requested_model, r.prompt_version, r.schema_version`;
+const FINDING_FROM = `findings f
+  LEFT JOIN app_users c ON c.id = f.created_by
+  LEFT JOIN classification_runs r ON r.id = f.classification_run_id`;
 
 const HISTORY_ACTIONS: Record<string, FindingHistoryEntry["action"]> = {
   "finding.added": "created",
@@ -177,6 +183,14 @@ function toFinding(row: FindingRow, history: FindingHistoryEntry[] = []): Findin
     createdBy:
       row.method === "manual" && row.creator_email
         ? { email: row.creator_email, displayName: row.creator_name ?? "" }
+        : null,
+    classificationRun:
+      row.method === "ai" && row.requested_model && row.prompt_version && row.schema_version
+        ? {
+            requestedModel: row.requested_model,
+            promptVersion: row.prompt_version,
+            schemaVersion: row.schema_version,
+          }
         : null,
     history,
   };
