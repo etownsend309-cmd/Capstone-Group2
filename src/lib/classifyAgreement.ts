@@ -7,6 +7,7 @@ import {
   type ClassifyAgreementRequest,
   type ClassifyAgreementResult,
 } from "../shared/classifier";
+import { aiFindingReason } from "../shared/calibration";
 import type { Finding } from "../types";
 
 const errorCodeSchema = z.enum([
@@ -146,6 +147,6 @@ export function toPendingAiFindings(result: ClassifyAgreementResult): Finding[] 
     note: "",
     method: "AI",
     findingType: "Provision",
-    reason: "The model returned this quote and it matched the stored agreement text exactly. The confidence indicator is the model's own assessment and is not calibrated.",
+    reason: aiFindingReason(result.run),
   }));
 }

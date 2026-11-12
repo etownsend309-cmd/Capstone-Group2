@@ -7,6 +7,7 @@
  * the label maps at the bottom.
  */
 
+import type { ClassificationRunIdentity } from "./calibration";
 import type { ClassificationStatus, ConfidenceIndicator, FindingRejection } from "./classifier";
 import type { AgreementStatus, Role } from "../types";
 
@@ -89,8 +90,10 @@ export interface FindingRecord {
   decision: FindingDecisionCode;
   note: string;
   method: FindingMethodCode;
-  /** Present for AI findings. Low, medium, and high are the model's own assessment, not a calibrated probability. */
+  /** Present for AI findings. Low, medium, and high are the model's own assessment. */
   confidenceIndicator: ConfidenceIndicator | null;
+  /** The model and prompt that produced an AI finding. Null for local rules and manual flags. */
+  classificationRun: ClassificationRunIdentity | null;
   decidedAt: string | null;
   /** Provision or gap semantics for both rule findings and manual flags. */
   findingType: FindingTypeCode | null;

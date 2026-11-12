@@ -3,6 +3,8 @@ import type {
   ConfidenceIndicator,
 } from "../../src/shared/classifier.js";
 
+const CONFIDENCE_RATINGS = ["high", "medium", "low"] as const satisfies readonly ConfidenceIndicator[];
+
 export interface CategoryPrediction {
   category: ApprovedCategory;
   confidenceIndicator?: ConfidenceIndicator;
@@ -28,6 +30,13 @@ export interface CategoryMetrics {
   precision: number;
   recall: number;
   f1: number;
+}
+
+/** How often findings with one model rating matched an expert-labeled category. */
+export interface ConfidenceRatingMetrics {
+  indicator: ConfidenceIndicator;
+  correct: number;
+  total: number;
 }
 
 const ratio = (numerator: number, denominator: number): number =>
@@ -71,6 +80,22 @@ export function calculateCategoryMetrics(
   });
 }
 
+/** Counts a rated finding as correct when its category is present in the expert labels. */
+export function confidenceRatingMetrics(cases: readonly EvaluationCase[]): ConfidenceRatingMetrics[] {
+  return CONFIDENCE_RATINGS.map((indicator) => {
+    let correct = 0;
+    let total = 0;
+    for (const item of cases) {
+      for (const prediction of item.predicted) {
+        if (prediction.confidenceIndicator !== indicator) continue;
+        total += 1;
+        if (item.expected.includes(prediction.category)) correct += 1;
+      }
+    }
+    return { indicator, correct, total };
+  });
+}
+
 export function summarizeEvaluation(
   categories: readonly ApprovedCategory[],
   cases: readonly EvaluationCase[],
@@ -105,5 +130,6 @@ export function summarizeEvaluation(
     totalInputTokens: cases.reduce((total, item) => total + (item.inputTokens ?? 0), 0),
     totalOutputTokens: cases.reduce((total, item) => total + (item.outputTokens ?? 0), 0),
     perCategory,
+    confidenceRatings: confidenceRatingMetrics(cases),
   };
 }

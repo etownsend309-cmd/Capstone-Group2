@@ -179,11 +179,29 @@ function markdownReport(output: ReturnType<typeof buildOutput>): string {
       `| ${item.category} | ${item.truePositives} | ${item.falsePositives} | ${item.falseNegatives} | ${percent(item.precision)} | ${percent(item.recall)} | ${percent(item.f1)} |`,
     ),
     "",
+    "## Confidence ratings",
+    "",
+    "A rating is correct when its category is present in the expert labels. Findings with no rating are left out.",
+    "",
+    "| Rating | Correct | Total |",
+    "| --- | ---: | ---: |",
+    ...output.summary.confidenceRatings.map(
+      (item) => `| ${item.indicator} | ${item.correct} | ${item.total} |`,
+    ),
+    "",
     "## Limitations",
     "",
-    "- Category positives come from the prepared manifest derived from CUAD master_clauses.csv.",
-    "- CUAD is the development/evaluation set; do not treat these results as independent holdout evidence.",
-    "- The separate 10-agreement modified holdout must remain sealed until configuration is frozen.",
+    ...(output.dataset.holdout
+      ? [
+          "- Category labels come from the sealed holdout answer key supplied with the manifest.",
+          "- This run is the one-time sealed check for this model, prompt, and schema.",
+          "- Do not use these results to tune the prompt, schema, or model.",
+        ]
+      : [
+          "- Category positives come from the prepared manifest derived from CUAD master_clauses.csv.",
+          "- CUAD is the development/evaluation set; do not treat these results as independent holdout evidence.",
+          "- The separate 10-agreement modified holdout must remain sealed until configuration is frozen.",
+        ]),
   ];
   return `${lines.join("\n")}\n`;
 }
