@@ -4,6 +4,7 @@ import { type Page } from "@playwright/test";
 // Starts signed in: the intake flow is behind the identity gate, and these
 // tests are about submission, not about authentication.
 import { expect, requester, test } from "./support/session";
+import { LIMITS } from "../../src/shared/api";
 
 const fields = [
   ["Vendor", "Northstar Data", "Enter a vendor."],
@@ -205,4 +206,59 @@ test("a reviewer can't review their own submission, but can review a colleague's
 
   await page.getByRole("button", { name: "Reports" }).click();
   await expect(page.getByText("2 agreements visible to you")).toBeVisible();
+});
+
+// Uses the existing mocked API. These checks prove client validation prevents
+// submission; they do not prove Netlify's upload capacity or storage cleanup.
+for (const invalid of [
+  { label: "unsupported executable", name: "tool.exe", mimeType: "application/octet-stream", buffer: Buffer.from("MZ"), message: /Please choose a PDF or plain-text file/ },
+  { label: "empty PDF", name: "empty.pdf", mimeType: "application/pdf", buffer: Buffer.alloc(0), message: /file is empty/i },
+  { label: "text renamed to PDF", name: "spoof.pdf", mimeType: "application/pdf", buffer: Buffer.from("This is not a PDF document."), message: /PDF|parsed|read|text/i },
+]) {
+  test(`invalid upload: ${invalid.label} is accessible and never reaches submission`, async ({ page, server }) => {
+    await openIntake(page);
+    const writes: string[] = [];
+    page.on("request", (request) => {
+      if (request.method() === "POST" && new URL(request.url()).pathname.startsWith("/api/agreements")) writes.push(request.url());
+    });
+    await page.getByLabel("Agreement document", { exact: true }).setInputFiles({ name: invalid.name, mimeType: invalid.mimeType, buffer: invalid.buffer });
+    await fillMetadata(page);
+    await page.getByRole("button", { name: /Create review/ }).click();
+    const upload = page.getByRole("button", { name: /Replace agreement document/ });
+    await expect(page.getByRole("alert")).toContainText(invalid.message);
+    await expect(upload).toHaveAttribute("aria-invalid", "true");
+    await expect(upload).toHaveAccessibleDescription(invalid.message);
+    await expect(upload).toBeFocused();
+    await expect(page.getByRole("status")).toHaveText("");
+    await expect(page.getByLabel("Vendor")).toHaveValue("Northstar Data");
+    expect(server.agreements()).toEqual([]);
+    expect(writes).toEqual([]);
+
+    // Replacing the rejected file clears the old error and permits retry.
+    await page.getByLabel("Agreement document", { exact: true }).setInputFiles(fixture("clean-agreement.pdf"));
+    await expect(upload).toHaveAttribute("aria-invalid", "false");
+    await expect(page.getByRole("alert")).toBeEmpty();
+    await page.getByRole("button", { name: /Create review/ }).click();
+    await expect(page.getByRole("status")).toContainText("submitted successfully");
+    expect(server.agreements()).toHaveLength(1);
+  });
+}
+
+test("one byte over the current file limit gives an associated error before submission", async ({ page, server }) => {
+  await openIntake(page);
+  const writes: string[] = [];
+  page.on("request", (request) => {
+    if (request.method() === "POST" && new URL(request.url()).pathname.startsWith("/api/agreements")) writes.push(request.url());
+  });
+  await page.getByLabel("Agreement document", { exact: true }).setInputFiles({ name: "oversized.pdf", mimeType: "application/pdf", buffer: Buffer.alloc(LIMITS.documentBytes + 1) });
+  await fillMetadata(page);
+  await page.getByRole("button", { name: /Create review/ }).click();
+  const upload = page.getByRole("button", { name: /Replace agreement document/ });
+  await expect(page.getByRole("alert")).toContainText("Submission not completed");
+  await expect(upload).toHaveAttribute("aria-invalid", "true");
+  await expect(upload).toHaveAccessibleDescription("Choose a file of 25 MB or less.");
+  await expect(upload).toBeFocused();
+  await expect(page.getByRole("status")).toHaveText("");
+  expect(server.agreements()).toEqual([]);
+  expect(writes).toEqual([]);
 });
