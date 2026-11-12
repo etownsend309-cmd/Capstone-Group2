@@ -1,4 +1,4 @@
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 import {
   CALIBRATION,
@@ -8,6 +8,12 @@ import {
   type ClassificationRunIdentity,
 } from "../shared/calibration";
 import type { ConfidenceIndicator } from "../shared/classifier";
+
+type NotePhase = "closed" | "opening" | "open" | "closing";
+
+function prefersReducedMotion() {
+  return window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ?? false;
+}
 
 /**
  * The short confidence label plus the note that explains it.
@@ -25,25 +31,77 @@ export function ConfidenceNote({
   run: ClassificationRunIdentity | null;
   record?: CalibrationRecord | null;
 }) {
-  const [open, setOpen] = useState(false);
+  const [phase, setPhase] = useState<NotePhase>("closed");
+  const wrapRef = useRef<HTMLDivElement>(null);
   const noteId = useId();
   const copy = confidenceNote(indicator, run, record);
   const status = confidenceStatus(run, record);
+  const shown = phase !== "closed";
+
+  function open() {
+    setPhase(prefersReducedMotion() ? "open" : "opening");
+  }
+
+  function close() {
+    setPhase((current) => {
+      if (current === "closed" || current === "closing") return current;
+      return prefersReducedMotion() ? "closed" : "closing";
+    });
+  }
+
+  useEffect(() => {
+    if (phase !== "opening") return;
+    let secondFrame = 0;
+    const firstFrame = window.requestAnimationFrame(() => {
+      secondFrame = window.requestAnimationFrame(() => setPhase("open"));
+    });
+    return () => {
+      window.cancelAnimationFrame(firstFrame);
+      window.cancelAnimationFrame(secondFrame);
+    };
+  }, [phase]);
+
+  useEffect(() => {
+    if (phase !== "closing") return;
+    const timer = window.setTimeout(() => setPhase("closed"), 180);
+    return () => window.clearTimeout(timer);
+  }, [phase]);
+
+  useEffect(() => {
+    if (phase !== "open" && phase !== "opening") return;
+    const onPointerDown = (event: PointerEvent) => {
+      if (!wrapRef.current?.contains(event.target as Node)) close();
+    };
+    document.addEventListener("pointerdown", onPointerDown, true);
+    return () => document.removeEventListener("pointerdown", onPointerDown, true);
+  }, [phase]);
 
   return (
-    <div className="confidence-note-wrap">
+    <div className="confidence-note-wrap" ref={wrapRef}>
       <button
         type="button"
         className="confidence-info"
-        aria-expanded={open}
-        aria-controls={noteId}
+        aria-expanded={phase === "open" || phase === "opening"}
+        aria-controls={shown ? noteId : undefined}
         aria-label={`About the ${category} confidence rating`}
-        onClick={() => setOpen((current) => !current)}
+        onClick={() => {
+          if (phase === "open" || phase === "opening") close();
+          else open();
+        }}
       >
         i
       </button>
-      {open && (
-        <div id={noteId} className="confidence-note" role="note">
+      {shown && (
+        <div
+          id={noteId}
+          className={phase === "open" ? "confidence-note is-open" : "confidence-note is-closing"}
+          role="note"
+          onTransitionEnd={(event) => {
+            if (event.target === event.currentTarget && event.propertyName === "clip-path" && phase === "closing") {
+              setPhase("closed");
+            }
+          }}
+        >
           <p>
             <strong>{indicator} model confidence · {status}</strong>
           </p>
