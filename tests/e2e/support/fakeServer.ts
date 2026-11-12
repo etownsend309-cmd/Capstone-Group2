@@ -89,6 +89,7 @@ export async function installFakeServer(page: Page, session: SessionUser): Promi
     decision: "pending",
     note: "",
     method: "local_rule",
+    confidenceIndicator: null,
     decidedAt: null,
     findingType: null,
     classification: null,
@@ -127,6 +128,8 @@ export async function installFakeServer(page: Page, session: SessionUser): Promi
     extractionStrategy: null,
     extractionWarnings: [],
     approvedBy: null,
+    classificationStatus: "manual_required",
+    classificationRejections: [],
     documents: [],
     findings: analyzeAgreement(fields.rawText).map((finding) =>
       ruleFinding({

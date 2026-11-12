@@ -22,6 +22,7 @@ import {
   parseDecision,
   parseManualFinding,
   parseNewAgreement,
+  retryClassification,
   submitAgreement,
 } from "./services/agreements.ts";
 import { downloadDocument, uploadDocument } from "./services/documents.ts";
@@ -88,6 +89,11 @@ const routes: Route[] = [
     method: "GET",
     pattern: new RegExp(`^/api/agreements/${ID}$`),
     handler: async ({ db, params }) => json(await getAgreement(db, params[0]!)),
+  },
+  {
+    method: "POST",
+    pattern: new RegExp(`^/api/agreements/${ID}/classify$`),
+    handler: async ({ db, user, params }) => json(await retryClassification(db, user.id, params[0]!)),
   },
   {
     method: "POST",
