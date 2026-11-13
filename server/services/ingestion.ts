@@ -61,6 +61,14 @@ export function parseIngestion(body: unknown): IngestionInput {
 
 export async function processIngestion(db: Queryable, userId: string, id: string, input: IngestionInput): Promise<IngestionRecord> {
   if (!isUuid(id)) throw notFound("That agreement");
+  const text = input.text ?? "";
+  const pages = (input.pages ?? []).map(({ pageNumber, startOffset, endOffset }) => ({ pageNumber, startOffset, endOffset }));
+  const hash = createHash("sha256").update(JSON.stringify([text, pages, input.source, input.pageCount ?? null, input.strategy ?? null])).digest("hex");
+  const existing = await db.query<IngestionRow>("SELECT * FROM agreement_ingestions WHERE agreement_id = $1 AND version = $2", [id, input.version]);
+  if (existing.rows[0]?.state === "ready") {
+    if (!input.failed && existing.rows[0].source_hash === hash) return toRecord(existing.rows[0]);
+    throw conflict("This version already has ready source text. Submit a new agreement version to change it.");
+  }
   const { rows } = await db.query<IngestionRow>("SELECT * FROM agreement_ingestions WHERE agreement_id = $1 AND version = $2 FOR UPDATE", [id, input.version]);
   const row = rows[0];
   if (!row) {
@@ -70,9 +78,6 @@ export async function processIngestion(db: Queryable, userId: string, id: string
   }
   const agreement = await db.query<{ status: string }>("SELECT status FROM agreements WHERE id = $1", [id]);
   if (!agreement.rows[0]) throw notFound("That agreement");
-  const text = input.text ?? "";
-  const pages = (input.pages ?? []).map(({ pageNumber, startOffset, endOffset }) => ({ pageNumber, startOffset, endOffset }));
-  const hash = createHash("sha256").update(JSON.stringify([text, pages, input.source, input.pageCount ?? null, input.strategy ?? null])).digest("hex");
   if (row.state === "ready") {
     if (!input.failed && row.source_hash === hash) return toRecord(row);
     throw conflict("This version already has ready source text. Submit a new agreement version to change it.");

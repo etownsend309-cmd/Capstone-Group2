@@ -638,7 +638,7 @@ function ReviewQueue({
             detailError ? <p className="error-message" role="alert">{detailError}</p> : <p>Loading agreement…</p>
           ) : (
             <>
-              <IngestionPanel agreementId={shown.id} ingestion={shown.ingestion} onChange={onIngested} canRecover={shown.status === "needs_review"} />
+              <IngestionPanel key={`${shown.id}:${shown.ingestion?.version ?? "legacy"}`} agreementId={shown.id} ingestion={shown.ingestion} onChange={onIngested} canRecover={shown.status === "needs_review"} />
               {!!shown.extractionWarnings.length && (
                 <div className="permission-banner">
                   <strong>Extraction notes:</strong> {shown.extractionWarnings.join(" ")}

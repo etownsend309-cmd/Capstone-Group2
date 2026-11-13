@@ -43,7 +43,19 @@ export function segmentAgreement(
       let trimmedEnd = stop;
       while (trimmedEnd > start && /\s/.test(text[trimmedEnd - 1]!)) trimmedEnd--;
       if (trimmedEnd > start) {
-        const covered = pages.filter((page) => page.startOffset < trimmedEnd && page.endOffset > start);
+        let low = 0;
+        let high = pages.length;
+        while (low < high) {
+          const middle = Math.floor((low + high) / 2);
+          if (pages[middle]!.endOffset <= start) low = middle + 1;
+          else high = middle;
+        }
+        const covered: SourcePage[] = [];
+        for (let pageIndex = low; pageIndex < pages.length; pageIndex++) {
+          const page = pages[pageIndex]!;
+          if (page.startOffset >= trimmedEnd) break;
+          covered.push(page);
+        }
         const sequence = segments.length + 1;
         segments.push({
           id: `${agreementId}:v${version}:s${sequence}`, agreementId, version, sequence,
