@@ -39,7 +39,14 @@ export interface FakeServer {
   /** Adds accounts, as if those people had signed in. */
   addUsers(...users: ManagedUser[]): void;
   /** Adds an agreement as if someone else had submitted it; returns it as stored. */
-  addAgreement(fields: { name: string; vendor?: string; rawText: string; submittedBy?: AgreementDetail["submittedBy"] }): AgreementDetail;
+  addAgreement(fields: {
+    name: string;
+    vendor?: string;
+    rawText: string;
+    submittedBy?: AgreementDetail["submittedBy"];
+    findings?: FindingRecord[];
+    classificationStatus?: AgreementDetail["classificationStatus"];
+  }): AgreementDetail;
   /** Makes the next request to `path` (e.g. "POST /api/agreements") fail with this status and message. */
   failNext(request: string, status: number, error: string): void;
 }
@@ -337,8 +344,20 @@ export async function installFakeServer(page: Page, session: SessionUser): Promi
       vendor = "Northstar",
       rawText,
       submittedBy = { id: "a0000000-0000-4000-8000-000000000099", email: "colleague@example.test", displayName: "Casey Colleague" },
+      findings,
+      classificationStatus,
     }) => {
-      const detail = newAgreement({ name, vendor, agreementType: "MSA", businessUnit: "Legal", neededBy: "2026-12-01", rawText, submittedBy });
+      const detail = newAgreement({
+        name,
+        vendor,
+        agreementType: "MSA",
+        businessUnit: "Legal",
+        neededBy: "2026-12-01",
+        rawText,
+        submittedBy,
+        ...(findings ? { findings } : {}),
+        ...(classificationStatus ? { classificationStatus } : {}),
+      });
       store.set(detail.id, detail);
       return structuredClone(detail);
     },
