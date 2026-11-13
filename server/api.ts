@@ -25,6 +25,7 @@ import {
   retryClassification,
   submitAgreement,
 } from "./services/agreements.ts";
+import { getIngestion, parseIngestion, processIngestion } from "./services/ingestion.ts";
 import { downloadDocument, uploadDocument } from "./services/documents.ts";
 import { listUsers, parseUserAccess, updateUserAccess } from "./services/users.ts";
 import { loadSessionUser, resolveAccountId, type Authenticate } from "./session.ts";
@@ -69,6 +70,16 @@ async function readJson(request: Request): Promise<unknown> {
 }
 
 const routes: Route[] = [
+  {
+    method: "GET",
+    pattern: new RegExp(`^/api/agreements/${ID}/ingestion$`),
+    handler: async ({ db, params }) => json(await getIngestion(db, params[0]!)),
+  },
+  {
+    method: "POST",
+    pattern: new RegExp(`^/api/agreements/${ID}/ingestion$`),
+    handler: async ({ db, user, params, request }) => json(await processIngestion(db, user.id, params[0]!, parseIngestion(await readJson(request)))),
+  },
   {
     method: "GET",
     pattern: /^\/api\/session$/,

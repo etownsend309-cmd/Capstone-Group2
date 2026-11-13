@@ -1,16 +1,13 @@
 import { useRef, useState } from "react";
 import { Icon } from "./Icon";
 import { demoAgreementText } from "../data";
-import { extractText } from "../lib/extractText";
 import { LIMITS, type NewAgreementInput } from "../shared/api";
 
 type RequiredField = "document" | "vendor" | "agreementType" | "businessUnit" | "neededBy";
 type Errors = Partial<Record<RequiredField, string>>;
 
 /**
- * The submission form. Text is extracted here, in the browser; `onSubmit`
- * sends the details and the original file to the server and rejects with a
- * message for the person if the agreement was not saved.
+ * The submission form.
  */
 export function Intake({ onSubmit }: { onSubmit: (input: NewAgreementInput, file: File) => Promise<void> }) {
   const fileInput = useRef<HTMLInputElement>(null);
@@ -49,6 +46,8 @@ export function Intake({ onSubmit }: { onSubmit: (input: NewAgreementInput, file
     if (inFlight.current) return;
     const next: Errors = {};
     if (!file) next.document = "Choose a PDF or text document.";
+    else if (file.size === 0) next.document = "Choose a non-empty document.";
+    else if (!(file.type === "text/plain" || file.type === "application/pdf" || /\.(pdf|txt)$/i.test(file.name))) next.document = "Choose a PDF or text document.";
     else if (file.size > LIMITS.documentBytes) next.document = "Choose a file of 25 MB or less.";
     if (!vendor.trim()) next.vendor = "Enter a vendor.";
     if (!agreementType.trim()) next.agreementType = "Enter an agreement type.";
@@ -68,12 +67,10 @@ export function Intake({ onSubmit }: { onSubmit: (input: NewAgreementInput, file
     inFlight.current = true;
     setIsLoading(true);
     try {
-      const document = await extractText(file!);
       await onSubmit({
         name: title.trim() || file!.name,
         vendor: vendor.trim(), agreementType: agreementType.trim(), businessUnit: businessUnit.trim(), neededBy,
-        rawText: document.text, pageCount: document.pageCount,
-        extractionStrategy: document.strategy, extractionWarnings: document.warnings,
+        rawText: "", deferIngestion: true,
       }, file!);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Submission failed. Your agreement was not saved. Try again.");
@@ -116,7 +113,7 @@ export function Intake({ onSubmit }: { onSubmit: (input: NewAgreementInput, file
           <div className="form-actions"><button type="button" className="secondary-button" onClick={loadDemo}>Load demo agreement</button><button type="submit" className="primary-button">{isLoading ? "Submitting…" : "Create review →"}</button></div>
         </fieldset>
       </form>
-      <aside className="intake-aside"><div className="aside-block"><div><strong>Saved to ClausePilot</strong><p>Text is extracted in your browser. The details, extracted text, and original file are stored in ClausePilot. The server classifies that text with OpenAI when it is configured, and keeps local-rule findings for anything the model does not return. Don't submit real confidential agreements.</p></div></div><div className="aside-block"><div><strong>Manual fallback</strong><p>If AI classification is unavailable or a source quote cannot be verified, the agreement is still saved for manual review.</p></div></div></aside>
+      <aside className="intake-aside"><div className="aside-block"><div><strong>Saved to ClausePilot</strong><p>Your submission and original file are saved first. Text is then extracted in your browser and prepared separately. If preparation fails, retry or supply text from My submissions. Don't submit real confidential agreements to this prototype.</p></div></div><div className="aside-block"><div><strong>Track your submission</strong><p>After submission, My submissions shows your reference number, details, and review status.</p></div></div></aside>
     </div>
   </section>;
 }

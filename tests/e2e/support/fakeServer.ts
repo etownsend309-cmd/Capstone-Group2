@@ -1,3 +1,5 @@
+import { segmentAgreement } from "../../../src/lib/segmentAgreement";
+import type { IngestionInput, IngestionRecord } from "../../../src/shared/ingestion";
 /**
  * A stand-in for the `/api` Netlify Function, for browser tests.
  *
@@ -37,12 +39,20 @@ export interface FakeServer {
   /** Adds accounts, as if those people had signed in. */
   addUsers(...users: ManagedUser[]): void;
   /** Adds an agreement as if someone else had submitted it; returns it as stored. */
-  addAgreement(fields: { name: string; vendor?: string; rawText: string; submittedBy?: AgreementDetail["submittedBy"] }): AgreementDetail;
+  addAgreement(fields: {
+    name: string;
+    vendor?: string;
+    rawText: string;
+    submittedBy?: AgreementDetail["submittedBy"];
+    findings?: FindingRecord[];
+    classificationStatus?: AgreementDetail["classificationStatus"];
+  }): AgreementDetail;
   /** Makes the next request to `path` (e.g. "POST /api/agreements") fail with this status and message. */
   failNext(request: string, status: number, error: string): void;
 }
 
 export async function installFakeServer(page: Page, session: SessionUser): Promise<FakeServer> {
+  const ingestions = new Map<string, IngestionRecord>();
   const store = new Map<string, AgreementDetail>();
   const failures = new Map<string, { status: number; error: string }>();
   const accounts = new Map<string, ManagedUser>([
@@ -74,6 +84,7 @@ export async function installFakeServer(page: Page, session: SessionUser): Promi
     status: detail.status,
     completedAt: detail.completedAt,
     approvedAt: detail.approvedAt,
+    ingestion: detail.ingestion,
     findingCount: detail.findings.length,
     pendingFindingCount: detail.findings.filter((f) => f.decision === "pending").length,
   });
@@ -172,6 +183,20 @@ export async function installFakeServer(page: Page, session: SessionUser): Promi
     }
 
     let match: RegExpMatchArray | null;
+    if ((match = path.match(/^\/api\/agreements\/([^/]+)\/ingestion$/))) {
+      const id = match[1]!;
+      const detail = store.get(id);
+      const record = ingestions.get(id);
+      if (!record || !detail) return fail(route, 404, "That ingestion was not found.");
+      if (method === "GET") return reply(route, record);
+      const input = request.postDataJSON() as IngestionInput;
+      const segments = input.failed ? [] : segmentAgreement(id, input.version, input.text ?? "", input.pages);
+      Object.assign(record, { state: input.failed ? "failed" : "ready", error: input.failed ? "Text could not be prepared. Retry or supply text." : null,
+        text: input.text ?? "", source: input.source ?? "extracted", pages: input.pages ?? [], segments, segmentCount: segments.length });
+      detail.rawText = record.text;
+      detail.ingestion = { version: record.version, state: record.state, error: record.error, segmentCount: record.segmentCount };
+      return reply(route, record);
+    }
     if (method === "GET" && path === "/api/users") {
       if (!session.roles.includes("administrator")) return fail(route, 403, "Only administrators can manage accounts.");
       return reply(route, byEmail());
@@ -222,6 +247,10 @@ export async function installFakeServer(page: Page, session: SessionUser): Promi
         extractionStrategy: input.extractionStrategy ?? null,
         extractionWarnings: input.extractionWarnings ?? [],
       });
+      if (input.deferIngestion) {
+        detail.ingestion = { version: 1, state: "pending", error: null, segmentCount: 0 };
+        ingestions.set(id, { ...detail.ingestion, agreementId: id, source: "extracted", text: "", pages: [], segments: [], pageCount: null, strategy: null, warnings: [] });
+      }
       store.set(id, detail);
       return reply(route, detail, 201);
     }
@@ -315,8 +344,20 @@ export async function installFakeServer(page: Page, session: SessionUser): Promi
       vendor = "Northstar",
       rawText,
       submittedBy = { id: "a0000000-0000-4000-8000-000000000099", email: "colleague@example.test", displayName: "Casey Colleague" },
+      findings,
+      classificationStatus,
     }) => {
-      const detail = newAgreement({ name, vendor, agreementType: "MSA", businessUnit: "Legal", neededBy: "2026-12-01", rawText, submittedBy });
+      const detail = newAgreement({
+        name,
+        vendor,
+        agreementType: "MSA",
+        businessUnit: "Legal",
+        neededBy: "2026-12-01",
+        rawText,
+        submittedBy,
+        ...(findings ? { findings } : {}),
+        ...(classificationStatus ? { classificationStatus } : {}),
+      });
       store.set(detail.id, detail);
       return structuredClone(detail);
     },

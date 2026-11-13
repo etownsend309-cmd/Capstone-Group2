@@ -7,6 +7,8 @@
  * the label maps at the bottom.
  */
 
+import type { IngestionSummary } from "./ingestion";
+
 import type { ClassificationStatus, ConfidenceIndicator, FindingRejection } from "./classifier";
 import type { AgreementStatus, Role } from "../types";
 
@@ -42,6 +44,7 @@ export interface SessionUser {
 }
 
 export interface AgreementSummary {
+  ingestion?: IngestionSummary;
   id: string;
   name: string;
   vendor: string;
@@ -130,6 +133,7 @@ export interface AgreementDetail extends AgreementSummary {
 }
 
 export interface NewAgreementInput {
+  deferIngestion?: boolean;
   name: string;
   vendor: string;
   agreementType: string;

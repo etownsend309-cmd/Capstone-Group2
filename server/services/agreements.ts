@@ -37,12 +37,14 @@ import type { ClassificationRun, FindingRejection } from "../../src/shared/class
 import type { Finding, FindingSeverity } from "../../src/types.ts";
 import { isUuid, type Queryable } from "../db.ts";
 import { badRequest, conflict, forbidden, notFound } from "../errors.ts";
+import type { IngestionSummary } from "../../src/shared/ingestion.ts";
 import { recordAudit } from "./audit.ts";
 
 const CATEGORY_NAMES = new Set<string>(playbook.map((category) => category.name));
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 interface SummaryRow {
+  ingestion: IngestionSummary | null;
   id: string;
   name: string;
   vendor: string;
@@ -128,6 +130,9 @@ interface DocumentRow {
 // The submitter's name comes through a LEFT JOIN because requesters may only
 // read their own app_users row; for their own agreements that is always them.
 const SUMMARY_COLUMNS = `
+  (SELECT jsonb_build_object('version', i.version, 'state', i.state, 'error', i.error,
+    'segmentCount', jsonb_array_length(i.segments)) FROM agreement_ingestions i
+    WHERE i.agreement_id = a.id ORDER BY i.version DESC LIMIT 1) AS ingestion,
   a.id, a.name, a.vendor, a.agreement_type, a.business_unit, a.needed_by::text AS needed_by,
   a.submitted_by, u.email AS submitter_email, u.display_name AS submitter_name,
   a.submitted_at, a.status, a.completed_at, a.approved_at,
@@ -139,6 +144,7 @@ const iso = (value: Date | null) => (value ? value.toISOString() : null);
 function toSummary(row: SummaryRow): AgreementSummary {
   return {
     id: row.id,
+    ingestion: row.ingestion ?? undefined,
     name: row.name,
     vendor: row.vendor,
     agreementType: row.agreement_type,
@@ -298,12 +304,15 @@ export async function getAgreement(db: Queryable, id: string): Promise<Agreement
     [id],
   );
 
+  const ingestionResult = await db.query<{ source_text: string; page_count: number | null; strategy: string | null; warnings: string[] }>(
+    "SELECT source_text, page_count, strategy, warnings FROM agreement_ingestions WHERE agreement_id = $1 ORDER BY version DESC LIMIT 1", [id]);
+  const ingestion = ingestionResult.rows[0];
   return {
     ...toSummary(row),
-    rawText: row.raw_text,
-    pageCount: row.page_count,
-    extractionStrategy: row.extraction_strategy,
-    extractionWarnings: row.extraction_warnings,
+    rawText: ingestion?.source_text ?? row.raw_text,
+    pageCount: ingestion?.page_count ?? row.page_count,
+    extractionStrategy: ingestion?.strategy ?? row.extraction_strategy,
+    extractionWarnings: ingestion?.warnings ?? row.extraction_warnings,
     approvedBy: row.approved_by,
     findings: findings.rows.map((finding) => toFinding(finding, history.get(finding.id))),
     classificationStatus: row.classification_status,
@@ -339,7 +348,7 @@ export function parseNewAgreement(body: unknown): NewAgreementInput {
   if (neededBy && !ISO_DATE.test(neededBy)) throw badRequest("Needed by must be a date (YYYY-MM-DD).");
 
   const rawText = optionalText(input.rawText, "Agreement text", LIMITS.rawTextChars);
-  if (!rawText) throw badRequest("The agreement has no readable text.");
+  if (!rawText && input.deferIngestion !== true) throw badRequest("The agreement has no readable text.");
 
   const pageCount = input.pageCount;
   if (pageCount !== undefined && (!Number.isInteger(pageCount) || (pageCount as number) < 1)) {
@@ -358,6 +367,7 @@ export function parseNewAgreement(body: unknown): NewAgreementInput {
     businessUnit: requiredText(input.businessUnit, "Business unit"),
     neededBy,
     rawText,
+    deferIngestion: input.deferIngestion === true,
     pageCount: pageCount as number | undefined,
     extractionStrategy: optionalText(input.extractionStrategy, "Extraction strategy", LIMITS.shortTextChars) || undefined,
     extractionWarnings: warnings as string[],
@@ -517,7 +527,9 @@ async function applyClassification(
  * local playbook rules cover every category and the agreement is still saved.
  */
 export async function submitAgreement(db: Queryable, userId: string, input: NewAgreementInput): Promise<AgreementDetail> {
-  const stored = await classifyForStorage(input.rawText);
+  const stored = input.deferIngestion
+  ? null
+  : await classifyForStorage(input.rawText);
   const { rows } = await db.query<{ id: string }>(
     `INSERT INTO agreements (
        name, vendor, agreement_type, business_unit, needed_by, submitted_by,
@@ -535,16 +547,24 @@ export async function submitAgreement(db: Queryable, userId: string, input: NewA
       input.pageCount ?? null,
       input.extractionStrategy ?? null,
       input.extractionWarnings ?? [],
-      stored.status,
+      stored?.status ?? "manual_required",
     ],
   );
   const id = rows[0]!.id;
-  await applyClassification(db, id, input.rawText, [], stored, false);
-  await recordAudit(db, userId, id, "agreement.submitted", {
-    classificationStatus: stored.status,
-    errorCode: stored.run.errorCode ?? null,
-    rejectionCount: stored.rejections.length,
-  });
+  if (input.deferIngestion) {
+    await db.query(
+      "INSERT INTO agreement_ingestions (agreement_id, version) VALUES ($1, 1)",
+      [id],
+    );
+    await recordAudit(db, userId, id, "agreement.submitted");
+  } else if (stored) {
+    await applyClassification(db, id, input.rawText, [], stored, false);
+    await recordAudit(db, userId, id, "agreement.submitted", {
+      classificationStatus: stored.status,
+      errorCode: stored.run.errorCode ?? null,
+      rejectionCount: stored.rejections.length,
+    });
+  }
   return getAgreement(db, id);
 }
 
@@ -572,6 +592,7 @@ export async function retryClassification(db: Queryable, userId: string, agreeme
 }
 
 interface LockedAgreement {
+  ingestion_state: string | null;
   status: AgreementStatusCode;
   submitted_by: string;
   raw_text: string;
@@ -580,7 +601,10 @@ interface LockedAgreement {
 async function lockAgreement(db: Queryable, id: string): Promise<LockedAgreement> {
   if (!isUuid(id)) throw notFound("That agreement");
   const { rows } = await db.query<LockedAgreement>(
-    "SELECT status, submitted_by, raw_text FROM agreements WHERE id = $1 FOR UPDATE",
+    `SELECT status, submitted_by,
+      (SELECT state FROM agreement_ingestions WHERE agreement_id = agreements.id ORDER BY version DESC LIMIT 1) AS ingestion_state,
+      coalesce((SELECT source_text FROM agreement_ingestions WHERE agreement_id = agreements.id ORDER BY version DESC LIMIT 1), raw_text) AS raw_text
+      FROM agreements WHERE id = $1 FOR UPDATE`,
     [id],
   );
   if (rows[0]) return rows[0];
@@ -598,6 +622,9 @@ async function lockAgreement(db: Queryable, id: string): Promise<LockedAgreement
  * is refused even with the Reviewer or Administrator role.
  */
 function assertCanReview(agreement: LockedAgreement, userId: string) {
+  if (agreement.ingestion_state && agreement.ingestion_state !== "ready") {
+    throw conflict("Prepare the agreement text before recording review decisions. Retry extraction or supply text.");
+  }
   if (agreement.status === "approved" || agreement.status === "escalated") {
     throw conflict("This review is already complete.");
   }
@@ -773,6 +800,8 @@ export async function completeReview(db: Queryable, userId: string, agreementId:
        FROM findings WHERE agreement_id = $1`,
     [agreementId],
   );
+  const ingestion = await db.query<{ state: string }>("SELECT state FROM agreement_ingestions WHERE agreement_id = $1 ORDER BY version DESC LIMIT 1", [agreementId]);
+  if (ingestion.rows[0] && ingestion.rows[0].state !== "ready") throw conflict("Prepare the agreement text before completing review.");
   const counts = rows[0] ?? { pending: 0, escalated: 0 };
   if (counts.pending > 0) throw conflict("Record a decision on every finding before completing the review.");
 

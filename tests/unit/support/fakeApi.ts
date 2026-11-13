@@ -1,3 +1,5 @@
+import { segmentAgreement } from "../../../src/lib/segmentAgreement";
+import type { IngestionInput, IngestionRecord } from "../../../src/shared/ingestion";
 /**
  * An in-memory stand-in for the browser API client (src/lib/api.ts), for
  * component tests.
@@ -47,6 +49,7 @@ export const me = { id: signedInUser.id, email: signedInUser.email, displayName:
 export const colleague = { id: "a0000000-0000-4000-8000-000000000099", email: "colleague@example.test", displayName: "Casey Colleague" };
 const actor = { email: me.email, displayName: me.displayName };
 
+let ingestions = new Map<string, IngestionRecord>();
 let store = new Map<string, AgreementDetail>();
 let accounts = new Map<string, ManagedUser>();
 let counter = 0;
@@ -57,6 +60,7 @@ function summary(detail: AgreementDetail): AgreementSummary {
   const { id, name, vendor, agreementType, businessUnit, neededBy, submittedBy, submittedAt, status, completedAt, approvedAt, findings } = detail;
   return {
     id, name, vendor, agreementType, businessUnit, neededBy, submittedBy, submittedAt, status, completedAt, approvedAt,
+    ingestion: detail.ingestion,
     findingCount: findings.length,
     pendingFindingCount: findings.filter((f) => f.decision === "pending").length,
   };
@@ -203,6 +207,21 @@ export const storedUsers = () => [...accounts.values()].sort((a, b) => a.email.l
 export const stored = () => [...store.values()].sort((a, b) => b.submittedAt.localeCompare(a.submittedAt)).map(copy);
 
 export const fakeApi = {
+  getIngestion: vi.fn(async (id: string): Promise<IngestionRecord> => {
+    const record = ingestions.get(id);
+    if (!record) throw new ApiRequestError(404, "That ingestion was not found.");
+    return copy(record);
+  }),
+  processIngestion: vi.fn(async (id: string, input: IngestionInput): Promise<IngestionRecord> => {
+    const detail = find(id);
+    const record = ingestions.get(id)!;
+    const segments = input.failed ? [] : segmentAgreement(id, input.version, input.text ?? "", input.pages);
+    Object.assign(record, { state: input.failed ? "failed" : "ready", error: input.failed ? "Text could not be prepared. Retry or supply text." : null,
+      text: input.text ?? "", source: input.source ?? "extracted", pages: input.pages ?? [], segments, segmentCount: segments.length });
+    detail.rawText = record.text;
+    detail.ingestion = { version: record.version, state: record.state, error: record.error, segmentCount: record.segmentCount };
+    return copy(record);
+  }),
   getSession: vi.fn(),
   listAgreements: vi.fn(async (): Promise<AgreementSummary[]> => stored().map(summary)),
   getAgreement: vi.fn(async (id: string): Promise<AgreementDetail> => copy(find(id))),
@@ -220,6 +239,10 @@ export const fakeApi = {
       submittedBy: me,
       submittedAt: new Date().toISOString(),
     });
+    if (input.deferIngestion) {
+      detail.ingestion = { version: 1, state: "pending", error: null, segmentCount: 0 };
+      ingestions.set(detail.id, { ...detail.ingestion, agreementId: detail.id, source: "extracted", text: "", pages: [], segments: [], pageCount: null, strategy: null, warnings: [] });
+    }
     store.set(detail.id, detail);
     return copy(detail);
   }),
@@ -319,6 +342,7 @@ export const fakeApi = {
 
 /** Empties the store and restores every method's default behaviour. */
 export function resetFakeApi() {
+  ingestions = new Map();
   store = new Map();
   accounts = new Map();
   counter = 0;

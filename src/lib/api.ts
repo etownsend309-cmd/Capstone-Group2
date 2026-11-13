@@ -19,6 +19,8 @@ import type {
   UserAccessInput,
 } from "../shared/api";
 
+import type { IngestionInput, IngestionRecord } from "../shared/ingestion";
+
 export class ApiRequestError extends Error {
   constructor(
     readonly status: number,
@@ -57,6 +59,8 @@ const sendJson = (method: string, body?: unknown): RequestInit => ({
 });
 
 export const api = {
+  getIngestion: (id: string) => request<IngestionRecord>(`/api/agreements/${encodeURIComponent(id)}/ingestion`),
+  processIngestion: (id: string, input: IngestionInput) => request<IngestionRecord>(`/api/agreements/${encodeURIComponent(id)}/ingestion`, sendJson("POST", input)),
   getSession: () => request<SessionUser>("/api/session"),
 
   listAgreements: () => request<AgreementSummary[]>("/api/agreements"),

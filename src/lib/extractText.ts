@@ -18,7 +18,10 @@ import {
 import { extractPdf } from "../pdf/extractPdf";
 import type { ExtractionRun, StrategyId, StrategyResult } from "../pdf/types";
 
+import type { SourcePage } from "../shared/ingestion";
+
 export interface ExtractedDocument {
+  pages?: SourcePage[];
   text: string;
   /** Pages PDF.js reported. Undefined for plain text, which has no pages. */
   pageCount?: number;
@@ -62,10 +65,16 @@ export async function extractText(file: File): Promise<ExtractedDocument> {
   const chosen = chooseStrategy(run);
   if (!chosen) throw new Error(explainFailure(run));
 
+  let pageOffset = 0;
   return {
     text: chosen.text,
     pageCount: run.pageCount,
     strategy: chosen.strategy,
+    pages: chosen.pages.map((page) => {
+      const startOffset = pageOffset;
+      pageOffset += page.text.length + 2;
+      return { pageNumber: page.pageNumber, startOffset, endOffset: startOffset + page.text.length };
+    }),
     warnings: [...run.warnings, ...chosen.warnings],
   };
 }

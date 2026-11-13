@@ -38,6 +38,7 @@ test("valid PDF submission is saved through the API and survives reload", async 
   await expect(page.getByRole("heading", { name: "clean-agreement.pdf" })).toBeVisible();
   for (const [, value] of fields) await expect(page.locator(".tracker-record")).toContainText(value);
   await expect(page.locator(".tracker-record")).toContainText("Needs review");
+  await expect(page.getByText("Text ready", { exact: true })).toBeVisible();
   const [saved] = server.agreements();
   expect(saved).toMatchObject({ name: "clean-agreement.pdf", vendor: "Northstar Data", neededBy: "2026-12-01", status: "needs_review" });
   expect(saved!.rawText.length).toBeGreaterThan(0);
@@ -47,46 +48,35 @@ test("valid PDF submission is saved through the API and survives reload", async 
   await expect(page.getByRole("heading", { name: "clean-agreement.pdf" })).toBeVisible();
 });
 
-test("validated AI findings flow from intake into human review", async ({ page }) => {
-  await page.route("**/.netlify/functions/classify-agreement", async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({
-        status: "complete",
-        run: {
-          id: "524d8fcc-8858-4285-a41c-69516c4dd2ca",
-          provider: "OpenAI",
-          requestedModel: "gpt-5.6-terra",
-          returnedModel: "gpt-5.6-terra",
-          providerResponseId: "resp_browser_test",
-          promptVersion: "clausepilot-classifier-v1",
-          schemaVersion: "classifier-output-v1",
-          modelConfigVersion: "openai-terra-low-v1",
-          startedAt: "2026-11-02T20:00:00.000Z",
-          completedAt: "2026-11-02T20:00:01.000Z",
-          latencyMs: 1000,
-          status: "complete",
-        },
-        findings: [{
-          category: "Governing Law",
-          sourceText: "governed by the laws of the State of Ohio",
-          sourceStart: 2350,
-          sourceEnd: 2393,
-          confidenceIndicator: "high",
-          evidenceValidation: "exact",
-        }],
-        rejections: [],
-      }),
-    });
+test("a saved AI finding shows in review", async ({ page, server }) => {
+  server.addAgreement({
+    name: "Checked MSA.pdf",
+    rawText: "This Agreement is governed by the laws of the State of Ohio.",
+    classificationStatus: "complete",
+    findings: [{
+      id: "f0000000-0000-4000-8000-0000000000a1",
+      category: "Governing Law",
+      confidence: 0,
+      sourceText: "governed by the laws of the State of Ohio",
+      decision: "pending",
+      note: "",
+      method: "ai",
+      confidenceIndicator: "high",
+      decidedAt: null,
+      findingType: "provision",
+      classification: "present",
+      severity: null,
+      reason: "The model returned this quote and it matched the stored agreement text exactly. The confidence indicator is the model's own assessment and is not calibrated.",
+      playbookExpectation: "",
+      createdBy: null,
+      history: [],
+    }],
   });
-  await openIntake(page);
-  await page.getByLabel("Agreement document", { exact: true }).setInputFiles(fixture("clean-agreement.pdf"));
-  await fillMetadata(page);
-  await page.getByRole("button", { name: /Create review/ }).click();
-  await page.getByRole("button", { name: /Review queue/ }).click();
+  await page.goto("/");
+  await expect(page.getByText(requester.email)).toBeVisible();
+  await page.getByRole("navigation").getByRole("button", { name: /Review queue/ }).click();
 
-  await expect(page.getByText("High model confidence · not calibrated").first()).toBeVisible();
+  await expect(page.getByText("high model confidence · not calibrated").first()).toBeVisible();
   await expect(page.getByText("governed by the laws of the State of Ohio")).toBeVisible();
   await expect(page.getByText(/Every displayed quote passed exact source validation/)).toBeVisible();
 });
@@ -141,16 +131,17 @@ test("upload and submission work using the keyboard", async ({ page }) => {
   await expect(page.getByRole("status")).toContainText("submitted successfully");
 });
 
-test("unreadable PDF gives a failure result without a record", async ({ page, server }) => {
+test("unreadable PDF retains a recoverable submission", async ({ page, server }) => {
   await openIntake(page);
   await page.getByLabel("Agreement document", { exact: true }).setInputFiles(fixture("scanned-agreement.pdf"));
   await fillMetadata(page);
   await page.getByRole("button", { name: /Create review/ }).click();
-  await expect(page.getByRole("alert")).toContainText(/scanned|image-only/i);
-  await expect(page.getByLabel("Vendor")).toHaveValue("Northstar Data");
-  // The status region stays mounted so it can be announced; it must be empty.
-  await expect(page.getByRole("status")).toHaveText("");
-  expect(server.agreements()).toEqual([]);
+  await expect(page.getByText("Text preparation failed", { exact: true })).toBeVisible();
+  expect(server.agreements()).toHaveLength(1);
+  await page.getByLabel("Supplied agreement text").fill("Governing law applies.");
+  await page.getByRole("button", { name: "Use supplied text" }).click();
+  await expect(page.getByText("Text ready", { exact: true })).toBeVisible();
+  expect(server.agreements()[0]?.rawText).toBe("Governing law applies.");
 });
 
 test("a server failure never reports success", async ({ page, server }) => {

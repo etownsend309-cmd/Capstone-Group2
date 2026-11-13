@@ -68,6 +68,10 @@ describe("extractText", () => {
       const result = await extractText(await pdfFixture("clean-agreement.pdf"));
 
       expect(result.pageCount).toBe(2);
+      expect(result.pages).toHaveLength(2);
+      expect(result.pages?.[0]?.startOffset).toBe(0);
+      expect(result.pages?.at(-1)?.endOffset).toBe(result.text.length);
+      expect(result.pages?.every((page) => result.text.slice(page.startOffset, page.endOffset).trim().length > 0)).toBe(true);
       expect(result.text.length).toBeGreaterThan(1_000);
       expect(result.strategy).toBe("coordinate-order");
     });

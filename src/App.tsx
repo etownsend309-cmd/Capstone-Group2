@@ -1,3 +1,5 @@
+import { IngestionPanel } from "./components/IngestionPanel";
+import { ingestDocument } from "./lib/ingestDocument";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Icon } from "./components/Icon";
 import { Intake } from "./components/Intake";
@@ -194,27 +196,24 @@ export default function App({ user, views, displayName, onSignOut }: AppProps) {
       throw new Error(`${errorMessage(reason, "The agreement could not be saved.")} Your submission was not saved.`, { cause: reason });
     }
 
-    // The record and its findings are saved; keeping the original file is a
-    // second request, so a failure there is reported but doesn't undo the submission.
     let uploadNote = "";
     try {
       await api.uploadDocument(created.id, file);
     } catch (reason) {
-      uploadNote = ` The original file wasn't stored (${errorMessage(reason, "upload failed")}), but the extracted text was saved.`;
+      uploadNote = ` The original file wasn't stored (${errorMessage(reason, "upload failed")}). Supply text or retry from My submissions.`;
     }
     if (!live.current) return;
-
     applyDetail(created);
-    // The cached copy predates the upload, so the review screen fetches it again.
+    // Refresh the cached details after the upload.
     setDetails((current) => withoutKey(current, created.id));
-    const classificationNotice =
-      created.classificationStatus === "manual_required"
-        ? " The agreement was saved, but AI classification failed or is unavailable. Continue with manual classification."
-        : created.classificationStatus === "partial"
-          ? " The agreement was saved with partial AI results; rejected findings require manual review."
-          : "";
-    setNotice(`Agreement "${created.name}" submitted successfully. Reference: ${created.id}. Status: ${STATUS_LABELS[created.status]}.${classificationNotice}${uploadNote}`);
+    setNotice(`Agreement "${created.name}" submitted successfully. Reference: ${created.id}. Text preparation pending.${uploadNote}`);
     setView("tracker");
+    void ingestDocument(created.id, 1, file, () => live.current).then(async () => {
+      const detail = await api.getAgreement(created.id);
+      if (live.current) { applyDetail(detail); await loadList(); }
+    }).catch(() => {
+      if (live.current) setNotice(`Agreement "${created.name}" is saved. Text preparation was interrupted. Retry from My submissions.`);
+    });
   };
 
   /**
@@ -317,7 +316,7 @@ export default function App({ user, views, displayName, onSignOut }: AppProps) {
             <ListPlaceholder state={listState} onRetry={() => { setListState({ kind: "loading" }); void loadList(); }} />
           ) : (
             <>
-              {view === "tracker" && <RequesterTracker agreements={agreements.filter((item) => item.submittedBy.id === user.id)} />}
+              {view === "tracker" && <RequesterTracker agreements={agreements.filter((item) => item.submittedBy.id === user.id)} onIngested={loadList} />}
               {view === "overview" && (
                 <Overview agreements={agreements} onNew={() => startIntake()} onReview={openReview} />
               )}
@@ -336,6 +335,7 @@ export default function App({ user, views, displayName, onSignOut }: AppProps) {
                   onAddManual={(agreementId, input) => runAction(() => api.addManualFinding(agreementId, input))}
                   onEditManual={(findingId, input) => runAction(() => api.editManualFinding(findingId, input))}
                   onComplete={(agreementId) => runAction(() => api.completeReview(agreementId))}
+                  onIngested={async () => { if (activeId) applyDetail(await api.getAgreement(activeId)); await loadList(); }}
                   onRetry={(agreementId) => runAction(() => api.retryClassification(agreementId))}
                   onNew={() => startIntake()}
                 />
@@ -468,7 +468,7 @@ function Metric({ label, value, note, tone }: { label: string; value: number; no
   );
 }
 
-function RequesterTracker({ agreements }: { agreements: AgreementSummary[] }) {
+function RequesterTracker({ agreements, onIngested }: { agreements: AgreementSummary[]; onIngested: () => Promise<void> }) {
   return <section>
     <div className="page-heading"><span className="eyebrow">Requester tracker</span><h1>My submissions</h1><p>Track the agreements you have submitted and where each review stands.</p></div>
     {agreements.length === 0 ? <EmptyState title="No submissions yet" body="Submit an agreement to track its status here." /> :
@@ -482,11 +482,13 @@ function RequesterTracker({ agreements }: { agreements: AgreementSummary[] }) {
           <dt>Needed-by date</dt><dd>{agreement.neededBy || "Not recorded"}</dd>
           <dt>Submitted</dt><dd>{formatDate(agreement.submittedAt)}</dd>
         </dl>
+        <IngestionPanel agreementId={agreement.id} ingestion={agreement.ingestion} onChange={onIngested} canRecover={agreement.status === "needs_review"} />
       </article>)}</div>}
   </section>;
 }
 
 function ReviewQueue({
+  onIngested,
   agreements,
   activeId,
   detail,
@@ -502,6 +504,7 @@ function ReviewQueue({
   onRetry,
   onNew,
 }: {
+  onIngested: () => Promise<void>;
   agreements: AgreementSummary[];
   activeId?: string;
   detail?: AgreementDetail;
@@ -550,7 +553,7 @@ function ReviewQueue({
   const locked = !isOpen(active);
   // Separation of duties: nobody reviews an agreement they submitted. The API refuses it too.
   const ownAgreement = active.submittedBy.id === currentUser.id;
-  const canReview = role !== "Requester" && !locked && !!shown && !ownAgreement;
+  const canReview = role !== "Requester" && !locked && !!shown && !ownAgreement && (!shown.ingestion || shown.ingestion.state === "ready");
   const pendingCount = findings.filter((finding) => finding.decision === "pending").length;
 
   const noteFor = (finding: FindingRecord) => drafts[finding.id] ?? finding.note;
@@ -656,6 +659,7 @@ function ReviewQueue({
             detailError ? <p className="error-message" role="alert">{detailError}</p> : <p>Loading agreement…</p>
           ) : (
             <>
+              <IngestionPanel key={`${shown.id}:${shown.ingestion?.version ?? "legacy"}`} agreementId={shown.id} ingestion={shown.ingestion} onChange={onIngested} canRecover={shown.status === "needs_review"} />
               {!!shown.extractionWarnings.length && (
                 <div className="permission-banner">
                   <strong>Extraction notes:</strong> {shown.extractionWarnings.join(" ")}
