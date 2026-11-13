@@ -1,0 +1,873 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-11-02T21:42:46.809Z",
+  "dataset": {
+    "source": "CUAD v1",
+    "selectionSeed": "clausepilot-cuad-30-v1",
+    "holdout": false
+  },
+  "configuration": {
+    "engine": "local-rule",
+    "promptVersion": "clausepilot-classifier-v1",
+    "schemaVersion": "classifier-output-v1",
+    "modelConfigVersion": "openai-terra-low-v1",
+    "frozenConfig": false
+  },
+  "summary": {
+    "documents": 30,
+    "failures": 0,
+    "macroPrecision": 0.8086970899470899,
+    "macroRecall": 0.5008267195767196,
+    "macroF1": 0.6037035378067986,
+    "exactEvidenceAcceptanceRate": 1,
+    "medianLatencyMs": 1,
+    "totalInputTokens": 0,
+    "totalOutputTokens": 0,
+    "perCategory": [
+      {
+        "category": "Governing Law",
+        "truePositives": 24,
+        "falsePositives": 0,
+        "falseNegatives": 4,
+        "precision": 1,
+        "recall": 0.8571428571428571,
+        "f1": 0.923076923076923
+      },
+      {
+        "category": "Anti-Assignment",
+        "truePositives": 11,
+        "falsePositives": 0,
+        "falseNegatives": 10,
+        "precision": 1,
+        "recall": 0.5238095238095238,
+        "f1": 0.6875000000000001
+      },
+      {
+        "category": "Cap On Liability",
+        "truePositives": 7,
+        "falsePositives": 1,
+        "falseNegatives": 8,
+        "precision": 0.875,
+        "recall": 0.4666666666666667,
+        "f1": 0.608695652173913
+      },
+      {
+        "category": "Audit Rights",
+        "truePositives": 4,
+        "falsePositives": 0,
+        "falseNegatives": 4,
+        "precision": 1,
+        "recall": 0.5,
+        "f1": 0.6666666666666666
+      },
+      {
+        "category": "Termination For Convenience",
+        "truePositives": 3,
+        "falsePositives": 1,
+        "falseNegatives": 5,
+        "precision": 0.75,
+        "recall": 0.375,
+        "f1": 0.5
+      },
+      {
+        "category": "Exclusivity",
+        "truePositives": 11,
+        "falsePositives": 3,
+        "falseNegatives": 3,
+        "precision": 0.7857142857142857,
+        "recall": 0.7857142857142857,
+        "f1": 0.7857142857142857
+      },
+      {
+        "category": "Renewal Term",
+        "truePositives": 7,
+        "falsePositives": 0,
+        "falseNegatives": 2,
+        "precision": 1,
+        "recall": 0.7777777777777778,
+        "f1": 0.8750000000000001
+      },
+      {
+        "category": "Insurance",
+        "truePositives": 8,
+        "falsePositives": 1,
+        "falseNegatives": 6,
+        "precision": 0.8888888888888888,
+        "recall": 0.5714285714285714,
+        "f1": 0.6956521739130435
+      },
+      {
+        "category": "Change Of Control",
+        "truePositives": 4,
+        "falsePositives": 3,
+        "falseNegatives": 5,
+        "precision": 0.5714285714285714,
+        "recall": 0.4444444444444444,
+        "f1": 0.5
+      },
+      {
+        "category": "Uncapped Liability",
+        "truePositives": 2,
+        "falsePositives": 2,
+        "falseNegatives": 7,
+        "precision": 0.5,
+        "recall": 0.2222222222222222,
+        "f1": 0.30769230769230765
+      },
+      {
+        "category": "Notice Period To Terminate Renewal",
+        "truePositives": 2,
+        "falsePositives": 0,
+        "falseNegatives": 5,
+        "precision": 1,
+        "recall": 0.2857142857142857,
+        "f1": 0.4444444444444445
+      },
+      {
+        "category": "Warranty Duration",
+        "truePositives": 1,
+        "falsePositives": 2,
+        "falseNegatives": 4,
+        "precision": 0.3333333333333333,
+        "recall": 0.2,
+        "f1": 0.25
+      }
+    ]
+  },
+  "cases": [
+    {
+      "id": "ENERGOUSCORP_03_16_2017-EX-10.24-STRATEGIC ALLIANCE AGREEMENT.PDF",
+      "expected": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Cap On Liability",
+        "Audit Rights",
+        "Termination For Convenience",
+        "Exclusivity",
+        "Renewal Term",
+        "Insurance",
+        "Change Of Control",
+        "Uncapped Liability",
+        "Notice Period To Terminate Renewal",
+        "Warranty Duration"
+      ],
+      "predicted": [
+        {
+          "category": "Governing Law"
+        },
+        {
+          "category": "Anti-Assignment"
+        },
+        {
+          "category": "Cap On Liability"
+        },
+        {
+          "category": "Audit Rights"
+        },
+        {
+          "category": "Exclusivity"
+        },
+        {
+          "category": "Renewal Term"
+        },
+        {
+          "category": "Insurance"
+        },
+        {
+          "category": "Change Of Control"
+        },
+        {
+          "category": "Uncapped Liability"
+        }
+      ],
+      "acceptedEvidence": 9,
+      "rejectedEvidence": 0,
+      "latencyMs": 2
+    },
+    {
+      "id": "NANOPHASETECHNOLOGIESCORP_11_01_2005-EX-99.1-DISTRIBUTOR AGREEMENT.PDF",
+      "expected": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Cap On Liability",
+        "Audit Rights",
+        "Termination For Convenience",
+        "Exclusivity",
+        "Renewal Term",
+        "Insurance",
+        "Uncapped Liability",
+        "Notice Period To Terminate Renewal",
+        "Warranty Duration"
+      ],
+      "predicted": [
+        {
+          "category": "Governing Law"
+        },
+        {
+          "category": "Anti-Assignment"
+        },
+        {
+          "category": "Cap On Liability"
+        },
+        {
+          "category": "Termination For Convenience"
+        },
+        {
+          "category": "Exclusivity"
+        },
+        {
+          "category": "Renewal Term"
+        },
+        {
+          "category": "Insurance"
+        },
+        {
+          "category": "Uncapped Liability"
+        },
+        {
+          "category": "Notice Period To Terminate Renewal"
+        }
+      ],
+      "acceptedEvidence": 9,
+      "rejectedEvidence": 0,
+      "latencyMs": 1
+    },
+    {
+      "id": "PACIRA PHARMACEUTICALS, INC. - A&R STRATEGIC LICENSING, DISTRIBUTION AND MARKETING AGREEMENT .PDF",
+      "expected": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Cap On Liability",
+        "Audit Rights",
+        "Termination For Convenience",
+        "Exclusivity",
+        "Renewal Term",
+        "Insurance",
+        "Change Of Control",
+        "Uncapped Liability",
+        "Notice Period To Terminate Renewal"
+      ],
+      "predicted": [
+        {
+          "category": "Governing Law"
+        },
+        {
+          "category": "Audit Rights"
+        },
+        {
+          "category": "Termination For Convenience"
+        },
+        {
+          "category": "Exclusivity"
+        },
+        {
+          "category": "Renewal Term"
+        },
+        {
+          "category": "Change Of Control"
+        }
+      ],
+      "acceptedEvidence": 6,
+      "rejectedEvidence": 0,
+      "latencyMs": 2
+    },
+    {
+      "id": "AgapeAtpCorp_20191202_10-KA_EX-10.1_11911128_EX-10.1_Supply Agreement.pdf",
+      "expected": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Exclusivity",
+        "Renewal Term",
+        "Insurance",
+        "Change Of Control",
+        "Notice Period To Terminate Renewal",
+        "Warranty Duration"
+      ],
+      "predicted": [
+        {
+          "category": "Governing Law"
+        },
+        {
+          "category": "Anti-Assignment"
+        },
+        {
+          "category": "Exclusivity"
+        },
+        {
+          "category": "Renewal Term"
+        }
+      ],
+      "acceptedEvidence": 4,
+      "rejectedEvidence": 0,
+      "latencyMs": 0
+    },
+    {
+      "id": "ATENTOSA_07_06_2020-EX-99.1-JOINT FILING AGREEMENT.PDF",
+      "expected": [],
+      "predicted": [],
+      "acceptedEvidence": 0,
+      "rejectedEvidence": 0,
+      "latencyMs": 0
+    },
+    {
+      "id": "SUNTRONCORP_05_17_2006-EX-10.22-MAINTENANCE AGREEMENT.PDF",
+      "expected": [
+        "Governing Law",
+        "Cap On Liability"
+      ],
+      "predicted": [
+        {
+          "category": "Governing Law"
+        },
+        {
+          "category": "Exclusivity"
+        }
+      ],
+      "acceptedEvidence": 2,
+      "rejectedEvidence": 0,
+      "latencyMs": 0
+    },
+    {
+      "id": "GSVINC_05_15_1998-EX-10-SPONSORSHIP AGREEMENT.PDF",
+      "expected": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Cap On Liability",
+        "Audit Rights"
+      ],
+      "predicted": [
+        {
+          "category": "Governing Law"
+        },
+        {
+          "category": "Anti-Assignment"
+        },
+        {
+          "category": "Cap On Liability"
+        },
+        {
+          "category": "Uncapped Liability"
+        }
+      ],
+      "acceptedEvidence": 4,
+      "rejectedEvidence": 0,
+      "latencyMs": 1
+    },
+    {
+      "id": "LejuHoldingsLtd_20140121_DRS (on F-1)_EX-10.26_8473102_EX-10.26_Content License Agreement2.pdf",
+      "expected": [
+        "Governing Law"
+      ],
+      "predicted": [
+        {
+          "category": "Governing Law"
+        }
+      ],
+      "acceptedEvidence": 1,
+      "rejectedEvidence": 0,
+      "latencyMs": 0
+    },
+    {
+      "id": "ArmstrongFlooringInc_20190107_8-K_EX-10.2_11471795_EX-10.2_Intellectual Property Agreement.pdf",
+      "expected": [
+        "Governing Law",
+        "Anti-Assignment"
+      ],
+      "predicted": [
+        {
+          "category": "Governing Law"
+        }
+      ],
+      "acceptedEvidence": 1,
+      "rejectedEvidence": 0,
+      "latencyMs": 2
+    },
+    {
+      "id": "PAXMEDICA,INC_07_02_2020-EX-10.12-Master Service Agreement.PDF",
+      "expected": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Cap On Liability",
+        "Termination For Convenience",
+        "Uncapped Liability"
+      ],
+      "predicted": [
+        {
+          "category": "Governing Law"
+        },
+        {
+          "category": "Anti-Assignment"
+        }
+      ],
+      "acceptedEvidence": 2,
+      "rejectedEvidence": 0,
+      "latencyMs": 0
+    },
+    {
+      "id": "StaarSurgicalCompany_20180801_10-Q_EX-10.37_11289449_EX-10.37_Distributor Agreement.pdf",
+      "expected": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Cap On Liability",
+        "Termination For Convenience",
+        "Exclusivity",
+        "Renewal Term",
+        "Insurance",
+        "Uncapped Liability",
+        "Warranty Duration"
+      ],
+      "predicted": [
+        {
+          "category": "Governing Law"
+        },
+        {
+          "category": "Cap On Liability"
+        },
+        {
+          "category": "Exclusivity"
+        },
+        {
+          "category": "Renewal Term"
+        },
+        {
+          "category": "Change Of Control"
+        },
+        {
+          "category": "Warranty Duration"
+        }
+      ],
+      "acceptedEvidence": 6,
+      "rejectedEvidence": 0,
+      "latencyMs": 1
+    },
+    {
+      "id": "ConformisInc_20191101_10-Q_EX-10.6_11861402_EX-10.6_Development Agreement.pdf",
+      "expected": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Cap On Liability",
+        "Exclusivity",
+        "Change Of Control",
+        "Uncapped Liability"
+      ],
+      "predicted": [
+        {
+          "category": "Governing Law"
+        },
+        {
+          "category": "Cap On Liability"
+        },
+        {
+          "category": "Exclusivity"
+        },
+        {
+          "category": "Insurance"
+        },
+        {
+          "category": "Change Of Control"
+        },
+        {
+          "category": "Warranty Duration"
+        }
+      ],
+      "acceptedEvidence": 6,
+      "rejectedEvidence": 0,
+      "latencyMs": 1
+    },
+    {
+      "id": "BOLIVARMININGCORP_05_23_2003-EX-2.1-VISP WEB SITE BUILDING AND HOSTING AGREEMENT.PDF",
+      "expected": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Renewal Term",
+        "Notice Period To Terminate Renewal"
+      ],
+      "predicted": [
+        {
+          "category": "Governing Law"
+        }
+      ],
+      "acceptedEvidence": 1,
+      "rejectedEvidence": 0,
+      "latencyMs": 0
+    },
+    {
+      "id": "Columbia Laboratories, (Bermuda) Ltd. - AMEND NO. 2 TO MANUFACTURING AND SUPPLY AGREEMENT.PDF",
+      "expected": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Audit Rights",
+        "Insurance",
+        "Change Of Control"
+      ],
+      "predicted": [
+        {
+          "category": "Anti-Assignment"
+        },
+        {
+          "category": "Cap On Liability"
+        },
+        {
+          "category": "Exclusivity"
+        },
+        {
+          "category": "Change Of Control"
+        }
+      ],
+      "acceptedEvidence": 4,
+      "rejectedEvidence": 0,
+      "latencyMs": 1
+    },
+    {
+      "id": "EdietsComInc_20001030_10QSB_EX-10.4_2606646_EX-10.4_Co-Branding Agreement.pdf",
+      "expected": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Cap On Liability",
+        "Exclusivity",
+        "Renewal Term",
+        "Change Of Control",
+        "Uncapped Liability",
+        "Notice Period To Terminate Renewal"
+      ],
+      "predicted": [
+        {
+          "category": "Governing Law"
+        },
+        {
+          "category": "Anti-Assignment"
+        },
+        {
+          "category": "Cap On Liability"
+        },
+        {
+          "category": "Exclusivity"
+        },
+        {
+          "category": "Renewal Term"
+        }
+      ],
+      "acceptedEvidence": 5,
+      "rejectedEvidence": 0,
+      "latencyMs": 1
+    },
+    {
+      "id": "HERTZGLOBALHOLDINGS,INC_07_07_2016-EX-10.4-INTELLECTUAL PROPERTY AGREEMENT.PDF",
+      "expected": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Insurance"
+      ],
+      "predicted": [
+        {
+          "category": "Governing Law"
+        },
+        {
+          "category": "Anti-Assignment"
+        },
+        {
+          "category": "Change Of Control"
+        }
+      ],
+      "acceptedEvidence": 3,
+      "rejectedEvidence": 0,
+      "latencyMs": 0
+    },
+    {
+      "id": "RgcResourcesInc_20151216_8-K_EX-10.3_9372751_EX-10.3_Franchise Agreement.pdf",
+      "expected": [],
+      "predicted": [],
+      "acceptedEvidence": 0,
+      "rejectedEvidence": 0,
+      "latencyMs": 0
+    },
+    {
+      "id": "ElPolloLocoHoldingsInc_20200306_10-K_EX-10.16_12041700_EX-10.16_Development Agreement.pdf",
+      "expected": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Termination For Convenience",
+        "Exclusivity",
+        "Insurance",
+        "Change Of Control"
+      ],
+      "predicted": [
+        {
+          "category": "Governing Law"
+        },
+        {
+          "category": "Anti-Assignment"
+        },
+        {
+          "category": "Exclusivity"
+        },
+        {
+          "category": "Insurance"
+        }
+      ],
+      "acceptedEvidence": 4,
+      "rejectedEvidence": 0,
+      "latencyMs": 1
+    },
+    {
+      "id": "GULFSOUTHMEDICALSUPPLYINC_12_24_1997-EX-4-AFFILIATE AGREEMENT.PDF",
+      "expected": [
+        "Governing Law"
+      ],
+      "predicted": [
+        {
+          "category": "Governing Law"
+        }
+      ],
+      "acceptedEvidence": 1,
+      "rejectedEvidence": 0,
+      "latencyMs": 0
+    },
+    {
+      "id": "GpaqAcquisitionHoldingsInc_20200123_S-4A_EX-10.8_11951679_EX-10.8_Service Agreement.pdf",
+      "expected": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Audit Rights",
+        "Exclusivity",
+        "Insurance"
+      ],
+      "predicted": [
+        {
+          "category": "Governing Law"
+        },
+        {
+          "category": "Audit Rights"
+        },
+        {
+          "category": "Exclusivity"
+        },
+        {
+          "category": "Insurance"
+        }
+      ],
+      "acceptedEvidence": 4,
+      "rejectedEvidence": 0,
+      "latencyMs": 1
+    },
+    {
+      "id": "WEBHELPCOMINC_03_22_2000-EX-10.8-HOSTING AGREEMENT.PDF",
+      "expected": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Cap On Liability",
+        "Renewal Term",
+        "Uncapped Liability",
+        "Notice Period To Terminate Renewal"
+      ],
+      "predicted": [
+        {
+          "category": "Cap On Liability"
+        },
+        {
+          "category": "Exclusivity"
+        },
+        {
+          "category": "Notice Period To Terminate Renewal"
+        },
+        {
+          "category": "Warranty Duration"
+        }
+      ],
+      "acceptedEvidence": 4,
+      "rejectedEvidence": 0,
+      "latencyMs": 0
+    },
+    {
+      "id": "MOSSIMOINC_04_14_2000-EX-10.14-ENDORSEMENT AGREEMENT.PDF",
+      "expected": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Cap On Liability",
+        "Exclusivity",
+        "Insurance",
+        "Change Of Control"
+      ],
+      "predicted": [
+        {
+          "category": "Governing Law"
+        },
+        {
+          "category": "Insurance"
+        }
+      ],
+      "acceptedEvidence": 2,
+      "rejectedEvidence": 0,
+      "latencyMs": 0
+    },
+    {
+      "id": "MetLife, Inc. - Remarketing Agreement.PDF",
+      "expected": [
+        "Governing Law",
+        "Cap On Liability",
+        "Insurance"
+      ],
+      "predicted": [
+        {
+          "category": "Governing Law"
+        }
+      ],
+      "acceptedEvidence": 1,
+      "rejectedEvidence": 0,
+      "latencyMs": 2
+    },
+    {
+      "id": "LohaCompanyltd_20191209_F-1_EX-10.16_11917878_EX-10.16_Supply Agreement.pdf",
+      "expected": [
+        "Governing Law",
+        "Insurance",
+        "Warranty Duration"
+      ],
+      "predicted": [
+        {
+          "category": "Governing Law"
+        },
+        {
+          "category": "Insurance"
+        }
+      ],
+      "acceptedEvidence": 2,
+      "rejectedEvidence": 0,
+      "latencyMs": 0
+    },
+    {
+      "id": "ArtaraTherapeuticsInc_20200110_8-K_EX-10.5_11943350_EX-10.5_License Agreement.pdf",
+      "expected": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Cap On Liability",
+        "Audit Rights",
+        "Termination For Convenience",
+        "Exclusivity",
+        "Insurance"
+      ],
+      "predicted": [
+        {
+          "category": "Governing Law"
+        },
+        {
+          "category": "Anti-Assignment"
+        },
+        {
+          "category": "Exclusivity"
+        },
+        {
+          "category": "Insurance"
+        }
+      ],
+      "acceptedEvidence": 4,
+      "rejectedEvidence": 0,
+      "latencyMs": 1
+    },
+    {
+      "id": "ATHENSBANCSHARESCORP_11_02_2009-EX-1.2-AGENCY AGREEMENT , 2009.PDF",
+      "expected": [
+        "Governing Law",
+        "Cap On Liability",
+        "Exclusivity"
+      ],
+      "predicted": [
+        {
+          "category": "Termination For Convenience"
+        },
+        {
+          "category": "Uncapped Liability"
+        }
+      ],
+      "acceptedEvidence": 2,
+      "rejectedEvidence": 0,
+      "latencyMs": 2
+    },
+    {
+      "id": "VEONEER,INC_02_21_2020-EX-10.11-JOINT VENTURE AGREEMENT.PDF",
+      "expected": [
+        "Governing Law"
+      ],
+      "predicted": [
+        {
+          "category": "Governing Law"
+        }
+      ],
+      "acceptedEvidence": 1,
+      "rejectedEvidence": 0,
+      "latencyMs": 0
+    },
+    {
+      "id": "FEDERATEDGOVERNMENTINCOMESECURITIESINC_04_28_2020-EX-99.SERV AGREE-SERVICES AGREEMENT_POWEROF.pdf",
+      "expected": [
+        "Governing Law",
+        "Anti-Assignment"
+      ],
+      "predicted": [
+        {
+          "category": "Anti-Assignment"
+        }
+      ],
+      "acceptedEvidence": 1,
+      "rejectedEvidence": 0,
+      "latencyMs": 0
+    },
+    {
+      "id": "JOINTCORP_09_19_2014-EX-10.15-FRANCHISE AGREEMENT.PDF",
+      "expected": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Cap On Liability",
+        "Audit Rights",
+        "Termination For Convenience",
+        "Exclusivity",
+        "Renewal Term",
+        "Insurance",
+        "Change Of Control",
+        "Uncapped Liability"
+      ],
+      "predicted": [
+        {
+          "category": "Governing Law"
+        },
+        {
+          "category": "Audit Rights"
+        },
+        {
+          "category": "Termination For Convenience"
+        },
+        {
+          "category": "Renewal Term"
+        },
+        {
+          "category": "Insurance"
+        }
+      ],
+      "acceptedEvidence": 5,
+      "rejectedEvidence": 0,
+      "latencyMs": 2
+    },
+    {
+      "id": "RareElementResourcesLtd_20171019_SC 13D_EX-99.4_10897534_EX-99.4_Intellectual Property Agreement.pdf",
+      "expected": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Exclusivity"
+      ],
+      "predicted": [
+        {
+          "category": "Governing Law"
+        },
+        {
+          "category": "Exclusivity"
+        },
+        {
+          "category": "Change Of Control"
+        }
+      ],
+      "acceptedEvidence": 3,
+      "rejectedEvidence": 0,
+      "latencyMs": 1
+    }
+  ]
+}

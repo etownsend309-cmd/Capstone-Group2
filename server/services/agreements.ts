@@ -7,7 +7,10 @@
  * the database enforces the same rules again underneath.
  */
 
-import { analyzeAgreement, playbook } from "../../src/lib/analyze.ts";
+import { ClassificationError, runClassification } from "../../netlify/functions/_shared/runClassification.ts";
+import { playbook } from "../../src/lib/analyze.ts";
+import { toPendingAiFindings } from "../../src/lib/classifyAgreement.ts";
+import { planClassification } from "../../src/lib/mergeClassification.ts";
 import { normalizeManualFinding, validateManualFinding } from "../../src/lib/manualFinding.ts";
 import {
   FINDING_DECISIONS,
@@ -30,12 +33,14 @@ import {
   type ManualFindingInput,
   type NewAgreementInput,
 } from "../../src/shared/api.ts";
+import type { ClassificationRun, FindingRejection } from "../../src/shared/classifier.ts";
+import type { Finding, FindingSeverity } from "../../src/types.ts";
 import { isUuid, type Queryable } from "../db.ts";
 import { badRequest, conflict, forbidden, notFound } from "../errors.ts";
 import type { IngestionSummary } from "../../src/shared/ingestion.ts";
 import { recordAudit } from "./audit.ts";
 
-const CATEGORY_NAMES = new Set(playbook.map((category) => category.name));
+const CATEGORY_NAMES = new Set<string>(playbook.map((category) => category.name));
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 interface SummaryRow {
@@ -63,6 +68,7 @@ interface DetailRow extends SummaryRow {
   extraction_strategy: string | null;
   extraction_warnings: string[];
   approved_by: string | null;
+  classification_status: "complete" | "partial" | "manual_required";
 }
 
 interface FindingRow {
@@ -73,7 +79,12 @@ interface FindingRow {
   source_text: string;
   decision: FindingDecisionCode;
   note: string;
-  method: "local_rule" | "manual";
+  method: "local_rule" | "manual" | "ai";
+  confidence_indicator: "low" | "medium" | "high" | null;
+  source_start: number | null;
+  source_end: number | null;
+  evidence_validation: "exact" | null;
+  classification_run_id: string | null;
   decided_at: Date | null;
   finding_type: FindingTypeCode | null;
   classification: FindingClassificationCode | null;
@@ -96,6 +107,7 @@ interface HistoryRow {
 // requesters only their own account, so for them other people's names are null.
 const FINDING_COLUMNS = `
   f.id, f.agreement_id, f.category, f.confidence, f.source_text, f.decision, f.note, f.method,
+  f.confidence_indicator, f.source_start, f.source_end, f.evidence_validation, f.classification_run_id,
   f.decided_at, f.finding_type, f.classification, f.severity, f.reason, f.playbook_expectation,
   c.email AS creator_email, c.display_name AS creator_name`;
 const FINDING_FROM = "findings f LEFT JOIN app_users c ON c.id = f.created_by";
@@ -161,6 +173,7 @@ function toFinding(row: FindingRow, history: FindingHistoryEntry[] = []): Findin
     decision: row.decision,
     note: row.note,
     method: row.method,
+    confidenceIndicator: row.confidence_indicator,
     decidedAt: iso(row.decided_at),
     findingType: row.finding_type,
     classification: row.classification,
@@ -267,7 +280,7 @@ export async function getAgreement(db: Queryable, id: string): Promise<Agreement
 
   const { rows } = await db.query<DetailRow>(
     `SELECT ${SUMMARY_COLUMNS}, a.raw_text, a.page_count, a.extraction_strategy,
-            a.extraction_warnings, a.approved_by
+            a.extraction_warnings, a.approved_by, a.classification_status
        FROM agreements a LEFT JOIN app_users u ON u.id = a.submitted_by
       WHERE a.id = $1`,
     [id],
@@ -280,6 +293,11 @@ export async function getAgreement(db: Queryable, id: string): Promise<Agreement
     [id],
   );
   const history = await findingHistory(db, id);
+  const runs = await db.query<{ rejections: FindingRejection[] }>(
+    `SELECT rejections FROM classification_runs
+      WHERE agreement_id = $1 ORDER BY completed_at DESC LIMIT 1`,
+    [id],
+  );
   const documents = await db.query<DocumentRow>(
     `SELECT id, file_name, content_type, byte_size, uploaded_at
        FROM agreement_documents WHERE agreement_id = $1 ORDER BY uploaded_at`,
@@ -297,6 +315,8 @@ export async function getAgreement(db: Queryable, id: string): Promise<Agreement
     extractionWarnings: ingestion?.warnings ?? row.extraction_warnings,
     approvedBy: row.approved_by,
     findings: findings.rows.map((finding) => toFinding(finding, history.get(finding.id))),
+    classificationStatus: row.classification_status,
+    classificationRejections: runs.rows[0]?.rejections ?? [],
     documents: documents.rows.map((doc) => ({
       id: doc.id,
       fileName: doc.file_name,
@@ -354,17 +374,167 @@ export function parseNewAgreement(body: unknown): NewAgreementInput {
   };
 }
 
+const TITLE_SEVERITY: Record<string, FindingSeverity> = {
+  low: "Low",
+  medium: "Medium",
+  high: "High",
+  critical: "Critical",
+};
+
+interface StoredClassification {
+  status: "complete" | "partial" | "manual_required";
+  run: ClassificationRun;
+  rejections: FindingRejection[];
+  incoming: Finding[];
+}
+
+/** Classifies on the server. A provider failure still returns a run so the agreement can be saved. */
+async function classifyForStorage(text: string): Promise<StoredClassification> {
+  try {
+    const result = await runClassification(text);
+    return {
+      status: result.status,
+      run: result.run,
+      rejections: result.rejections,
+      incoming: toPendingAiFindings(result),
+    };
+  } catch (error) {
+    if (error instanceof ClassificationError) {
+      return { status: "manual_required", run: error.run, rejections: [], incoming: [] };
+    }
+    throw error;
+  }
+}
+
+function storedFinding(row: FindingRow, historyLength: number): Finding {
+  return {
+    id: row.id,
+    category: row.category,
+    confidence: Number(row.confidence),
+    ...(row.confidence_indicator ? { confidenceIndicator: row.confidence_indicator } : {}),
+    sourceText: row.source_text,
+    ...(row.source_start !== null ? { sourceStart: row.source_start } : {}),
+    ...(row.source_end !== null ? { sourceEnd: row.source_end } : {}),
+    ...(row.classification_run_id ? { classificationRunId: row.classification_run_id } : {}),
+    ...(row.evidence_validation === "exact" ? { evidenceValidation: "exact" as const } : {}),
+    decision: row.decision,
+    note: row.note,
+    method: row.method === "ai" ? "AI" : row.method === "manual" ? "Manual" : "Local rule",
+    ...(row.finding_type ? { findingType: row.finding_type === "gap" ? "Gap" as const : "Provision" as const } : {}),
+    ...(row.classification ? { classification: row.classification } : {}),
+    ...(row.severity ? { severity: TITLE_SEVERITY[row.severity] } : {}),
+    reason: row.reason,
+    playbookExpectation: row.playbook_expectation,
+    ...(historyLength ? { history: Array.from({ length: historyLength }, () => ({})) } : {}),
+  };
+}
+
+async function insertClassificationRun(db: Queryable, agreementId: string, stored: StoredClassification): Promise<void> {
+  const run = stored.run;
+  await db.query(
+    `INSERT INTO classification_runs (
+       id, agreement_id, provider, requested_model, returned_model, provider_response_id,
+       prompt_version, schema_version, model_config_version, started_at, completed_at,
+       latency_ms, input_tokens, output_tokens, status, error_code, rejections)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17::jsonb)`,
+    [
+      run.id,
+      agreementId,
+      run.provider,
+      run.requestedModel,
+      run.returnedModel ?? null,
+      run.providerResponseId ?? null,
+      run.promptVersion,
+      run.schemaVersion,
+      run.modelConfigVersion,
+      run.startedAt,
+      run.completedAt,
+      run.latencyMs,
+      run.inputTokens ?? null,
+      run.outputTokens ?? null,
+      stored.status,
+      run.errorCode ?? null,
+      JSON.stringify(stored.rejections),
+    ],
+  );
+}
+
+async function writeFinding(db: Queryable, agreementId: string, finding: Finding, runId: string, existingId?: string): Promise<void> {
+  const method = finding.method === "AI" ? "ai" : "local_rule";
+  const values = [
+    finding.category,
+    finding.confidence,
+    finding.sourceText,
+    method,
+    finding.findingType?.toLowerCase() ?? null,
+    finding.classification ?? null,
+    finding.severity?.toLowerCase() ?? null,
+    finding.reason ?? "",
+    finding.playbookExpectation ?? "",
+    finding.confidenceIndicator ?? null,
+    finding.sourceStart ?? null,
+    finding.sourceEnd ?? null,
+    finding.evidenceValidation ?? null,
+    method === "ai" ? runId : null,
+  ];
+  if (existingId) {
+    await db.query(
+      `UPDATE findings SET
+         category = $2, confidence = $3, source_text = $4, method = $5,
+         finding_type = $6, classification = $7, severity = $8, reason = $9, playbook_expectation = $10,
+         confidence_indicator = $11, source_start = $12, source_end = $13, evidence_validation = $14,
+         classification_run_id = $15
+       WHERE id = $1`,
+      [existingId, ...values],
+    );
+    return;
+  }
+  await db.query(
+    `INSERT INTO findings (
+       agreement_id, category, confidence, source_text, method,
+       finding_type, classification, severity, reason, playbook_expectation,
+       confidence_indicator, source_start, source_end, evidence_validation, classification_run_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
+    [agreementId, ...values],
+  );
+}
+
+async function applyClassification(
+  db: Queryable,
+  agreementId: string,
+  text: string,
+  existing: Finding[],
+  stored: StoredClassification,
+  updateStatus: boolean,
+): Promise<void> {
+  await insertClassificationRun(db, agreementId, stored);
+  const plan = planClassification(text, existing, stored.incoming);
+  for (const replacement of plan.replacements) {
+    await writeFinding(db, agreementId, replacement.finding, stored.run.id, replacement.id);
+  }
+  for (const finding of plan.inserts) {
+    await writeFinding(db, agreementId, finding, stored.run.id);
+  }
+  // The submitter may insert the agreement but cannot update it. Retry is a reviewer action.
+  if (updateStatus) {
+    await db.query("UPDATE agreements SET classification_status = $2 WHERE id = $1", [agreementId, stored.status]);
+  }
+}
+
 /**
- * Submits an agreement as the signed-in user. Findings are produced here, by
- * the same deterministic rules the browser runs, rather than accepted from the
- * request: a requester cannot hand in pre-made findings.
+ * Submits an agreement as the signed-in user. Findings are produced here, not
+ * accepted from the request. OpenAI runs when it is configured; otherwise the
+ * local playbook rules cover every category and the agreement is still saved.
  */
 export async function submitAgreement(db: Queryable, userId: string, input: NewAgreementInput): Promise<AgreementDetail> {
+  const stored = input.deferIngestion
+  ? null
+  : await classifyForStorage(input.rawText);
   const { rows } = await db.query<{ id: string }>(
     `INSERT INTO agreements (
        name, vendor, agreement_type, business_unit, needed_by, submitted_by,
-       raw_text, page_count, extraction_strategy, extraction_warnings)
-     VALUES ($1, $2, $3, $4, NULLIF($5, '')::date, $6, $7, $8, $9, $10)
+       raw_text, page_count, extraction_strategy, extraction_warnings, classification_status)
+     VALUES ($1, $2, $3, $4, NULLIF($5, '')::date, $6, $7, $8, $9, $10, $11)
      RETURNING id`,
     [
       input.name,
@@ -377,35 +547,48 @@ export async function submitAgreement(db: Queryable, userId: string, input: NewA
       input.pageCount ?? null,
       input.extractionStrategy ?? null,
       input.extractionWarnings ?? [],
+      stored?.status ?? "manual_required",
     ],
   );
   const id = rows[0]!.id;
-
   if (input.deferIngestion) {
-    await db.query("INSERT INTO agreement_ingestions (agreement_id, version) VALUES ($1, 1)", [id]);
-  }
-  for (const finding of input.deferIngestion ? [] : analyzeAgreement(input.rawText)) {
     await db.query(
-      `INSERT INTO findings (
-         agreement_id, category, confidence, source_text, method,
-         finding_type, classification, severity, reason, playbook_expectation)
-       VALUES ($1, $2, $3, $4, 'local_rule', $5, $6, $7, $8, $9)`,
-      [
-        id,
-        finding.category,
-        finding.confidence,
-        finding.sourceText,
-        finding.findingType?.toLowerCase(),
-        finding.classification,
-        finding.severity?.toLowerCase(),
-        finding.reason,
-        finding.playbookExpectation,
-      ],
+      "INSERT INTO agreement_ingestions (agreement_id, version) VALUES ($1, 1)",
+      [id],
     );
+    await recordAudit(db, userId, id, "agreement.submitted");
+  } else if (stored) {
+    await applyClassification(db, id, input.rawText, [], stored, false);
+    await recordAudit(db, userId, id, "agreement.submitted", {
+      classificationStatus: stored.status,
+      errorCode: stored.run.errorCode ?? null,
+      rejectionCount: stored.rejections.length,
+    });
   }
-
-  await recordAudit(db, userId, id, "agreement.submitted");
   return getAgreement(db, id);
+}
+
+/**
+ * Runs classification again. Reviewers only, and never on their own submission.
+ * Decisions, notes, manual flags, and history are kept.
+ */
+export async function retryClassification(db: Queryable, userId: string, agreementId: string): Promise<AgreementDetail> {
+  const agreement = await lockAgreement(db, agreementId);
+  assertCanReview(agreement, userId);
+  const stored = await classifyForStorage(agreement.raw_text);
+  const current = await db.query<FindingRow>(
+    `SELECT ${FINDING_COLUMNS} FROM ${FINDING_FROM} WHERE f.agreement_id = $1`,
+    [agreementId],
+  );
+  const history = await findingHistory(db, agreementId);
+  const existing = current.rows.map((row) => storedFinding(row, history.get(row.id)?.length ?? 0));
+  await applyClassification(db, agreementId, agreement.raw_text, existing, stored, true);
+  await recordAudit(db, userId, agreementId, "agreement.reclassified", {
+    classificationStatus: stored.status,
+    errorCode: stored.run.errorCode ?? null,
+    rejectionCount: stored.rejections.length,
+  });
+  return getAgreement(db, agreementId);
 }
 
 interface LockedAgreement {

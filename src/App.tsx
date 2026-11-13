@@ -39,7 +39,7 @@ const today = new Intl.DateTimeFormat("en-US", {
 const OPEN_STATUSES: AgreementStatusCode[] = ["needs_review", "in_review"];
 const isOpen = (agreement: Pick<AgreementSummary, "status">) => OPEN_STATUSES.includes(agreement.status);
 
-const METHOD_LABELS: Record<FindingRecord["method"], string> = { local_rule: "Local rule", manual: "Manual" };
+const METHOD_LABELS: Record<FindingRecord["method"], string> = { local_rule: "Local rule", manual: "Manual", ai: "AI" };
 
 const errorMessage = (reason: unknown, fallback: string) => (reason instanceof Error && reason.message ? reason.message : fallback);
 
@@ -204,6 +204,8 @@ export default function App({ user, views, displayName, onSignOut }: AppProps) {
     }
     if (!live.current) return;
     applyDetail(created);
+    // Refresh the cached details after the upload.
+    setDetails((current) => withoutKey(current, created.id));
     setNotice(`Agreement "${created.name}" submitted successfully. Reference: ${created.id}. Text preparation pending.${uploadNote}`);
     setView("tracker");
     void ingestDocument(created.id, 1, file, () => live.current).then(async () => {
@@ -334,6 +336,7 @@ export default function App({ user, views, displayName, onSignOut }: AppProps) {
                   onEditManual={(findingId, input) => runAction(() => api.editManualFinding(findingId, input))}
                   onComplete={(agreementId) => runAction(() => api.completeReview(agreementId))}
                   onIngested={async () => { if (activeId) applyDetail(await api.getAgreement(activeId)); await loadList(); }}
+                  onRetry={(agreementId) => runAction(() => api.retryClassification(agreementId))}
                   onNew={() => startIntake()}
                 />
               )}
@@ -498,6 +501,7 @@ function ReviewQueue({
   onAddManual,
   onEditManual,
   onComplete,
+  onRetry,
   onNew,
 }: {
   onIngested: () => Promise<void>;
@@ -513,6 +517,7 @@ function ReviewQueue({
   onAddManual: (agreementId: string, input: ManualFindingInput) => Promise<AgreementDetail | undefined>;
   onEditManual: (findingId: string, input: ManualFindingInput) => Promise<AgreementDetail | undefined>;
   onComplete: (agreementId: string) => Promise<AgreementDetail | undefined>;
+  onRetry: (agreementId: string) => Promise<AgreementDetail | undefined>;
   onNew: () => void;
 }) {
   const [activeFindingId, setActiveFindingId] = useState<string>();
@@ -521,6 +526,8 @@ function ReviewQueue({
   /** The manual-flag form: closed, open for a new flag, or open on an existing one. */
   const [form, setForm] = useState<{ kind: "closed" } | { kind: "new" } | { kind: "edit"; finding: FindingRecord }>({ kind: "closed" });
   const [decisionError, setDecisionError] = useState("");
+  const [classifying, setClassifying] = useState(false);
+  const [classificationError, setClassificationError] = useState("");
   // Guards against a double click adding two findings or completing twice.
   const pendingOnce = useRef(false);
 
@@ -531,6 +538,7 @@ function ReviewQueue({
     setDrafts({});
     setForm({ kind: "closed" });
     setDecisionError("");
+    setClassificationError("");
   }, [activeId]);
 
   if (!agreements.length || !active) {
@@ -581,6 +589,19 @@ function ReviewQueue({
       pendingOnce.current = false;
     }
   };
+
+  const retry = () =>
+    once(async () => {
+      if (!shown) return;
+      setClassifying(true);
+      setClassificationError("");
+      try {
+        const updated = await onRetry(shown.id);
+        if (!updated) setClassificationError("AI classification failed. Continue with manual review.");
+      } finally {
+        setClassifying(false);
+      }
+    });
 
   const complete = () =>
     once(async () => {
@@ -644,6 +665,25 @@ function ReviewQueue({
                   <strong>Extraction notes:</strong> {shown.extractionWarnings.join(" ")}
                 </div>
               )}
+              {shown.classificationStatus && (
+                <div className="permission-banner">
+                  <strong>AI classification:</strong>{" "}
+                  {shown.classificationStatus === "complete"
+                    ? "Complete. Every displayed quote passed exact source validation."
+                    : shown.classificationStatus === "partial"
+                      ? "Partial. Invalid or ambiguous findings were rejected; use manual flags for anything missing."
+                      : "Unavailable or invalid. Continue with manual classification."}
+                  {canReview && shown.classificationStatus !== "complete" && (
+                    <>
+                      {" "}
+                      <button type="button" className="text-button" disabled={classifying || busy} onClick={() => void retry()}>
+                        {classifying ? "Retrying…" : "Retry AI classification"}
+                      </button>
+                    </>
+                  )}
+                  {classificationError && <p className="error-message" role="alert">{classificationError}</p>}
+                </div>
+              )}
               {!!shown.documents.length && (
                 <p className="document-links">
                   Original file:{" "}
@@ -700,7 +740,9 @@ function ReviewQueue({
                     <>
                       <div className="finding-title">
                         <div><span className="eyebrow">{METHOD_LABELS[activeFinding.method]} origin</span><h3>{activeFinding.category}</h3></div>
-                        {activeFinding.findingType && activeFinding.severity ? (
+                        {activeFinding.method === "ai" && activeFinding.confidenceIndicator ? (
+                          <span className="confidence">{activeFinding.confidenceIndicator} model confidence <small>not calibrated</small></span>
+                        ) : activeFinding.findingType && activeFinding.severity ? (
                           <span className="flag-classification">{findingSummary(activeFinding)}</span>
                         ) : (
                           <span className="confidence">{Math.round(activeFinding.confidence * 100)}% <small>confidence</small></span>
@@ -764,6 +806,9 @@ function ReviewQueue({
 
 /** The second line under a finding in the list: its review semantics when available, or the legacy rule score. */
 function findingSummary(finding: FindingRecord): string {
+  if (finding.method === "ai" && finding.confidenceIndicator) {
+    return `${finding.confidenceIndicator} model confidence · not calibrated`;
+  }
   if (finding.findingType && finding.severity) {
     const qualifier =
       finding.classification === "deviation"
