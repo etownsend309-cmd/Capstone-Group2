@@ -316,7 +316,13 @@ export default function App({ user, views, displayName, onSignOut }: AppProps) {
             <ListPlaceholder state={listState} onRetry={() => { setListState({ kind: "loading" }); void loadList(); }} />
           ) : (
             <>
-              {view === "tracker" && <RequesterTracker agreements={agreements.filter((item) => item.submittedBy.id === user.id)} onIngested={loadList} />}
+              {view === "tracker" && (
+  <RequesterTracker
+    agreements={agreements.filter((item) => item.submittedBy.id === user.id)}
+    onIngested={loadList}
+    canContinue={() => live.current}
+  />
+)}
               {view === "overview" && (
                 <Overview agreements={agreements} onNew={() => startIntake()} onReview={openReview} />
               )}
@@ -336,6 +342,7 @@ export default function App({ user, views, displayName, onSignOut }: AppProps) {
                   onEditManual={(findingId, input) => runAction(() => api.editManualFinding(findingId, input))}
                   onComplete={(agreementId) => runAction(() => api.completeReview(agreementId))}
                   onIngested={async () => { if (activeId) applyDetail(await api.getAgreement(activeId)); await loadList(); }}
+                  canContinue={() => live.current}
                   onRetry={(agreementId) => runAction(() => api.retryClassification(agreementId))}
                   onNew={() => startIntake()}
                 />
@@ -468,7 +475,11 @@ function Metric({ label, value, note, tone }: { label: string; value: number; no
   );
 }
 
-function RequesterTracker({ agreements, onIngested }: { agreements: AgreementSummary[]; onIngested: () => Promise<void> }) {
+function RequesterTracker({ agreements, onIngested, canContinue }: {
+  agreements: AgreementSummary[];
+  onIngested: () => Promise<void>;
+  canContinue: () => boolean;
+}) {
   return <section>
     <div className="page-heading"><span className="eyebrow">Requester tracker</span><h1>My submissions</h1><p>Track the agreements you have submitted and where each review stands.</p></div>
     {agreements.length === 0 ? <EmptyState title="No submissions yet" body="Submit an agreement to track its status here." /> :
@@ -482,13 +493,20 @@ function RequesterTracker({ agreements, onIngested }: { agreements: AgreementSum
           <dt>Needed-by date</dt><dd>{agreement.neededBy || "Not recorded"}</dd>
           <dt>Submitted</dt><dd>{formatDate(agreement.submittedAt)}</dd>
         </dl>
-        <IngestionPanel agreementId={agreement.id} ingestion={agreement.ingestion} onChange={onIngested} canRecover={agreement.status === "needs_review"} />
+                <IngestionPanel
+          agreementId={agreement.id}
+          ingestion={agreement.ingestion}
+          onChange={onIngested}
+          canContinue={canContinue}
+          canRecover={agreement.status === "needs_review"}
+        />
       </article>)}</div>}
   </section>;
 }
 
 function ReviewQueue({
   onIngested,
+  canContinue,
   agreements,
   activeId,
   detail,
@@ -659,7 +677,14 @@ function ReviewQueue({
             detailError ? <p className="error-message" role="alert">{detailError}</p> : <p>Loading agreement…</p>
           ) : (
             <>
-              <IngestionPanel key={`${shown.id}:${shown.ingestion?.version ?? "legacy"}`} agreementId={shown.id} ingestion={shown.ingestion} onChange={onIngested} canRecover={shown.status === "needs_review"} />
+              <IngestionPanel
+  key={`${shown.id}:${shown.ingestion?.version ?? "legacy"}`}
+  agreementId={shown.id}
+  ingestion={shown.ingestion}
+  onChange={onIngested}
+  canContinue={canContinue}
+  canRecover={shown.status === "needs_review"}
+/>
               {!!shown.extractionWarnings.length && (
                 <div className="permission-banner">
                   <strong>Extraction notes:</strong> {shown.extractionWarnings.join(" ")}
