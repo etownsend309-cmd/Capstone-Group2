@@ -3,10 +3,11 @@ import { api } from "../lib/api";
 import { ingestDocument } from "../lib/ingestDocument";
 import type { IngestionRecord, IngestionSummary } from "../shared/ingestion";
 
-export function IngestionPanel({ agreementId, ingestion, onChange, canRecover = true }: {
+export function IngestionPanel({ agreementId, ingestion, onChange, canContinue, canRecover = true }: {
   agreementId: string;
   ingestion?: IngestionSummary;
   onChange: () => Promise<void>;
+  canContinue: () => boolean;
   canRecover?: boolean;
 }) {
   const fieldId = useId();
@@ -31,7 +32,12 @@ export function IngestionPanel({ agreementId, ingestion, onChange, canRecover = 
     const response = await fetch(api.documentUrl(document.id), { credentials: "same-origin" });
     if (!response.ok) throw new Error("The original file could not be retrieved. Try again or supply text.");
     const bytes = await response.arrayBuffer();
-    return ingestDocument(agreementId, ingestion.version, new File([bytes], document.fileName, { type: document.contentType }));
+        return ingestDocument(
+      agreementId,
+      ingestion.version,
+      new File([bytes], document.fileName, { type: document.contentType }),
+      canContinue,
+    );
   };
   return <section className="ingestion-panel" aria-label="Agreement text preparation" aria-busy={busy}>
     <p aria-live="polite"><strong>{ingestion.state === "ready" ? "Text ready" : ingestion.state === "failed" ? "Text preparation failed" : "Text preparation pending"}</strong>
