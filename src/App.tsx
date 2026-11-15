@@ -523,6 +523,7 @@ function ReviewQueue({
   onNew,
 }: {
   onIngested: () => Promise<void>;
+  canContinue: () => boolean;
   agreements: AgreementSummary[];
   activeId?: string;
   detail?: AgreementDetail;
