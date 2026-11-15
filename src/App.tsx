@@ -61,6 +61,7 @@ function toSummary(detail: AgreementDetail): AgreementSummary {
     submittedBy: detail.submittedBy,
     submittedAt: detail.submittedAt,
     status: detail.status,
+    ingestion: detail.ingestion,
     completedAt: detail.completedAt,
     approvedAt: detail.approvedAt,
     findingCount: detail.findings.length,
