@@ -22,9 +22,13 @@ import { createApiHandler } from "../../server/api.ts";
 import { createDatabase, type ConnectionPool } from "../../server/db.ts";
 import { createMemoryDocumentStore } from "../../server/documentStore.ts";
 import type { IdentityUser } from "../../server/session.ts";
+import { fileURLToPath } from "node:url";
 
 const ORIGIN = "https://clausepilot.example";
-const MIGRATIONS = new URL("../../netlify/database/migrations", import.meta.url).pathname;
+const MIGRATIONS = fileURLToPath(
+  new URL("../../netlify/database/migrations", import.meta.url)
+);
+
 
 
 /** Netlify Identity users; the seeded app accounts are claimed by these emails. */

@@ -174,7 +174,13 @@ describe("KAN-40 validation and safe submission", () => {
     await fillMetadata();
     await userEvent.click(submitButton());
     expect(screen.getByText("Choose a file of 25 MB or less.")).toBeTruthy();
+    const upload = screen.getByRole("button", { name: /Replace agreement document/ });
+    expect(upload.getAttribute("aria-invalid")).toBe("true");
+    expect(document.getElementById(upload.getAttribute("aria-describedby")!)?.textContent).toBe("Choose a file of 25 MB or less.");
+    expect(document.activeElement).toBe(upload);
     expect(extractText).not.toHaveBeenCalled();
+    expect(fakeApi.submitAgreement).not.toHaveBeenCalled();
+    expect(fakeApi.uploadDocument).not.toHaveBeenCalled();
   });
 
   it("rejects whitespace vendor values rather than saving a default", async () => {
@@ -194,6 +200,10 @@ describe("KAN-40 validation and safe submission", () => {
     vi.mocked(extractText).mockRejectedValueOnce(new Error("No readable text. Supply a readable copy."));
     await userEvent.click(submitButton());
     expect((await screen.findByRole("alert")).textContent).toContain("No readable text");
+    const upload = screen.getByRole("button", { name: /Replace agreement document/ });
+    expect(upload.getAttribute("aria-invalid")).toBe("true");
+    expect(document.getElementById(upload.getAttribute("aria-describedby")!)?.textContent).toBe("No readable text. Supply a readable copy.");
+    expect(document.activeElement).toBe(upload);
     expect(fakeApi.submitAgreement).not.toHaveBeenCalled();
     expect((screen.getByLabelText(/Vendor/) as HTMLInputElement).value).toBe("Northstar Data");
     await userEvent.click(submitButton());
@@ -208,6 +218,8 @@ describe("KAN-40 validation and safe submission", () => {
     fakeApi.submitAgreement.mockRejectedValueOnce(new ApiRequestError(500, "Something went wrong on our side. Try again in a moment."));
     await userEvent.click(submitButton());
     const alert = (await screen.findByRole("alert")).textContent;
+    // A backend save error must not label the document itself invalid.
+    expect(screen.getByRole("button", { name: /Replace agreement document/ }).getAttribute("aria-invalid")).toBe("false");
     expect(alert).toContain("Something went wrong on our side");
     expect(alert).toContain("Your submission was not saved");
     // The status region stays mounted so it can be announced; it must be empty.
@@ -317,5 +329,94 @@ describe("concurrent submission and review", () => {
 
     expect(fakeApi.submitAgreement).not.toHaveBeenCalled();
     expect(stored()).toEqual([]);
+  });
+});
+
+// KAN-41: these mocks exercise UI failure handling, not database rollback or
+// Netlify's deployed payload limits. The agreement is saved before its file.
+describe("KAN-41 original PDF upload failures", () => {
+  async function preparePdf() {
+    const zone = await openIntake();
+    const file = new File(["%PDF-1.7 mocked extraction"], "agreement.pdf", { type: "application/pdf" });
+    fireEvent.drop(zone, { dataTransfer: { files: [file] } });
+    await fillMetadata();
+    return file;
+  }
+
+  it.each([
+    [0, "Couldn't reach ClausePilot. Check your connection and try again."],
+    [413, "The request failed (413)."],
+    [403, "You do not have permission to attach this file."],
+    [500, "Something went wrong on our side. Try again in a moment."],
+  ])("reports upload failure %i while retaining the separately saved agreement", async (status, message) => {
+    const file = await preparePdf();
+    fakeApi.uploadDocument.mockRejectedValueOnce(new ApiRequestError(status, message));
+    await userEvent.click(submitButton());
+
+    await screen.findByRole("heading", { name: "My submissions" });
+    const notice = screen.getByRole("status").textContent!;
+    expect(notice).toContain(`The original file wasn't stored (${message}), but the extracted text was saved.`);
+    const [saved] = stored();
+    expect(stored()).toHaveLength(1);
+    expect(saved!.documents).toEqual([]);
+    expect(saved!.rawText).toContain("GOVERNING LAW");
+    expect(notice).toContain(saved!.id);
+    expect(fakeApi.uploadDocument).toHaveBeenCalledExactlyOnceWith(saved!.id, file);
+    expect(fakeApi.submitAgreement).toHaveBeenCalledTimes(1);
+    // There is currently no upload-only retry. Do not imply a new submission
+    // would attach to this existing agreement or that it has been rolled back.
+    expect(screen.queryByRole("button", { name: /retry|try again|create review/i })).toBeNull();
+    const nav = screen.getByRole("navigation", { name: /primary navigation/i });
+    await userEvent.click(within(nav).getByRole("button", { name: /review queue/i }));
+    await screen.findByRole("heading", { name: file.name });
+    expect(screen.queryByRole("link", { name: file.name })).toBeNull();
+    expect(fakeApi.uploadDocument).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not announce success or submit twice while the upload is pending", async () => {
+    await preparePdf();
+    let rejectUpload!: (reason: Error) => void;
+    fakeApi.uploadDocument.mockImplementationOnce(() => new Promise((_resolve, reject) => { rejectUpload = reject; }));
+    await userEvent.click(submitButton());
+    const pending = screen.getByRole("button", { name: /submitting/i }) as HTMLButtonElement;
+    expect(pending.disabled || pending.closest("fieldset")!.disabled).toBe(true);
+    expect(fakeApi.uploadDocument).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("status").textContent).toBe("");
+    expect(screen.queryByRole("heading", { name: "My submissions" })).toBeNull();
+    fireEvent.submit(pending.closest("form")!);
+    expect(fakeApi.submitAgreement).toHaveBeenCalledTimes(1);
+    expect(fakeApi.uploadDocument).toHaveBeenCalledTimes(1);
+    rejectUpload(new ApiRequestError(500, "Upload unavailable."));
+    await screen.findByRole("heading", { name: "My submissions" });
+    expect(screen.getByRole("status").textContent).toContain("The original file wasn't stored (Upload unavailable.)");
+  });
+
+  it("retains the PDF and metadata for a retry when agreement creation is rejected before upload", async () => {
+    const file = await preparePdf();
+    fakeApi.submitAgreement.mockRejectedValueOnce(new ApiRequestError(400, "Agreement could not be saved."));
+    await userEvent.click(submitButton());
+    expect(screen.getByRole("alert").textContent).toContain("Your submission was not saved.");
+    expect(screen.getByRole("status").textContent).toBe("");
+    expect(fakeApi.uploadDocument).not.toHaveBeenCalled();
+    expect((screen.getByLabelText(/Vendor/) as HTMLInputElement).value).toBe("Northstar Data");
+    expect(screen.getByRole("button", { name: /replace agreement document/i }).textContent).toContain(file.name);
+    await userEvent.click(submitButton());
+    await screen.findByRole("heading", { name: "My submissions" });
+    expect(fakeApi.submitAgreement).toHaveBeenCalledTimes(2);
+    expect(stored()).toHaveLength(1);
+    expect(fakeApi.uploadDocument).toHaveBeenCalledExactlyOnceWith(stored()[0]!.id, file);
+    expect(stored()[0]!.documents).toHaveLength(1);
+    expect(screen.getByRole("status").textContent).not.toContain("wasn't stored");
+  });
+
+  // Known UI gap for Monday: the warning exists, but its status message still
+  // claims success. Expected failure keeps this requirement visible without
+  // silently changing the two-request workflow or endorsing its wording.
+  it.fails("does not claim submission success when the original PDF upload failed", async () => {
+    await preparePdf();
+    fakeApi.uploadDocument.mockRejectedValueOnce(new ApiRequestError(500, "Upload unavailable."));
+    await userEvent.click(submitButton());
+    await screen.findByRole("heading", { name: "My submissions" });
+    expect(screen.getByRole("status").textContent).not.toContain("submitted successfully");
   });
 });
