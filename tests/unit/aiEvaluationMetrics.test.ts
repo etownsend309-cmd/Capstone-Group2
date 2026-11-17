@@ -47,6 +47,39 @@ describe("AI evaluation metrics", () => {
     expect(summary.macroF1).toBeCloseTo(1 / 3);
     expect(summary.exactEvidenceAcceptanceRate).toBe(0.5);
     expect(summary.medianLatencyMs).toBe(15);
+    expect(summary.confidenceRatings).toEqual([
+      { indicator: "high", correct: 0, total: 0 },
+      { indicator: "medium", correct: 0, total: 0 },
+      { indicator: "low", correct: 0, total: 0 },
+    ]);
+  });
+
+  it("counts how often each confidence rating matched the expert label", () => {
+    const summary = summarizeEvaluation(categories, [
+      {
+        id: "one",
+        expected: ["Governing Law"],
+        predicted: [
+          { category: "Governing Law", confidenceIndicator: "high" },
+          { category: "Audit Rights", confidenceIndicator: "low" },
+        ],
+        acceptedEvidence: 2,
+        rejectedEvidence: 0,
+      },
+      {
+        id: "two",
+        expected: ["Audit Rights"],
+        predicted: [{ category: "Audit Rights", confidenceIndicator: "high" }],
+        acceptedEvidence: 1,
+        rejectedEvidence: 0,
+      },
+    ]);
+
+    expect(summary.confidenceRatings).toEqual([
+      { indicator: "high", correct: 2, total: 2 },
+      { indicator: "medium", correct: 0, total: 0 },
+      { indicator: "low", correct: 0, total: 1 },
+    ]);
   });
 
   it("tracks failures and token totals without producing non-finite values", () => {

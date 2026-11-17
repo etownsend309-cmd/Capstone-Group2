@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { ConfidenceNote } from "./components/ConfidenceNote";
 import { Icon } from "./components/Icon";
 import { Intake } from "./components/Intake";
 import { ManualFindingForm } from "./components/ManualFindingForm";
@@ -18,6 +19,7 @@ import {
   type ManualFindingInput,
   type NewAgreementInput,
 } from "./shared/api";
+import { confidenceStatus, confidenceSummary } from "./shared/calibration";
 import type { Role, View } from "./types";
 
 const formatDate = (date: string) =>
@@ -701,18 +703,26 @@ function ReviewQueue({
                 <div className="finding-nav">
                   <div className="finding-nav-title"><strong>Findings</strong><span>{findings.length}</span></div>
                   {findings.map((finding) => (
-                    <button
-                      key={finding.id}
-                      className={finding.id === activeFinding?.id && form.kind === "closed" ? "selected" : ""}
-                      onClick={() => {
-                        setActiveFindingId(finding.id);
-                        setForm({ kind: "closed" });
-                        setDecisionError("");
-                      }}
-                    >
-                      <span className={`decision-dot dot-${finding.decision}`} />
-                      <span><strong>{finding.category}</strong><small>{findingSummary(finding)}</small></span>
-                    </button>
+                    <div key={finding.id} className="finding-nav-item">
+                      <button
+                        className={`finding-select${finding.id === activeFinding?.id && form.kind === "closed" ? " selected" : ""}`}
+                        onClick={() => {
+                          setActiveFindingId(finding.id);
+                          setForm({ kind: "closed" });
+                          setDecisionError("");
+                        }}
+                      >
+                        <span className={`decision-dot dot-${finding.decision}`} />
+                        <span><strong>{finding.category}</strong><small>{findingSummary(finding)}</small></span>
+                      </button>
+                      {finding.method === "ai" && finding.confidenceIndicator && (
+                        <ConfidenceNote
+                          category={finding.category}
+                          indicator={finding.confidenceIndicator}
+                          run={finding.classificationRun}
+                        />
+                      )}
+                    </div>
                   ))}
                   {canReview && (
                     <div className="manual-add">
@@ -737,7 +747,18 @@ function ReviewQueue({
                       <div className="finding-title">
                         <div><span className="eyebrow">{METHOD_LABELS[activeFinding.method]} origin</span><h3>{activeFinding.category}</h3></div>
                         {activeFinding.method === "ai" && activeFinding.confidenceIndicator ? (
-                          <span className="confidence">{activeFinding.confidenceIndicator} model confidence <small>not calibrated</small></span>
+                          <div className="finding-score">
+                            <span className="confidence">
+                              {activeFinding.confidenceIndicator} model confidence
+                              <small>{confidenceStatus(activeFinding.classificationRun)}</small>
+                            </span>
+                            <ConfidenceNote
+                              key={activeFinding.id}
+                              category={activeFinding.category}
+                              indicator={activeFinding.confidenceIndicator}
+                              run={activeFinding.classificationRun}
+                            />
+                          </div>
                         ) : activeFinding.findingType && activeFinding.severity ? (
                           <span className="flag-classification">{findingSummary(activeFinding)}</span>
                         ) : (
@@ -803,7 +824,7 @@ function ReviewQueue({
 /** The second line under a finding in the list: its review semantics when available, or the legacy rule score. */
 function findingSummary(finding: FindingRecord): string {
   if (finding.method === "ai" && finding.confidenceIndicator) {
-    return `${finding.confidenceIndicator} model confidence · not calibrated`;
+    return confidenceSummary(finding.confidenceIndicator, finding.classificationRun);
   }
   if (finding.findingType && finding.severity) {
     const qualifier =
