@@ -127,6 +127,7 @@ export function makeRuleFinding(overrides: Partial<FindingRecord> = {}): Finding
     reason: "",
     playbookExpectation: "",
     createdBy: null,
+    classificationRun: null,
     history: [],
     ...overrides,
   };

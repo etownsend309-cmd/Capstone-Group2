@@ -48,7 +48,7 @@ test("valid PDF submission is saved through the API and survives reload", async 
   await expect(page.getByRole("heading", { name: "clean-agreement.pdf" })).toBeVisible();
 });
 
-test("a saved AI finding shows in review", async ({ page, server }) => {
+test("a checked AI finding shows calibrated in review", async ({ page, server }) => {
   server.addAgreement({
     name: "Checked MSA.pdf",
     rawText: "This Agreement is governed by the laws of the State of Ohio.",
@@ -62,11 +62,16 @@ test("a saved AI finding shows in review", async ({ page, server }) => {
       note: "",
       method: "ai",
       confidenceIndicator: "high",
+      classificationRun: {
+        requestedModel: "gpt-5.6-terra",
+        promptVersion: "clausepilot-classifier-v1",
+        schemaVersion: "classifier-output-v1",
+      },
       decidedAt: null,
       findingType: "provision",
       classification: "present",
       severity: null,
-      reason: "The model returned this quote and it matched the stored agreement text exactly. The confidence indicator is the model's own assessment and is not calibrated.",
+      reason: "The model returned this quote and it matched the stored agreement text exactly. The confidence indicator was checked against expert-labeled contracts for this model and prompt.",
       playbookExpectation: "",
       createdBy: null,
       history: [],
@@ -76,7 +81,7 @@ test("a saved AI finding shows in review", async ({ page, server }) => {
   await expect(page.getByText(requester.email)).toBeVisible();
   await page.getByRole("navigation").getByRole("button", { name: /Review queue/ }).click();
 
-  await expect(page.getByText("high model confidence · not calibrated").first()).toBeVisible();
+  await expect(page.getByText("high model confidence · calibrated").first()).toBeVisible();
   await expect(page.getByText("governed by the laws of the State of Ohio")).toBeVisible();
   await expect(page.getByText(/Every displayed quote passed exact source validation/)).toBeVisible();
 });

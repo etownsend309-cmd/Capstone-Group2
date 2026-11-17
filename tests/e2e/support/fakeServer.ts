@@ -108,6 +108,7 @@ export async function installFakeServer(page: Page, session: SessionUser): Promi
     reason: "",
     playbookExpectation: "",
     createdBy: null,
+    classificationRun: null,
     history: [],
     ...fields,
   });
@@ -346,6 +347,13 @@ export async function installFakeServer(page: Page, session: SessionUser): Promi
       submittedBy = { id: "a0000000-0000-4000-8000-000000000099", email: "colleague@example.test", displayName: "Casey Colleague" },
       findings,
       classificationStatus,
+    }: {
+      name: string;
+      vendor?: string;
+      rawText: string;
+      submittedBy?: AgreementDetail["submittedBy"];
+      findings?: FindingRecord[];
+      classificationStatus?: AgreementDetail["classificationStatus"];
     }) => {
       const detail = newAgreement({
         name,
