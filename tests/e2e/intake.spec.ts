@@ -187,7 +187,8 @@ test("a reviewer can't review their own submission, but can review a colleague's
   await page.getByLabel("Reviewer note").fill("Escalating for legal.");
   await page.getByRole("button", { name: "Escalate" }).click();
   for (let index = 1; index < findings.length; index++) {
-    await detail.locator(".finding-nav > button").nth(index).click();
+    // Each finding button sits in a `.finding-nav-item` wrapper, so target the button class.
+    await detail.locator(".finding-nav .finding-select").nth(index).click();
     await page.getByLabel("Reviewer note").fill("Standard wording.");
     await page.getByRole("button", { name: "Accept" }).click();
   }
