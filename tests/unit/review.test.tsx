@@ -13,7 +13,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "../../src/App";
 import { ApiRequestError } from "../../src/lib/api";
 import type { Role } from "../../src/types";
-import { fakeApi, makeAgreement, resetFakeApi, seed, signedInUser, stored } from "./support/fakeApi";
+import { fakeApi, makeAgreement, makeRuleFinding, resetFakeApi, seed, signedInUser, stored } from "./support/fakeApi";
 import type { AgreementDetail } from "../../src/shared/api";
 
 vi.mock("../../src/lib/api", async () => (await import("./support/fakeApi")).mockApiModule());
@@ -154,6 +154,64 @@ describe("review queue", () => {
     expect(await screen.findByText(/Supporting source text/)).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Accept" })).toBeNull();
     expect((screen.getByLabelText("Reviewer note") as HTMLTextAreaElement).disabled).toBe(true);
+  });
+
+  it("shows the sealed holdout count for a matching AI run", async () => {
+    const agreement = makeAgreement({
+      findings: [
+        makeRuleFinding({
+          method: "ai",
+          confidence: 0,
+          confidenceIndicator: "high",
+          findingType: "provision",
+          classification: "present",
+          sourceText: "Governed by the laws of Georgia.",
+          reason: "The model returned this quote and it matched the stored agreement text exactly. The confidence indicator is the model's own assessment and is not calibrated.",
+          classificationRun: {
+            requestedModel: "gpt-5.6-terra",
+            promptVersion: "clausepilot-classifier-v1",
+            schemaVersion: "classifier-output-v1",
+          },
+        }),
+      ],
+    });
+    seed(agreement);
+    await openQueue();
+
+    expect(await screen.findByText("high model confidence · calibrated")).toBeTruthy();
+    const about = screen.getAllByRole("button", { name: "About the Governing Law confidence rating" });
+    await userEvent.click(about[0]!);
+
+    expect(screen.getByText(/high was right 68 of 89 times/)).toBeTruthy();
+    expect(screen.getByText(/Medium means the model saw an indirect or qualified match. The checked contracts did not include this rating./)).toBeTruthy();
+    expect(screen.getByText(/Low means the model saw a weak but possibly relevant match. The checked contracts did not include this rating./)).toBeTruthy();
+  });
+
+  it("keeps not calibrated when the finding used a different model", async () => {
+    const agreement = makeAgreement({
+      findings: [
+        makeRuleFinding({
+          method: "ai",
+          confidence: 0,
+          confidenceIndicator: "high",
+          findingType: "provision",
+          classification: "present",
+          sourceText: "Governed by the laws of Georgia.",
+          classificationRun: {
+            requestedModel: "other-model",
+            promptVersion: "clausepilot-classifier-v1",
+            schemaVersion: "classifier-output-v1",
+          },
+        }),
+      ],
+    });
+    seed(agreement);
+    await openQueue();
+
+    expect(await screen.findByText("high model confidence · not calibrated")).toBeTruthy();
+    await userEvent.click(screen.getAllByRole("button", { name: "About the Governing Law confidence rating" })[0]!);
+    expect(screen.getByText("This finding was not checked against expert-labeled contracts.")).toBeTruthy();
+    expect(screen.queryByText(/68 of 89/)).toBeNull();
   });
 
   it("links to the stored original file", async () => {
