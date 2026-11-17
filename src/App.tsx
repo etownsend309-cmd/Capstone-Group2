@@ -715,13 +715,6 @@ function ReviewQueue({
                         <span className={`decision-dot dot-${finding.decision}`} />
                         <span><strong>{finding.category}</strong><small>{findingSummary(finding)}</small></span>
                       </button>
-                      {finding.method === "ai" && finding.confidenceIndicator && (
-                        <ConfidenceNote
-                          category={finding.category}
-                          indicator={finding.confidenceIndicator}
-                          run={finding.classificationRun}
-                        />
-                      )}
                     </div>
                   ))}
                   {canReview && (
