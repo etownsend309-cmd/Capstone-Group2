@@ -181,6 +181,45 @@ describe("KAN-40 validation and safe submission", () => {
     expect(fakeApi.uploadDocument).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ["tool.exe", "application/octet-stream", "MZ", "Please choose a PDF or plain-text file."],
+    ["empty.pdf", "application/pdf", "", "That file is empty."],
+    ["spoof.pdf", "application/pdf", "This is not a PDF document.", "That file isn't a valid PDF."],
+  ])("refuses %s before anything is saved and lets the person replace it", async (name, type, content, message) => {
+    const zone = await openIntake();
+    fireEvent.drop(zone, { dataTransfer: { files: [new File([content], name, { type })] } });
+    await fillMetadata();
+    await userEvent.click(submitButton());
+
+    expect((await screen.findByRole("alert")).textContent).toContain(message);
+    const upload = screen.getByRole("button", { name: /Replace agreement document/ });
+    expect(upload.getAttribute("aria-invalid")).toBe("true");
+    expect(document.getElementById(upload.getAttribute("aria-describedby")!)?.textContent).toBe(message);
+    expect(document.activeElement).toBe(upload);
+    expect(screen.getByRole("status").textContent).toBe("");
+    expect((screen.getByLabelText(/Vendor/) as HTMLInputElement).value).toBe("Northstar Data");
+    expect(fakeApi.submitAgreement).not.toHaveBeenCalled();
+    expect(fakeApi.uploadDocument).not.toHaveBeenCalled();
+    expect(stored()).toEqual([]);
+
+    // Choosing a different file clears the error and allows a retry.
+    fireEvent.drop(upload, { dataTransfer: { files: [txtFile()] } });
+    expect(upload.getAttribute("aria-invalid")).toBe("false");
+    await userEvent.click(submitButton());
+    expect(await screen.findByRole("heading", { name: "My submissions" })).toBeTruthy();
+    expect(stored()).toHaveLength(1);
+  });
+
+  it("saves a PDF with no readable text so it can be recovered", async () => {
+    const zone = await openIntake();
+    fireEvent.drop(zone, { dataTransfer: { files: [new File(["%PDF-1.7 scanned"], "scan.pdf", { type: "application/pdf" })] } });
+    await fillMetadata();
+    vi.mocked(extractText).mockRejectedValueOnce(new Error("No selectable text was found in that PDF."));
+    await userEvent.click(submitButton());
+    expect(await screen.findByText("Text preparation failed")).toBeTruthy();
+    expect(stored()).toHaveLength(1);
+  });
+
   it("rejects whitespace vendor values rather than saving a default", async () => {
     const zone = await openIntake();
     fireEvent.drop(zone, { dataTransfer: { files: [txtFile()] } });
