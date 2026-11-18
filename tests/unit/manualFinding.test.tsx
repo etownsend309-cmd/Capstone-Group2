@@ -93,10 +93,10 @@ describe("reviewing manual flags", () => {
     seed(agreement);
     await openQueue();
 
-    expect((await screen.findByRole("button", { name: "Accept" })).hasAttribute("disabled")).toBe(true);
+    expect((await screen.findByRole("button", { name: "Accept" })).getAttribute("aria-disabled")).toBe("true");
 
     await userEvent.type(screen.getByLabelText("Reviewer note"), "This provision is materially relevant and should be accepted");
-    expect(screen.getByRole("button", { name: "Accept" }).hasAttribute("disabled")).toBe(false);
+    expect(screen.getByRole("button", { name: "Accept" }).hasAttribute("aria-disabled")).toBe(false);
     await userEvent.click(screen.getByRole("button", { name: "Accept" }));
     expect(stored()[0]!.findings[0]).toMatchObject({
       decision: "accepted",
