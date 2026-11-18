@@ -4,6 +4,7 @@ import { type Page } from "@playwright/test";
 // Starts signed in: the intake flow is behind the identity gate, and these
 // tests are about submission, not about authentication.
 import { expect, requester, test } from "./support/session";
+import { LIMITS } from "../../src/shared/api";
 
 const fields = [
   ["Vendor", "Northstar Data", "Enter a vendor."],
@@ -38,6 +39,7 @@ test("valid PDF submission is saved through the API and survives reload", async 
   await expect(page.getByRole("heading", { name: "clean-agreement.pdf" })).toBeVisible();
   for (const [, value] of fields) await expect(page.locator(".tracker-record")).toContainText(value);
   await expect(page.locator(".tracker-record")).toContainText("Needs review");
+  await expect(page.getByText("Text ready", { exact: true })).toBeVisible();
   const [saved] = server.agreements();
   expect(saved).toMatchObject({ name: "clean-agreement.pdf", vendor: "Northstar Data", neededBy: "2026-12-01", status: "needs_review" });
   expect(saved!.rawText.length).toBeGreaterThan(0);
@@ -135,16 +137,17 @@ test("upload and submission work using the keyboard", async ({ page }) => {
   await expect(page.getByRole("status")).toContainText("submitted successfully");
 });
 
-test("unreadable PDF gives a failure result without a record", async ({ page, server }) => {
+test("unreadable PDF retains a recoverable submission", async ({ page, server }) => {
   await openIntake(page);
   await page.getByLabel("Agreement document", { exact: true }).setInputFiles(fixture("scanned-agreement.pdf"));
   await fillMetadata(page);
   await page.getByRole("button", { name: /Create review/ }).click();
-  await expect(page.getByRole("alert")).toContainText(/scanned|image-only/i);
-  await expect(page.getByLabel("Vendor")).toHaveValue("Northstar Data");
-  // The status region stays mounted so it can be announced; it must be empty.
-  await expect(page.getByRole("status")).toHaveText("");
-  expect(server.agreements()).toEqual([]);
+  await expect(page.getByText("Text preparation failed", { exact: true })).toBeVisible();
+  expect(server.agreements()).toHaveLength(1);
+  await page.getByLabel("Supplied agreement text").fill("Governing law applies.");
+  await page.getByRole("button", { name: "Use supplied text" }).click();
+  await expect(page.getByText("Text ready", { exact: true })).toBeVisible();
+  expect(server.agreements()[0]?.rawText).toBe("Governing law applies.");
 });
 
 test("a server failure never reports success", async ({ page, server }) => {
@@ -194,7 +197,8 @@ test("a reviewer can't review their own submission, but can review a colleague's
   await page.getByLabel("Reviewer note").fill("Escalating for legal.");
   await page.getByRole("button", { name: "Escalate" }).click();
   for (let index = 1; index < findings.length; index++) {
-    await detail.locator(".finding-nav > button").nth(index).click();
+    // Each finding button sits in a `.finding-nav-item` wrapper, so target the button class.
+    await detail.locator(".finding-nav .finding-select").nth(index).click();
     await page.getByLabel("Reviewer note").fill("Standard wording.");
     await page.getByRole("button", { name: "Accept" }).click();
   }
@@ -209,4 +213,59 @@ test("a reviewer can't review their own submission, but can review a colleague's
 
   await page.getByRole("button", { name: "Reports" }).click();
   await expect(page.getByText("2 agreements visible to you")).toBeVisible();
+});
+
+// Uses the existing mocked API. These checks prove client validation prevents
+// submission; they do not prove Netlify's upload capacity or storage cleanup.
+for (const invalid of [
+  { label: "unsupported executable", name: "tool.exe", mimeType: "application/octet-stream", buffer: Buffer.from("MZ"), message: /Please choose a PDF or plain-text file/ },
+  { label: "empty PDF", name: "empty.pdf", mimeType: "application/pdf", buffer: Buffer.alloc(0), message: /file is empty/i },
+  { label: "text renamed to PDF", name: "spoof.pdf", mimeType: "application/pdf", buffer: Buffer.from("This is not a PDF document."), message: /PDF|parsed|read|text/i },
+]) {
+  test(`invalid upload: ${invalid.label} is accessible and never reaches submission`, async ({ page, server }) => {
+    await openIntake(page);
+    const writes: string[] = [];
+    page.on("request", (request) => {
+      if (request.method() === "POST" && new URL(request.url()).pathname.startsWith("/api/agreements")) writes.push(request.url());
+    });
+    await page.getByLabel("Agreement document", { exact: true }).setInputFiles({ name: invalid.name, mimeType: invalid.mimeType, buffer: invalid.buffer });
+    await fillMetadata(page);
+    await page.getByRole("button", { name: /Create review/ }).click();
+    const upload = page.getByRole("button", { name: /Replace agreement document/ });
+    await expect(page.getByRole("alert")).toContainText(invalid.message);
+    await expect(upload).toHaveAttribute("aria-invalid", "true");
+    await expect(upload).toHaveAccessibleDescription(invalid.message);
+    await expect(upload).toBeFocused();
+    await expect(page.getByRole("status")).toHaveText("");
+    await expect(page.getByLabel("Vendor")).toHaveValue("Northstar Data");
+    expect(server.agreements()).toEqual([]);
+    expect(writes).toEqual([]);
+
+    // Replacing the rejected file clears the old error and permits retry.
+    await page.getByLabel("Agreement document", { exact: true }).setInputFiles(fixture("clean-agreement.pdf"));
+    await expect(upload).toHaveAttribute("aria-invalid", "false");
+    await expect(page.getByRole("alert")).toBeEmpty();
+    await page.getByRole("button", { name: /Create review/ }).click();
+    await expect(page.getByRole("status")).toContainText("submitted successfully");
+    expect(server.agreements()).toHaveLength(1);
+  });
+}
+
+test("one byte over the current file limit gives an associated error before submission", async ({ page, server }) => {
+  await openIntake(page);
+  const writes: string[] = [];
+  page.on("request", (request) => {
+    if (request.method() === "POST" && new URL(request.url()).pathname.startsWith("/api/agreements")) writes.push(request.url());
+  });
+  await page.getByLabel("Agreement document", { exact: true }).setInputFiles({ name: "oversized.pdf", mimeType: "application/pdf", buffer: Buffer.alloc(LIMITS.documentBytes + 1) });
+  await fillMetadata(page);
+  await page.getByRole("button", { name: /Create review/ }).click();
+  const upload = page.getByRole("button", { name: /Replace agreement document/ });
+  await expect(page.getByRole("alert")).toContainText("Submission not completed");
+  await expect(upload).toHaveAttribute("aria-invalid", "true");
+  await expect(upload).toHaveAccessibleDescription("Choose a file of 25 MB or less.");
+  await expect(upload).toBeFocused();
+  await expect(page.getByRole("status")).toHaveText("");
+  expect(server.agreements()).toEqual([]);
+  expect(writes).toEqual([]);
 });

@@ -63,11 +63,33 @@ describe("extractText", () => {
     });
   });
 
+  describe("additional validation boundaries", () => {
+    // A reported-size override checks the adapter's gate without allocating
+    // 25 MB or claiming that the deployed upload transport supports that size.
+    it.each([MAX_UPLOAD_BYTES - 1, MAX_UPLOAD_BYTES])("allows the existing %i-byte size boundary", async (size) => {
+      const file = txtFile("Readable agreement text");
+      Object.defineProperty(file, "size", { value: size });
+      expect((await extractText(file)).text).toBe("Readable agreement text");
+    });
+
+    it("rejects an executable with an unsupported extension and MIME type", async () => {
+      await expect(extractText(new File(["MZ"], "tool.exe", { type: "application/octet-stream" }))).rejects.toThrow(/PDF or plain-text/i);
+    });
+
+    it("rejects text renamed to PDF through the real parser", async () => {
+      await expect(extractText(new File(["This is text, not PDF bytes."], "spoof.pdf", { type: "application/pdf" }))).rejects.toThrow();
+    });
+  });
+
   describe("PDF extraction", () => {
     it("extracts a clean agreement and preserves its page count", async () => {
       const result = await extractText(await pdfFixture("clean-agreement.pdf"));
 
       expect(result.pageCount).toBe(2);
+      expect(result.pages).toHaveLength(2);
+      expect(result.pages?.[0]?.startOffset).toBe(0);
+      expect(result.pages?.at(-1)?.endOffset).toBe(result.text.length);
+      expect(result.pages?.every((page) => result.text.slice(page.startOffset, page.endOffset).trim().length > 0)).toBe(true);
       expect(result.text.length).toBeGreaterThan(1_000);
       expect(result.strategy).toBe("coordinate-order");
     });

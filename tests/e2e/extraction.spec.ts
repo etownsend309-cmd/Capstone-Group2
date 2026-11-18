@@ -239,6 +239,7 @@ test.describe("accessibility", () => {
     await page.goto(HARNESS_URL);
 
     // The skip link is the first stop and points at the main landmark.
+    await expect(page.locator(".skip-link")).toBeAttached();
     await page.keyboard.press("Tab");
     await expect(page.locator(".skip-link")).toBeFocused();
 

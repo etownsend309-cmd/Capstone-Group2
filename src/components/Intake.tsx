@@ -1,16 +1,14 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Icon } from "./Icon";
 import { demoAgreementText } from "../data";
-import { extractText } from "../lib/extractText";
+import { checkDocument } from "../lib/checkDocument";
 import { LIMITS, type NewAgreementInput } from "../shared/api";
 
 type RequiredField = "document" | "vendor" | "agreementType" | "businessUnit" | "neededBy";
 type Errors = Partial<Record<RequiredField, string>>;
 
 /**
- * The submission form. Text is extracted here, in the browser; `onSubmit`
- * sends the details and the original file to the server and rejects with a
- * message for the person if the agreement was not saved.
+ * The submission form.
  */
 export function Intake({ onSubmit }: { onSubmit: (input: NewAgreementInput, file: File) => Promise<void> }) {
   const fileInput = useRef<HTMLInputElement>(null);
@@ -24,10 +22,20 @@ export function Intake({ onSubmit }: { onSubmit: (input: NewAgreementInput, file
   const [neededBy, setNeededBy] = useState("");
   const [errors, setErrors] = useState<Errors>({});
   const [error, setError] = useState("");
+  // True when the chosen document was refused before anything was saved.
+  const [documentRejected, setDocumentRejected] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [dragging, setDragging] = useState(false);
 
+  // Wait until the disabled fieldset is enabled again before moving focus.
+  useEffect(() => {
+    if (documentRejected && !isLoading) {
+      form.current?.querySelector<HTMLElement>("#document")?.focus();
+    }
+  }, [documentRejected, isLoading]);
+
   const clearError = (field: RequiredField) => {
+    setDocumentRejected(false);
     setErrors((current) => ({ ...current, [field]: undefined }));
     setError("");
   };
@@ -40,8 +48,8 @@ export function Intake({ onSubmit }: { onSubmit: (input: NewAgreementInput, file
   const errorFor = (field: RequiredField) => errors[field] && <span id={`${field}-error`} className="error-message">{errors[field]}</span>;
   const accessibility = (field: RequiredField) => ({
     id: field,
-    "aria-invalid": Boolean(errors[field]),
-    "aria-describedby": errors[field] ? `${field}-error` : undefined,
+    "aria-invalid": Boolean(errors[field]) || (field === "document" && documentRejected),
+    "aria-describedby": errors[field] ? `${field}-error` : field === "document" && documentRejected ? "submission-error" : undefined,
     "aria-required": true as const,
   });
 
@@ -67,15 +75,20 @@ export function Intake({ onSubmit }: { onSubmit: (input: NewAgreementInput, file
     }
     inFlight.current = true;
     setIsLoading(true);
+    setDocumentRejected(false);
+    let checking = true;
     try {
-      const document = await extractText(file!);
+      // Stops an empty, unsupported, or non-PDF file before a record exists.
+      // It does not read the PDF's text; that happens after the agreement is saved.
+      await checkDocument(file!);
+      checking = false;
       await onSubmit({
         name: title.trim() || file!.name,
         vendor: vendor.trim(), agreementType: agreementType.trim(), businessUnit: businessUnit.trim(), neededBy,
-        rawText: document.text, pageCount: document.pageCount,
-        extractionStrategy: document.strategy, extractionWarnings: document.warnings,
+        rawText: "", deferIngestion: true,
       }, file!);
     } catch (reason) {
+      setDocumentRejected(checking);
       setError(reason instanceof Error ? reason.message : "Submission failed. Your agreement was not saved. Try again.");
     } finally {
       inFlight.current = false;
@@ -90,6 +103,7 @@ export function Intake({ onSubmit }: { onSubmit: (input: NewAgreementInput, file
     const today = new Date();
     setNeededBy(`${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`);
     setErrors({});
+    setDocumentRejected(false);
   };
 
   return <section className="narrow-page">
@@ -112,11 +126,11 @@ export function Intake({ onSubmit }: { onSubmit: (input: NewAgreementInput, file
             <label htmlFor="businessUnit"><span>Business unit *</span><input {...accessibility("businessUnit")} required value={businessUnit} onChange={(event) => { setBusinessUnit(event.target.value); clearError("businessUnit"); }} placeholder="e.g., Shared services" />{errorFor("businessUnit")}</label>
             <label htmlFor="neededBy"><span>Needed-by date *</span><input {...accessibility("neededBy")} required type="date" value={neededBy} onChange={(event) => { setNeededBy(event.target.value); clearError("neededBy"); }} />{errorFor("neededBy")}</label>
           </div>
-          <div role="alert">{Object.values(errors).some(Boolean) && <p className="error-message">Submission not completed. Correct the marked fields and try again.</p>}{error && <p className="error-message">{error}</p>}</div>
+          <div role="alert">{Object.values(errors).some(Boolean) && <p className="error-message">Submission not completed. Correct the marked fields and try again.</p>}{error && <p id="submission-error" className="error-message">{error}</p>}</div>
           <div className="form-actions"><button type="button" className="secondary-button" onClick={loadDemo}>Load demo agreement</button><button type="submit" className="primary-button">{isLoading ? "Submitting…" : "Create review →"}</button></div>
         </fieldset>
       </form>
-      <aside className="intake-aside"><div className="aside-block"><div><strong>Saved to ClausePilot</strong><p>Text is extracted in your browser. The details, extracted text, and original file are stored in ClausePilot. The server classifies that text with OpenAI when it is configured, and keeps local-rule findings for anything the model does not return. Don't submit real confidential agreements.</p></div></div><div className="aside-block"><div><strong>Manual fallback</strong><p>If AI classification is unavailable or a source quote cannot be verified, the agreement is still saved for manual review.</p></div></div></aside>
+      <aside className="intake-aside"><div className="aside-block"><div><strong>Saved to ClausePilot</strong><p>Your submission and original file are saved first. Text is then extracted in your browser and prepared separately. If preparation fails, retry or supply text from My submissions. Don't submit real confidential agreements to this prototype.</p></div></div><div className="aside-block"><div><strong>Track your submission</strong><p>After submission, My submissions shows your reference number, details, and review status.</p></div></div></aside>
     </div>
   </section>;
 }
