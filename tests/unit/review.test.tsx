@@ -6,7 +6,7 @@
  * answer, including its refusals.
  */
 
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { act, cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -81,6 +81,116 @@ describe("review queue", () => {
     expect(stored()[0]!.findings[0]).toMatchObject({ decision: "escalated", note: "Out of policy." });
   });
 
+  it.each([
+    ["Accept", /accepting/],
+    ["Dismiss", /dismissing/],
+    ["Escalate", /escalating/],
+  ])("refuses %s without a note and shows a popup that only OK closes", async (name, verb) => {
+    seed(makeAgreement());
+    await openQueue();
+
+    await userEvent.click(await screen.findByRole("button", { name }));
+
+    const dialog = screen.getByRole("alertdialog", { name: "Note required" });
+    expect(within(dialog).getByText(verb)).toBeTruthy();
+    expect(fakeApi.decideFinding).not.toHaveBeenCalled();
+
+    // Escape and Tab cannot dismiss it or move focus out of it.
+    await userEvent.keyboard("{Escape}");
+    await userEvent.tab();
+    expect(screen.queryByRole("alertdialog")).not.toBeNull();
+    expect(document.activeElement).toBe(within(dialog).getByRole("button", { name: "OK" }));
+
+    await userEvent.click(within(dialog).getByRole("button", { name: "OK" }));
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+    expect(document.activeElement).toBe(screen.getByLabelText("Reviewer note"));
+    expect(fakeApi.decideFinding).not.toHaveBeenCalled();
+  });
+
+  it("treats a whitespace-only note as empty", async () => {
+    seed(makeAgreement());
+    await openQueue();
+
+    await userEvent.type(await screen.findByLabelText("Reviewer note"), "   ");
+    await userEvent.click(screen.getByRole("button", { name: "Accept" }));
+
+    expect(screen.queryByRole("alertdialog")).not.toBeNull();
+    expect(fakeApi.decideFinding).not.toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ decision: "accepted" }));
+  });
+
+  describe("feedback after a decision", () => {
+    beforeEach(() => vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ["setTimeout", "clearTimeout"] }));
+    afterEach(() => vi.useRealTimers());
+
+    it("confirms the save briefly and pulses the clicked button", async () => {
+      seed(noted());
+      await openQueue();
+
+      const accept = await screen.findByRole("button", { name: "Accept" });
+      expect(screen.queryByText(/saved to the audit history/)).toBeNull();
+      await userEvent.click(accept);
+
+      expect(await screen.findByText(/Accepted\. Your note was saved to the audit history\./)).toBeTruthy();
+      expect(screen.getByRole("button", { name: "Accept" }).classList.contains("just-saved")).toBe(true);
+      expect(screen.getByRole("button", { name: "Dismiss" }).classList.contains("just-saved")).toBe(false);
+
+      await act(async () => {
+        vi.advanceTimersByTime(3100);
+      });
+      expect(screen.queryByText(/saved to the audit history/)).toBeNull();
+      expect(screen.getByRole("button", { name: "Accept" }).classList.contains("just-saved")).toBe(false);
+    });
+
+    it("shows no confirmation when the save fails", async () => {
+      seed(noted());
+      await openQueue();
+      fakeApi.decideFinding.mockRejectedValueOnce(new ApiRequestError(409, "This review is already complete."));
+
+      await userEvent.click(await screen.findByRole("button", { name: "Accept" }));
+
+      expect((await screen.findByRole("alert")).textContent).toBe("This review is already complete.");
+      expect(screen.queryByText(/saved to the audit history/)).toBeNull();
+    });
+
+    it("opens the audit history and highlights the new entry, then lets it fade", async () => {
+      seed(noted({ rawText: TWO_FINDINGS }));
+      await openQueue();
+
+      const accept = await screen.findByRole("button", { name: "Accept" });
+      expect(document.querySelector(".audit-history")).toBeNull();
+      await userEvent.click(accept);
+
+      expect(await screen.findByText(/Audit history \(1\)/)).toBeTruthy();
+      const history = document.querySelector<HTMLDetailsElement>(".audit-history")!;
+      expect(history.open).toBe(true);
+      expect(history.querySelectorAll("li.is-new")).toHaveLength(1);
+      expect(within(history).getByText("New")).toBeTruthy();
+
+      await act(async () => {
+        vi.advanceTimersByTime(2700);
+      });
+      expect(document.querySelectorAll(".audit-history li.is-new")).toHaveLength(0);
+      expect(within(history).queryByText("New")).toBeNull();
+      expect(history.open).toBe(true);
+    });
+
+    it("does not highlight history that was already there when the finding is reopened", async () => {
+      seed(noted({ rawText: TWO_FINDINGS }));
+      await openQueue();
+
+      await userEvent.click(await screen.findByRole("button", { name: "Accept" }));
+      expect(await screen.findByText(/Audit history \(1\)/)).toBeTruthy();
+
+      const items = document.querySelectorAll<HTMLButtonElement>(".finding-select");
+      await userEvent.click(items[1]!);
+      await userEvent.click(items[0]!);
+
+      expect(await screen.findByText(/Audit history \(1\)/)).toBeTruthy();
+      expect(document.querySelectorAll(".audit-history li.is-new")).toHaveLength(0);
+      expect(document.querySelector<HTMLDetailsElement>(".audit-history")!.open).toBe(false);
+    });
+  });
+
   it("saves an unsaved note before completing the review", async () => {
     const agreement = noted();
     seed(agreement);
@@ -118,7 +228,7 @@ describe("review queue", () => {
     expect(await screen.findByRole("heading", { name: "Audit Rights" })).toBeTruthy();
     expect(screen.getByText("Manual origin")).toBeTruthy();
     // The reason doubles as the first note, so a decision can follow straight away.
-    expect((screen.getByRole("button", { name: "Accept" }) as HTMLButtonElement).disabled).toBe(false);
+    expect(screen.getByRole("button", { name: "Accept" }).hasAttribute("aria-disabled")).toBe(false);
   });
 
   it("shows the server's reason when completing a review is refused", async () => {

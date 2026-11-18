@@ -280,7 +280,7 @@ export default function App({ user, views, displayName, onSignOut }: AppProps) {
         </nav>
         <div className="sidebar-note">
           <span className="eyebrow">Prototype mode</span>
-          <p>Agreements are saved to the ClausePilot database. No contract is sent to an AI service.</p>
+          <p>Agreements are saved to the ClausePilot database. Contract text is sent to an AI service for classification; local rules and manual review still work if it is unavailable.</p>
           <a href="?view=extraction-poc">Extraction test harness →</a>
         </div>
         <div className="sidebar-note sidebar-account">
@@ -548,6 +548,11 @@ function ReviewQueue({
   /** The manual-flag form: closed, open for a new flag, or open on an existing one. */
   const [form, setForm] = useState<{ kind: "closed" } | { kind: "new" } | { kind: "edit"; finding: FindingRecord }>({ kind: "closed" });
   const [decisionError, setDecisionError] = useState("");
+  /** The decision the user tried to record without a note; while set, the "note required" popup is open. */
+  const [noteAlert, setNoteAlert] = useState<FindingDecisionCode>();
+  /** The last decision the server confirmed, shown briefly so the click visibly registers. */
+  const [saved, setSaved] = useState<{ findingId: string; decision: FindingDecisionCode; id: number }>();
+  const noteInput = useRef<HTMLTextAreaElement>(null);
   const [classifying, setClassifying] = useState(false);
   const [classificationError, setClassificationError] = useState("");
   // Guards against a double click adding two findings or completing twice.
@@ -560,8 +565,17 @@ function ReviewQueue({
     setDrafts({});
     setForm({ kind: "closed" });
     setDecisionError("");
+    setNoteAlert(undefined);
+    setSaved(undefined);
     setClassificationError("");
   }, [activeId]);
+
+  // The confirmation is short-lived; each new decision restarts the clock.
+  useEffect(() => {
+    if (!saved) return;
+    const timer = setTimeout(() => setSaved(undefined), SAVED_VISIBLE_MS);
+    return () => clearTimeout(timer);
+  }, [saved]);
 
   if (!agreements.length || !active) {
     return (
@@ -585,11 +599,21 @@ function ReviewQueue({
     if (!activeFinding) return;
     const note = noteFor(activeFinding);
     if (!note.trim()) {
-      setDecisionError("Add a reason before accepting, dismissing, or escalating this flag.");
+      // Nothing is sent. The popup must be dismissed before the reviewer can carry on.
+      setDecisionError("");
+      setNoteAlert(decision);
       return;
     }
     setDecisionError("");
-    if (await onDecide(activeFinding.id, decision, note)) clearDraft(activeFinding.id);
+    if (await onDecide(activeFinding.id, decision, note)) {
+      clearDraft(activeFinding.id);
+      setSaved({ findingId: activeFinding.id, decision, id: Date.now() });
+    }
+  };
+
+  const closeNoteAlert = () => {
+    setNoteAlert(undefined);
+    noteInput.current?.focus();
   };
 
   /** Saves the open finding's unsaved note, if any. Resolves false only when a save was needed and failed. */
@@ -812,14 +836,29 @@ function ReviewQueue({
                           Edit manual flag
                         </button>
                       )}
-                      <label className="notes-field"><span>Reviewer note</span><textarea value={noteFor(activeFinding)} disabled={!canReview} onChange={(event) => { setDecisionError(""); setDrafts((current) => ({ ...current, [activeFinding.id]: event.target.value })); }} onBlur={() => void saveNote()} placeholder="Record why you accepted, dismissed, or escalated this finding…" /></label>
-                      {!!activeFinding.history.length && <FindingHistory history={activeFinding.history} />}
+                      <label className="notes-field"><span>Reviewer note</span><textarea ref={noteInput} value={noteFor(activeFinding)} disabled={!canReview} onChange={(event) => { setDecisionError(""); setDrafts((current) => ({ ...current, [activeFinding.id]: event.target.value })); }} onBlur={() => void saveNote()} placeholder="Record why you accepted, dismissed, or escalated this finding…" /></label>
+                      <FindingHistory key={activeFinding.id} history={activeFinding.history} />
                       {canReview && (
                         <>
                           <div className="decision-actions">
-                            <DecisionButton decision="accepted" current={activeFinding.decision} disabled={!noteFor(activeFinding).trim()} onClick={decide} label="Accept" />
-                            <DecisionButton decision="dismissed" current={activeFinding.decision} disabled={!noteFor(activeFinding).trim()} onClick={decide} label="Dismiss" />
-                            <DecisionButton decision="escalated" current={activeFinding.decision} disabled={!noteFor(activeFinding).trim()} onClick={decide} label="Escalate" />
+                            {(["accepted", "dismissed", "escalated"] as const).map((decision) => (
+                              <DecisionButton
+                                key={decision}
+                                decision={decision}
+                                current={activeFinding.decision}
+                                needsNote={!noteFor(activeFinding).trim()}
+                                justSaved={saved?.findingId === activeFinding.id && saved.decision === decision ? saved.id : undefined}
+                                onClick={decide}
+                                label={DECISION_BUTTON_LABELS[decision]}
+                              />
+                            ))}
+                          </div>
+                          <div className="decision-feedback" role="status" aria-live="polite">
+                            {saved?.findingId === activeFinding.id && (
+                              <p key={saved.id} className="decision-saved">
+                                <span aria-hidden="true">✓</span> {DECISION_SAVED_MESSAGES[saved.decision]}
+                              </p>
+                            )}
                           </div>
                           {decisionError && <p className="error-message" role="alert">{decisionError}</p>}
                         </>
@@ -841,7 +880,62 @@ function ReviewQueue({
           )}
         </div>
       </div>
+
+      {noteAlert && <NoteRequiredDialog decision={noteAlert} onClose={closeNoteAlert} />}
     </section>
+  );
+}
+
+const DECISION_BUTTON_LABELS: Record<FindingDecisionCode, string> = { pending: "Pending", accepted: "Accept", dismissed: "Dismiss", escalated: "Escalate" };
+const DECISION_VERBS: Record<FindingDecisionCode, string> = { pending: "deciding", accepted: "accepting", dismissed: "dismissing", escalated: "escalating" };
+const DECISION_SAVED_MESSAGES: Record<FindingDecisionCode, string> = {
+  pending: "Saved.",
+  accepted: "Accepted. Your note was saved to the audit history.",
+  dismissed: "Dismissed. Your note was saved to the audit history.",
+  escalated: "Escalated. Your note was saved to the audit history.",
+};
+
+/** How long the "decision saved" confirmation stays on screen. */
+const SAVED_VISIBLE_MS = 3000;
+/** How long a new audit history entry stays highlighted. */
+const HISTORY_HIGHLIGHT_MS = 2600;
+
+/**
+ * Blocks the screen until the reviewer acknowledges that a note is required.
+ * It can only be closed with OK: no close icon, no click-away, and Escape is ignored.
+ */
+function NoteRequiredDialog({ decision, onClose }: { decision: FindingDecisionCode; onClose: () => void }) {
+  const okButton = useRef<HTMLButtonElement>(null);
+  useEffect(() => okButton.current?.focus(), []);
+
+  return (
+    <div className="modal-overlay">
+      <div
+        className="modal-box"
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="note-required-title"
+        aria-describedby="note-required-body"
+        onKeyDown={(event) => {
+          // OK is the only control, so keep focus on it.
+          if (event.key === "Tab" || event.key === "Escape") {
+            event.preventDefault();
+            okButton.current?.focus();
+          }
+        }}
+      >
+        <div className="modal-heading">
+          <span className="modal-icon"><Icon name="alert" /></span>
+          <h2 id="note-required-title">Note required</h2>
+        </div>
+        <p id="note-required-body">
+          Please type a note in the Reviewer note box before {DECISION_VERBS[decision]} this finding. Explain why you made this decision.
+        </p>
+        <div className="modal-actions">
+          <button ref={okButton} type="button" className="primary-button" onClick={onClose}>OK</button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -864,40 +958,85 @@ function findingSummary(finding: FindingRecord): string {
 
 const HISTORY_LABELS: Record<FindingHistoryEntry["action"], string> = { created: "created", edited: "edited", decision: "decision" };
 
+/**
+ * A finding's audit trail. Whatever is already there when the finding opens is
+ * shown plainly; entries added afterwards open the list and are highlighted for
+ * a moment. History is append-only, so "new" just means "past the count we'd seen".
+ * Mount it with a key per finding so switching findings never counts as new.
+ */
 function FindingHistory({ history }: { history: FindingHistoryEntry[] }) {
+  const seen = useRef(history.length);
+  const [open, setOpen] = useState(false);
+  const [freshFrom, setFreshFrom] = useState<number>();
+
+  useEffect(() => {
+    if (history.length <= seen.current) {
+      seen.current = history.length;
+      return;
+    }
+    const start = seen.current;
+    seen.current = history.length;
+    setFreshFrom((current) => current ?? start);
+    setOpen(true);
+  }, [history.length]);
+
+  // Each new entry restarts the clock, so a quick second decision stays highlighted too.
+  useEffect(() => {
+    if (freshFrom === undefined) return;
+    const timer = setTimeout(() => setFreshFrom(undefined), HISTORY_HIGHLIGHT_MS);
+    return () => clearTimeout(timer);
+  }, [freshFrom, history.length]);
+
+  if (!history.length) return null;
+
   return (
-    <details className="audit-history">
+    <details className="audit-history" open={open} onToggle={(event) => setOpen(event.currentTarget.open)}>
       <summary>Audit history ({history.length})</summary>
       <ol>
-        {history.map((entry, index) => (
-          <li key={`${entry.at}-${index}`}>
-            <strong>{HISTORY_LABELS[entry.action]}</strong>
+        {history.map((entry, index) => {
+          const fresh = freshFrom !== undefined && index >= freshFrom;
+          return (
+          <li key={`${entry.at}-${index}`} className={fresh ? "is-new" : undefined}>
+            <strong>{HISTORY_LABELS[entry.action]}{fresh && <b className="history-new">New</b>}</strong>
             <span>{entry.actor ? entry.actor.displayName || entry.actor.email : "A reviewer"} · {formatDate(entry.at)}</span>
             <small>
               {entry.after.category} · {entry.after.findingType ? FINDING_TYPE_LABELS[entry.after.findingType] : "Rule finding"} · {entry.after.decision}
               {entry.before && entry.before.decision !== entry.after.decision ? ` (previously ${entry.before.decision})` : ""}
             </small>
           </li>
-        ))}
+          );
+        })}
       </ol>
     </details>
   );
 }
 
+/**
+ * Stays clickable without a note so the click can explain what's missing;
+ * aria-disabled and the muted style tell everyone else it won't go through yet.
+ */
 function DecisionButton({
   decision,
   current,
-  disabled,
+  needsNote,
+  justSaved,
   label,
   onClick,
 }: {
   decision: FindingDecisionCode;
   current: FindingDecisionCode;
-  disabled: boolean;
+  needsNote: boolean;
+  /** Set (to a changing value) right after the server confirms this decision, to play the "saved" pulse. */
+  justSaved?: number;
   label: string;
   onClick: (decision: FindingDecisionCode) => void;
 }) {
-  return <button className={`${current === decision ? "selected" : ""} decision-${decision}`} disabled={disabled} onClick={() => onClick(decision)}>{label}</button>;
+  const classes = [current === decision ? "selected" : "", `decision-${decision}`, needsNote ? "needs-note" : "", justSaved ? "just-saved" : ""];
+  return (
+    <button type="button" className={classes.filter(Boolean).join(" ")} aria-disabled={needsNote || undefined} onClick={() => onClick(decision)}>
+      {label}
+    </button>
+  );
 }
 
 type ReportState = { kind: "loading" } | { kind: "ready"; report: CategoryReport } | { kind: "error"; message: string };

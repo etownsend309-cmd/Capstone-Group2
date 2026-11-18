@@ -183,7 +183,19 @@ test("a reviewer can't review their own submission, but can review a colleague's
   const findings = colleagues.findings;
   expect(findings.length).toBeGreaterThan(1);
 
-  await expect(page.getByRole("button", { name: "Escalate" })).toBeDisabled();
+  // With no note, the button is aria-disabled but still clickable, and the click is refused with a
+  // popup that has to be acknowledged. Playwright treats aria-disabled as "not enabled", so force it.
+  await expect(page.getByRole("button", { name: "Escalate" })).toHaveAttribute("aria-disabled", "true");
+  await page.getByRole("button", { name: "Escalate" }).click({ force: true });
+  const noteRequired = page.getByRole("alertdialog", { name: "Note required" });
+  await expect(noteRequired).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(noteRequired).toBeVisible();
+  await noteRequired.getByRole("button", { name: "OK" }).click();
+  await expect(noteRequired).toBeHidden();
+  await expect(page.getByLabel("Reviewer note")).toBeFocused();
+  expect(server.agreements().find((a) => a.id === colleagues.id)!.findings[0]!.decision).toBe("pending");
+
   await page.getByLabel("Reviewer note").fill("Escalating for legal.");
   await page.getByRole("button", { name: "Escalate" }).click();
   for (let index = 1; index < findings.length; index++) {

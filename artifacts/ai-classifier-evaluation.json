@@ -1,0 +1,1228 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-11-17T00:38:14.220Z",
+  "dataset": {
+    "source": "CUAD v1",
+    "selectionSeed": "clausepilot-cuad-30-v1",
+    "holdout": false
+  },
+  "configuration": {
+    "engine": "openai",
+    "model": "gpt-5.6-terra",
+    "reasoningEffort": "low",
+    "promptVersion": "clausepilot-classifier-v1",
+    "schemaVersion": "classifier-output-v1",
+    "modelConfigVersion": "openai-terra-low-v1",
+    "frozenConfig": false
+  },
+  "summary": {
+    "documents": 30,
+    "failures": 0,
+    "macroPrecision": 0.8307400932400933,
+    "macroRecall": 0.8428571428571429,
+    "macroF1": 0.8325456330029501,
+    "exactEvidenceAcceptanceRate": 0.9605263157894737,
+    "medianLatencyMs": 5548,
+    "totalInputTokens": 312839,
+    "totalOutputTokens": 18577,
+    "perCategory": [
+      {
+        "category": "Governing Law",
+        "truePositives": 27,
+        "falsePositives": 0,
+        "falseNegatives": 1,
+        "precision": 1,
+        "recall": 0.9642857142857143,
+        "f1": 0.9818181818181818
+      },
+      {
+        "category": "Anti-Assignment",
+        "truePositives": 20,
+        "falsePositives": 0,
+        "falseNegatives": 1,
+        "precision": 1,
+        "recall": 0.9523809523809523,
+        "f1": 0.975609756097561
+      },
+      {
+        "category": "Cap On Liability",
+        "truePositives": 10,
+        "falsePositives": 1,
+        "falseNegatives": 5,
+        "precision": 0.9090909090909091,
+        "recall": 0.6666666666666666,
+        "f1": 0.7692307692307692
+      },
+      {
+        "category": "Audit Rights",
+        "truePositives": 7,
+        "falsePositives": 1,
+        "falseNegatives": 1,
+        "precision": 0.875,
+        "recall": 0.875,
+        "f1": 0.875
+      },
+      {
+        "category": "Termination For Convenience",
+        "truePositives": 7,
+        "falsePositives": 3,
+        "falseNegatives": 1,
+        "precision": 0.7,
+        "recall": 0.875,
+        "f1": 0.7777777777777777
+      },
+      {
+        "category": "Exclusivity",
+        "truePositives": 12,
+        "falsePositives": 1,
+        "falseNegatives": 2,
+        "precision": 0.9230769230769231,
+        "recall": 0.8571428571428571,
+        "f1": 0.888888888888889
+      },
+      {
+        "category": "Renewal Term",
+        "truePositives": 9,
+        "falsePositives": 0,
+        "falseNegatives": 0,
+        "precision": 1,
+        "recall": 1,
+        "f1": 1
+      },
+      {
+        "category": "Insurance",
+        "truePositives": 12,
+        "falsePositives": 1,
+        "falseNegatives": 2,
+        "precision": 0.9230769230769231,
+        "recall": 0.8571428571428571,
+        "f1": 0.888888888888889
+      },
+      {
+        "category": "Change Of Control",
+        "truePositives": 8,
+        "falsePositives": 3,
+        "falseNegatives": 1,
+        "precision": 0.7272727272727273,
+        "recall": 0.8888888888888888,
+        "f1": 0.7999999999999999
+      },
+      {
+        "category": "Uncapped Liability",
+        "truePositives": 7,
+        "falsePositives": 4,
+        "falseNegatives": 2,
+        "precision": 0.6363636363636364,
+        "recall": 0.7777777777777778,
+        "f1": 0.7000000000000001
+      },
+      {
+        "category": "Notice Period To Terminate Renewal",
+        "truePositives": 7,
+        "falsePositives": 1,
+        "falseNegatives": 0,
+        "precision": 0.875,
+        "recall": 1,
+        "f1": 0.9333333333333333
+      },
+      {
+        "category": "Warranty Duration",
+        "truePositives": 2,
+        "falsePositives": 3,
+        "falseNegatives": 3,
+        "precision": 0.4,
+        "recall": 0.4,
+        "f1": 0.4000000000000001
+      }
+    ]
+  },
+  "cases": [
+    {
+      "id": "ENERGOUSCORP_03_16_2017-EX-10.24-STRATEGIC ALLIANCE AGREEMENT.PDF",
+      "expected": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Cap On Liability",
+        "Audit Rights",
+        "Termination For Convenience",
+        "Exclusivity",
+        "Renewal Term",
+        "Insurance",
+        "Change Of Control",
+        "Uncapped Liability",
+        "Notice Period To Terminate Renewal",
+        "Warranty Duration"
+      ],
+      "predicted": [
+        {
+          "category": "Governing Law",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Anti-Assignment",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Cap On Liability",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Audit Rights",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Termination For Convenience",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Exclusivity",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Renewal Term",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Insurance",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Change Of Control",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Uncapped Liability",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Notice Period To Terminate Renewal",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Warranty Duration",
+          "confidenceIndicator": "high"
+        }
+      ],
+      "acceptedEvidence": 12,
+      "rejectedEvidence": 0,
+      "latencyMs": 12184,
+      "inputTokens": 17599,
+      "outputTokens": 1524
+    },
+    {
+      "id": "NANOPHASETECHNOLOGIESCORP_11_01_2005-EX-99.1-DISTRIBUTOR AGREEMENT.PDF",
+      "expected": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Cap On Liability",
+        "Audit Rights",
+        "Termination For Convenience",
+        "Exclusivity",
+        "Renewal Term",
+        "Insurance",
+        "Uncapped Liability",
+        "Notice Period To Terminate Renewal",
+        "Warranty Duration"
+      ],
+      "predicted": [
+        {
+          "category": "Governing Law",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Anti-Assignment",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Cap On Liability",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Audit Rights",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Termination For Convenience",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Exclusivity",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Renewal Term",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Insurance",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Uncapped Liability",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Notice Period To Terminate Renewal",
+          "confidenceIndicator": "high"
+        }
+      ],
+      "acceptedEvidence": 10,
+      "rejectedEvidence": 0,
+      "latencyMs": 7350,
+      "inputTokens": 10834,
+      "outputTokens": 872
+    },
+    {
+      "id": "PACIRA PHARMACEUTICALS, INC. - A&R STRATEGIC LICENSING, DISTRIBUTION AND MARKETING AGREEMENT .PDF",
+      "expected": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Cap On Liability",
+        "Audit Rights",
+        "Termination For Convenience",
+        "Exclusivity",
+        "Renewal Term",
+        "Insurance",
+        "Change Of Control",
+        "Uncapped Liability",
+        "Notice Period To Terminate Renewal"
+      ],
+      "predicted": [
+        {
+          "category": "Governing Law",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Anti-Assignment",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Cap On Liability",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Termination For Convenience",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Exclusivity",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Renewal Term",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Insurance",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Change Of Control",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Uncapped Liability",
+          "confidenceIndicator": "medium"
+        },
+        {
+          "category": "Notice Period To Terminate Renewal",
+          "confidenceIndicator": "high"
+        }
+      ],
+      "acceptedEvidence": 10,
+      "rejectedEvidence": 1,
+      "latencyMs": 9446,
+      "inputTokens": 32303,
+      "outputTokens": 1326
+    },
+    {
+      "id": "AgapeAtpCorp_20191202_10-KA_EX-10.1_11911128_EX-10.1_Supply Agreement.pdf",
+      "expected": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Exclusivity",
+        "Renewal Term",
+        "Insurance",
+        "Change Of Control",
+        "Notice Period To Terminate Renewal",
+        "Warranty Duration"
+      ],
+      "predicted": [
+        {
+          "category": "Governing Law",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Anti-Assignment",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Termination For Convenience",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Exclusivity",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Renewal Term",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Insurance",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Change Of Control",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Notice Period To Terminate Renewal",
+          "confidenceIndicator": "high"
+        }
+      ],
+      "acceptedEvidence": 8,
+      "rejectedEvidence": 0,
+      "latencyMs": 5127,
+      "inputTokens": 4791,
+      "outputTokens": 624
+    },
+    {
+      "id": "ATENTOSA_07_06_2020-EX-99.1-JOINT FILING AGREEMENT.PDF",
+      "expected": [],
+      "predicted": [],
+      "acceptedEvidence": 0,
+      "rejectedEvidence": 0,
+      "latencyMs": 746,
+      "inputTokens": 1020,
+      "outputTokens": 15
+    },
+    {
+      "id": "SUNTRONCORP_05_17_2006-EX-10.22-MAINTENANCE AGREEMENT.PDF",
+      "expected": [
+        "Governing Law",
+        "Cap On Liability"
+      ],
+      "predicted": [
+        {
+          "category": "Governing Law",
+          "confidenceIndicator": "high"
+        }
+      ],
+      "acceptedEvidence": 1,
+      "rejectedEvidence": 0,
+      "latencyMs": 3657,
+      "inputTokens": 6919,
+      "outputTokens": 232
+    },
+    {
+      "id": "GSVINC_05_15_1998-EX-10-SPONSORSHIP AGREEMENT.PDF",
+      "expected": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Cap On Liability",
+        "Audit Rights"
+      ],
+      "predicted": [
+        {
+          "category": "Governing Law",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Anti-Assignment",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Cap On Liability",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Audit Rights",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Uncapped Liability",
+          "confidenceIndicator": "high"
+        }
+      ],
+      "acceptedEvidence": 5,
+      "rejectedEvidence": 0,
+      "latencyMs": 10825,
+      "inputTokens": 8695,
+      "outputTokens": 1036
+    },
+    {
+      "id": "LejuHoldingsLtd_20140121_DRS (on F-1)_EX-10.26_8473102_EX-10.26_Content License Agreement2.pdf",
+      "expected": [
+        "Governing Law"
+      ],
+      "predicted": [
+        {
+          "category": "Governing Law",
+          "confidenceIndicator": "high"
+        }
+      ],
+      "acceptedEvidence": 1,
+      "rejectedEvidence": 0,
+      "latencyMs": 1063,
+      "inputTokens": 948,
+      "outputTokens": 63
+    },
+    {
+      "id": "ArmstrongFlooringInc_20190107_8-K_EX-10.2_11471795_EX-10.2_Intellectual Property Agreement.pdf",
+      "expected": [
+        "Governing Law",
+        "Anti-Assignment"
+      ],
+      "predicted": [
+        {
+          "category": "Governing Law",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Anti-Assignment",
+          "confidenceIndicator": "high"
+        }
+      ],
+      "acceptedEvidence": 2,
+      "rejectedEvidence": 1,
+      "latencyMs": 4789,
+      "inputTokens": 15366,
+      "outputTokens": 545
+    },
+    {
+      "id": "PAXMEDICA,INC_07_02_2020-EX-10.12-Master Service Agreement.PDF",
+      "expected": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Cap On Liability",
+        "Termination For Convenience",
+        "Uncapped Liability"
+      ],
+      "predicted": [
+        {
+          "category": "Governing Law",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Anti-Assignment",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Cap On Liability",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Audit Rights",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Termination For Convenience",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Uncapped Liability",
+          "confidenceIndicator": "high"
+        }
+      ],
+      "acceptedEvidence": 6,
+      "rejectedEvidence": 0,
+      "latencyMs": 3765,
+      "inputTokens": 3863,
+      "outputTokens": 497
+    },
+    {
+      "id": "StaarSurgicalCompany_20180801_10-Q_EX-10.37_11289449_EX-10.37_Distributor Agreement.pdf",
+      "expected": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Cap On Liability",
+        "Termination For Convenience",
+        "Exclusivity",
+        "Renewal Term",
+        "Insurance",
+        "Uncapped Liability",
+        "Warranty Duration"
+      ],
+      "predicted": [
+        {
+          "category": "Exclusivity",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Renewal Term",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Warranty Duration",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Insurance",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Termination For Convenience",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Anti-Assignment",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Change Of Control",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Governing Law",
+          "confidenceIndicator": "high"
+        }
+      ],
+      "acceptedEvidence": 8,
+      "rejectedEvidence": 0,
+      "latencyMs": 6223,
+      "inputTokens": 10300,
+      "outputTokens": 779
+    },
+    {
+      "id": "ConformisInc_20191101_10-Q_EX-10.6_11861402_EX-10.6_Development Agreement.pdf",
+      "expected": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Cap On Liability",
+        "Exclusivity",
+        "Change Of Control",
+        "Uncapped Liability"
+      ],
+      "predicted": [
+        {
+          "category": "Exclusivity",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Anti-Assignment",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Cap On Liability",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Change Of Control",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Governing Law",
+          "confidenceIndicator": "high"
+        }
+      ],
+      "acceptedEvidence": 5,
+      "rejectedEvidence": 0,
+      "latencyMs": 6464,
+      "inputTokens": 14255,
+      "outputTokens": 765
+    },
+    {
+      "id": "BOLIVARMININGCORP_05_23_2003-EX-2.1-VISP WEB SITE BUILDING AND HOSTING AGREEMENT.PDF",
+      "expected": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Renewal Term",
+        "Notice Period To Terminate Renewal"
+      ],
+      "predicted": [
+        {
+          "category": "Renewal Term",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Notice Period To Terminate Renewal",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Anti-Assignment",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Governing Law",
+          "confidenceIndicator": "high"
+        }
+      ],
+      "acceptedEvidence": 4,
+      "rejectedEvidence": 0,
+      "latencyMs": 2658,
+      "inputTokens": 2656,
+      "outputTokens": 326
+    },
+    {
+      "id": "Columbia Laboratories, (Bermuda) Ltd. - AMEND NO. 2 TO MANUFACTURING AND SUPPLY AGREEMENT.PDF",
+      "expected": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Audit Rights",
+        "Insurance",
+        "Change Of Control"
+      ],
+      "predicted": [
+        {
+          "category": "Governing Law",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Anti-Assignment",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Audit Rights",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Insurance",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Warranty Duration",
+          "confidenceIndicator": "high"
+        }
+      ],
+      "acceptedEvidence": 5,
+      "rejectedEvidence": 1,
+      "latencyMs": 7223,
+      "inputTokens": 10008,
+      "outputTokens": 963
+    },
+    {
+      "id": "EdietsComInc_20001030_10QSB_EX-10.4_2606646_EX-10.4_Co-Branding Agreement.pdf",
+      "expected": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Cap On Liability",
+        "Exclusivity",
+        "Renewal Term",
+        "Change Of Control",
+        "Uncapped Liability",
+        "Notice Period To Terminate Renewal"
+      ],
+      "predicted": [
+        {
+          "category": "Governing Law",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Anti-Assignment",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Exclusivity",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Renewal Term",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Change Of Control",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Uncapped Liability",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Notice Period To Terminate Renewal",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Warranty Duration",
+          "confidenceIndicator": "high"
+        }
+      ],
+      "acceptedEvidence": 8,
+      "rejectedEvidence": 0,
+      "latencyMs": 8218,
+      "inputTokens": 13829,
+      "outputTokens": 1017
+    },
+    {
+      "id": "HERTZGLOBALHOLDINGS,INC_07_07_2016-EX-10.4-INTELLECTUAL PROPERTY AGREEMENT.PDF",
+      "expected": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Insurance"
+      ],
+      "predicted": [
+        {
+          "category": "Governing Law",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Anti-Assignment",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Exclusivity",
+          "confidenceIndicator": "high"
+        }
+      ],
+      "acceptedEvidence": 3,
+      "rejectedEvidence": 1,
+      "latencyMs": 6111,
+      "inputTokens": 7343,
+      "outputTokens": 653
+    },
+    {
+      "id": "RgcResourcesInc_20151216_8-K_EX-10.3_9372751_EX-10.3_Franchise Agreement.pdf",
+      "expected": [],
+      "predicted": [],
+      "acceptedEvidence": 0,
+      "rejectedEvidence": 0,
+      "latencyMs": 1588,
+      "inputTokens": 1627,
+      "outputTokens": 90
+    },
+    {
+      "id": "ElPolloLocoHoldingsInc_20200306_10-K_EX-10.16_12041700_EX-10.16_Development Agreement.pdf",
+      "expected": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Termination For Convenience",
+        "Exclusivity",
+        "Insurance",
+        "Change Of Control"
+      ],
+      "predicted": [
+        {
+          "category": "Governing Law",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Anti-Assignment",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Termination For Convenience",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Insurance",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Change Of Control",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Uncapped Liability",
+          "confidenceIndicator": "medium"
+        }
+      ],
+      "acceptedEvidence": 6,
+      "rejectedEvidence": 1,
+      "latencyMs": 7081,
+      "inputTokens": 12887,
+      "outputTokens": 915
+    },
+    {
+      "id": "GULFSOUTHMEDICALSUPPLYINC_12_24_1997-EX-4-AFFILIATE AGREEMENT.PDF",
+      "expected": [
+        "Governing Law"
+      ],
+      "predicted": [
+        {
+          "category": "Governing Law",
+          "confidenceIndicator": "high"
+        }
+      ],
+      "acceptedEvidence": 1,
+      "rejectedEvidence": 0,
+      "latencyMs": 1773,
+      "inputTokens": 4736,
+      "outputTokens": 104
+    },
+    {
+      "id": "GpaqAcquisitionHoldingsInc_20200123_S-4A_EX-10.8_11951679_EX-10.8_Service Agreement.pdf",
+      "expected": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Audit Rights",
+        "Exclusivity",
+        "Insurance"
+      ],
+      "predicted": [
+        {
+          "category": "Exclusivity",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Audit Rights",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Anti-Assignment",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Governing Law",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Insurance",
+          "confidenceIndicator": "high"
+        }
+      ],
+      "acceptedEvidence": 5,
+      "rejectedEvidence": 0,
+      "latencyMs": 5180,
+      "inputTokens": 12055,
+      "outputTokens": 668
+    },
+    {
+      "id": "WEBHELPCOMINC_03_22_2000-EX-10.8-HOSTING AGREEMENT.PDF",
+      "expected": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Cap On Liability",
+        "Renewal Term",
+        "Uncapped Liability",
+        "Notice Period To Terminate Renewal"
+      ],
+      "predicted": [
+        {
+          "category": "Governing Law",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Anti-Assignment",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Cap On Liability",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Renewal Term",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Change Of Control",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Uncapped Liability",
+          "confidenceIndicator": "medium"
+        },
+        {
+          "category": "Notice Period To Terminate Renewal",
+          "confidenceIndicator": "high"
+        }
+      ],
+      "acceptedEvidence": 7,
+      "rejectedEvidence": 0,
+      "latencyMs": 6321,
+      "inputTokens": 4209,
+      "outputTokens": 695
+    },
+    {
+      "id": "MOSSIMOINC_04_14_2000-EX-10.14-ENDORSEMENT AGREEMENT.PDF",
+      "expected": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Cap On Liability",
+        "Exclusivity",
+        "Insurance",
+        "Change Of Control"
+      ],
+      "predicted": [
+        {
+          "category": "Governing Law",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Anti-Assignment",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Cap On Liability",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Exclusivity",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Insurance",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Change Of Control",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Uncapped Liability",
+          "confidenceIndicator": "medium"
+        }
+      ],
+      "acceptedEvidence": 7,
+      "rejectedEvidence": 0,
+      "latencyMs": 5428,
+      "inputTokens": 5077,
+      "outputTokens": 685
+    },
+    {
+      "id": "MetLife, Inc. - Remarketing Agreement.PDF",
+      "expected": [
+        "Governing Law",
+        "Cap On Liability",
+        "Insurance"
+      ],
+      "predicted": [
+        {
+          "category": "Governing Law",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Cap On Liability",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Termination For Convenience",
+          "confidenceIndicator": "high"
+        }
+      ],
+      "acceptedEvidence": 3,
+      "rejectedEvidence": 0,
+      "latencyMs": 5835,
+      "inputTokens": 22538,
+      "outputTokens": 487
+    },
+    {
+      "id": "LohaCompanyltd_20191209_F-1_EX-10.16_11917878_EX-10.16_Supply Agreement.pdf",
+      "expected": [
+        "Governing Law",
+        "Insurance",
+        "Warranty Duration"
+      ],
+      "predicted": [
+        {
+          "category": "Insurance",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Cap On Liability",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Governing Law",
+          "confidenceIndicator": "high"
+        }
+      ],
+      "acceptedEvidence": 3,
+      "rejectedEvidence": 0,
+      "latencyMs": 2763,
+      "inputTokens": 2904,
+      "outputTokens": 249
+    },
+    {
+      "id": "ArtaraTherapeuticsInc_20200110_8-K_EX-10.5_11943350_EX-10.5_License Agreement.pdf",
+      "expected": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Cap On Liability",
+        "Audit Rights",
+        "Termination For Convenience",
+        "Exclusivity",
+        "Insurance"
+      ],
+      "predicted": [
+        {
+          "category": "Audit Rights",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Termination For Convenience",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Exclusivity",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Insurance",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Governing Law",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Anti-Assignment",
+          "confidenceIndicator": "high"
+        }
+      ],
+      "acceptedEvidence": 6,
+      "rejectedEvidence": 0,
+      "latencyMs": 5243,
+      "inputTokens": 8526,
+      "outputTokens": 544
+    },
+    {
+      "id": "ATHENSBANCSHARESCORP_11_02_2009-EX-1.2-AGENCY AGREEMENT , 2009.PDF",
+      "expected": [
+        "Governing Law",
+        "Cap On Liability",
+        "Exclusivity"
+      ],
+      "predicted": [
+        {
+          "category": "Exclusivity",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Insurance",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Cap On Liability",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Warranty Duration",
+          "confidenceIndicator": "high"
+        }
+      ],
+      "acceptedEvidence": 4,
+      "rejectedEvidence": 1,
+      "latencyMs": 5668,
+      "inputTokens": 29353,
+      "outputTokens": 558
+    },
+    {
+      "id": "VEONEER,INC_02_21_2020-EX-10.11-JOINT VENTURE AGREEMENT.PDF",
+      "expected": [
+        "Governing Law"
+      ],
+      "predicted": [
+        {
+          "category": "Governing Law",
+          "confidenceIndicator": "high"
+        }
+      ],
+      "acceptedEvidence": 1,
+      "rejectedEvidence": 0,
+      "latencyMs": 1739,
+      "inputTokens": 2478,
+      "outputTokens": 56
+    },
+    {
+      "id": "FEDERATEDGOVERNMENTINCOMESECURITIESINC_04_28_2020-EX-99.SERV AGREE-SERVICES AGREEMENT_POWEROF.pdf",
+      "expected": [
+        "Governing Law",
+        "Anti-Assignment"
+      ],
+      "predicted": [
+        {
+          "category": "Termination For Convenience",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Governing Law",
+          "confidenceIndicator": "high"
+        }
+      ],
+      "acceptedEvidence": 2,
+      "rejectedEvidence": 0,
+      "latencyMs": 2743,
+      "inputTokens": 3180,
+      "outputTokens": 252
+    },
+    {
+      "id": "JOINTCORP_09_19_2014-EX-10.15-FRANCHISE AGREEMENT.PDF",
+      "expected": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Cap On Liability",
+        "Audit Rights",
+        "Termination For Convenience",
+        "Exclusivity",
+        "Renewal Term",
+        "Insurance",
+        "Change Of Control",
+        "Uncapped Liability"
+      ],
+      "predicted": [
+        {
+          "category": "Governing Law",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Anti-Assignment",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Audit Rights",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Renewal Term",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Insurance",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Change Of Control",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Uncapped Liability",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Notice Period To Terminate Renewal",
+          "confidenceIndicator": "high"
+        }
+      ],
+      "acceptedEvidence": 8,
+      "rejectedEvidence": 0,
+      "latencyMs": 9229,
+      "inputTokens": 34664,
+      "outputTokens": 1356
+    },
+    {
+      "id": "RareElementResourcesLtd_20171019_SC 13D_EX-99.4_10897534_EX-99.4_Intellectual Property Agreement.pdf",
+      "expected": [
+        "Governing Law",
+        "Anti-Assignment",
+        "Exclusivity"
+      ],
+      "predicted": [
+        {
+          "category": "Governing Law",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Anti-Assignment",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Exclusivity",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Change Of Control",
+          "confidenceIndicator": "high"
+        },
+        {
+          "category": "Uncapped Liability",
+          "confidenceIndicator": "medium"
+        }
+      ],
+      "acceptedEvidence": 5,
+      "rejectedEvidence": 0,
+      "latencyMs": 5689,
+      "inputTokens": 7876,
+      "outputTokens": 681
+    }
+  ]
+}
